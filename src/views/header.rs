@@ -13,19 +13,68 @@ impl Header {
         div()
             .flex()
             .items_center()
-            .justify_center()
+            .justify_start()
             .w(px(800.0))
             .h(px(56.0))
-            .bg(rgba(0xf2f2f7ff))
-            .border_b(px(1.0))
-            .border_color(rgba(0x0000000d))
+            .bg(rgb(0xffffff))
             .child(
                 div()
                     .flex()
                     .items_center()
                     .gap(px(8.0))
+                    .px(px(12.0))
+                    .child(Self::traffic_lights())
                     .child(Self::todo_button(current_view, app_entity.clone()))
                     .child(Self::calendar_button(current_view, app_entity)),
+            )
+            .on_mouse_down(MouseButton::Left, |_, window, _| {
+                window.start_window_move();
+            })
+    }
+
+    fn traffic_lights() -> impl IntoElement {
+        div()
+            .flex()
+            .items_center()
+            .gap(px(8.0))
+            .child(
+                div()
+                    .id("close-btn")
+                    .w(px(12.0))
+                    .h(px(12.0))
+                    .rounded(px(6.0))
+                    .bg(rgba(0xff5f57ff))
+                    .cursor_pointer()
+                    .hover(|style| style.bg(rgba(0xff3b30ff)))
+                    .on_click(|_, window, _| {
+                        window.remove_window();
+                    }),
+            )
+            .child(
+                div()
+                    .id("minimize-btn")
+                    .w(px(12.0))
+                    .h(px(12.0))
+                    .rounded(px(6.0))
+                    .bg(rgba(0xffbd2eff))
+                    .cursor_pointer()
+                    .hover(|style| style.bg(rgba(0xffa726ff)))
+                    .on_click(|_, window, _| {
+                        window.minimize_window();
+                    }),
+            )
+            .child(
+                div()
+                    .id("maximize-btn")
+                    .w(px(12.0))
+                    .h(px(12.0))
+                    .rounded(px(6.0))
+                    .bg(rgba(0x28ca42ff))
+                    .cursor_pointer()
+                    .hover(|style| style.bg(rgba(0x26a641ff)))
+                    .on_click(|_, window, _| {
+                        window.zoom_window();
+                    }),
             )
     }
 
@@ -37,18 +86,18 @@ impl Header {
             .flex()
             .items_center()
             .justify_center()
-            .w(px(72.0))
-            .h(px(44.0))
-            .rounded(px(8.0))
+            .w(px(36.0))
+            .h(px(30.0))
+            .rounded(px(6.0))
             .cursor_pointer()
             .when(is_selected, |this| {
                 this.bg(rgb(0xffffff)).shadow(vec![gpui::BoxShadow {
                     color: rgba(0x00000011).into(),
                     offset: gpui::Point {
                         x: px(0.0),
-                        y: px(2.0),
+                        y: px(1.5),
                     },
-                    blur_radius: px(4.0),
+                    blur_radius: px(3.0),
                     spread_radius: px(0.0),
                     inset: false,
                 }])
@@ -56,9 +105,7 @@ impl Header {
             .when(!is_selected, |this| {
                 this.hover(|style| style.bg(rgba(0x00000008)))
                     .on_click(move |_, _, cx| {
-                        app_entity
-                            .update(cx, |this, _| this.state.set_current_view(AppView::Reminder))
-                            .ok();
+                        app_entity.update(cx, |this, _| this.state.set_current_view(AppView::Reminder)).ok();
                     })
             })
             .child(
@@ -68,7 +115,7 @@ impl Header {
                     } else {
                         rgba(0x000000aa)
                     })
-                    .size(px(24.0)),
+                    .size(px(18.0)),
             )
     }
 
@@ -80,18 +127,18 @@ impl Header {
             .flex()
             .items_center()
             .justify_center()
-            .w(px(72.0))
-            .h(px(44.0))
-            .rounded(px(8.0))
+            .w(px(36.0))
+            .h(px(30.0))
+            .rounded(px(6.0))
             .cursor_pointer()
             .when(is_selected, |this| {
                 this.bg(rgb(0xffffff)).shadow(vec![gpui::BoxShadow {
                     color: rgba(0x00000011).into(),
                     offset: gpui::Point {
                         x: px(0.0),
-                        y: px(2.0),
+                        y: px(1.5),
                     },
-                    blur_radius: px(4.0),
+                    blur_radius: px(3.0),
                     spread_radius: px(0.0),
                     inset: false,
                 }])
@@ -99,9 +146,7 @@ impl Header {
             .when(!is_selected, |this| {
                 this.hover(|style| style.bg(rgba(0x00000008)))
                     .on_click(move |_, _, cx| {
-                        app_entity
-                            .update(cx, |this, _| this.state.set_current_view(AppView::Calendar))
-                            .ok();
+                        app_entity.update(cx, |this, _| this.state.set_current_view(AppView::Calendar)).ok();
                     })
             })
             .child(
@@ -111,7 +156,7 @@ impl Header {
                     } else {
                         rgba(0x000000aa)
                     })
-                    .size(px(24.0)),
+                    .size(px(18.0)),
             )
     }
 }

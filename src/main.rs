@@ -25,7 +25,7 @@ fn main() {
                 })),
                 titlebar: Some(TitlebarOptions {
                     title: Some("提醒事项".into()),
-                    appears_transparent: false,
+                    appears_transparent: true,
                     traffic_light_position: None,
                 }),
                 ..Default::default()
