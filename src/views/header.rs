@@ -1,13 +1,13 @@
 use crate::app::App;
 use crate::models::reminder::AppView;
-use gpui::prelude::{FluentBuilder, InteractiveElement};
+use gpui::prelude::{FluentBuilder, StatefulInteractiveElement};
 use gpui::*;
 use gpui_component::{Icon, IconName};
 
 pub struct Header;
 
 impl Header {
-    pub fn build(app: &mut App) -> impl IntoElement {
+    pub fn build(app: &mut App, app_entity: WeakEntity<App>) -> impl IntoElement {
         let current_view = app.state.current_view;
 
         div()
@@ -24,15 +24,16 @@ impl Header {
                     .flex()
                     .items_center()
                     .gap(px(8.0))
-                    .child(Self::todo_button(current_view))
-                    .child(Self::calendar_button(current_view)),
+                    .child(Self::todo_button(current_view, app_entity.clone()))
+                    .child(Self::calendar_button(current_view, app_entity)),
             )
     }
 
-    fn todo_button(current_view: AppView) -> impl IntoElement {
+    fn todo_button(current_view: AppView, app_entity: WeakEntity<App>) -> impl IntoElement {
         let is_selected = current_view == AppView::Reminder;
 
         div()
+            .id("todo-btn")
             .flex()
             .items_center()
             .justify_center()
@@ -54,6 +55,11 @@ impl Header {
             })
             .when(!is_selected, |this| {
                 this.hover(|style| style.bg(rgba(0x00000008)))
+                    .on_click(move |_, _, cx| {
+                        app_entity
+                            .update(cx, |this, _| this.state.set_current_view(AppView::Reminder))
+                            .ok();
+                    })
             })
             .child(
                 Icon::new(IconName::Check)
@@ -66,10 +72,11 @@ impl Header {
             )
     }
 
-    fn calendar_button(current_view: AppView) -> impl IntoElement {
+    fn calendar_button(current_view: AppView, app_entity: WeakEntity<App>) -> impl IntoElement {
         let is_selected = current_view == AppView::Calendar;
 
         div()
+            .id("calendar-btn")
             .flex()
             .items_center()
             .justify_center()
@@ -91,6 +98,11 @@ impl Header {
             })
             .when(!is_selected, |this| {
                 this.hover(|style| style.bg(rgba(0x00000008)))
+                    .on_click(move |_, _, cx| {
+                        app_entity
+                            .update(cx, |this, _| this.state.set_current_view(AppView::Calendar))
+                            .ok();
+                    })
             })
             .child(
                 Icon::new(IconName::Calendar)
