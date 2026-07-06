@@ -5,6 +5,7 @@ mod views;
 
 use app::App;
 use gpui::*;
+use gpui_component::TitleBar;
 use gpui_component_assets::Assets;
 
 fn main() {
@@ -23,11 +24,7 @@ fn main() {
                         height: px(660.0),
                     },
                 })),
-                titlebar: Some(TitlebarOptions {
-                    title: Some("提醒事项".into()),
-                    appears_transparent: true,
-                    traffic_light_position: None,
-                }),
+                titlebar: Some(TitleBar::title_bar_options()),
                 ..Default::default()
             },
             |_window, cx| cx.new(|cx| App::new(cx)),

@@ -13,8 +13,8 @@ impl CalendarView {
         div()
             .flex()
             .flex_col()
-            .w(px(800.0))
-            .h(px(604.0))
+            .w_full()
+            .h_full()
             .bg(rgb(0xffffff))
             .child(Self::build_toolbar(app, app_entity.clone()))
             .child(Self::build_calendar(app, app_entity.clone()))
@@ -35,7 +35,7 @@ impl CalendarView {
             .flex()
             .items_center()
             .justify_between()
-            .w(px(800.0))
+            .w_full()
             .h(px(52.0))
             .px(px(16.0))
             .border_b(px(1.0))
@@ -212,12 +212,12 @@ impl CalendarView {
         div()
             .flex()
             .flex_col()
-            .w(px(800.0))
+            .w_full()
             .h(px(280.0))
             .child(
                 div()
                     .flex()
-                    .w(px(800.0))
+                    .w_full()
                     .h(px(40.0))
                     .children(weekdays.iter().map(|day| {
                         let day_str = day.to_string();
@@ -236,7 +236,7 @@ impl CalendarView {
                 div()
                     .flex()
                     .flex_wrap()
-                    .w(px(800.0))
+                    .w_full()
                     .h(px(240.0))
                     .children(days.iter().enumerate().map(move |(index, day)| {
                         Self::day_cell(app, day, year, month, index, app_entity.clone())
@@ -255,7 +255,7 @@ impl CalendarView {
 
         div()
             .id(format!("day-cell-{}", index))
-            .w(px(800.0 / 7.0))
+            .flex_1()
             .h(px(40.0))
             .flex()
             .flex_col()
@@ -330,7 +330,7 @@ impl CalendarView {
 
         div()
             .flex_1()
-            .w(px(800.0))
+            .w_full()
             .bg(rgba(0xf9f9f9ff))
             .flex()
             .flex_col()

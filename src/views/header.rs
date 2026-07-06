@@ -1,22 +1,17 @@
 use crate::app::App;
 use crate::models::reminder::AppView;
-use gpui::prelude::{FluentBuilder, StatefulInteractiveElement};
+use gpui::prelude::FluentBuilder;
 use gpui::*;
-use gpui_component::{Icon, IconName};
+use gpui_component::{Icon, IconName, TitleBar};
 
 pub struct Header;
 
 impl Header {
-    pub fn build(app: &mut App, app_entity: WeakEntity<App>) -> impl IntoElement {
+    pub fn build(app: &mut App, cx: &mut Context<App>) -> impl IntoElement {
         let current_view = app.state.current_view;
+        let app_entity = cx.entity().clone();
 
-        div()
-            .flex()
-            .items_center()
-            .justify_start()
-            .w(px(800.0))
-            .h(px(56.0))
-            .bg(rgb(0xffffff))
+        TitleBar::new()
             .child(
                 div()
                     .flex()
@@ -27,58 +22,62 @@ impl Header {
                     .child(Self::todo_button(current_view, app_entity.clone()))
                     .child(Self::calendar_button(current_view, app_entity)),
             )
-            .on_mouse_down(MouseButton::Left, |_, window, _| {
-                window.start_window_move();
-            })
     }
 
     fn traffic_lights() -> impl IntoElement {
-        div()
-            .flex()
-            .items_center()
-            .gap(px(8.0))
-            .child(
-                div()
-                    .id("close-btn")
-                    .w(px(12.0))
-                    .h(px(12.0))
-                    .rounded(px(6.0))
-                    .bg(rgba(0xff5f57ff))
-                    .cursor_pointer()
-                    .hover(|style| style.bg(rgba(0xff3b30ff)))
-                    .on_click(|_, window, _| {
-                        window.remove_window();
-                    }),
-            )
-            .child(
-                div()
-                    .id("minimize-btn")
-                    .w(px(12.0))
-                    .h(px(12.0))
-                    .rounded(px(6.0))
-                    .bg(rgba(0xffbd2eff))
-                    .cursor_pointer()
-                    .hover(|style| style.bg(rgba(0xffa726ff)))
-                    .on_click(|_, window, _| {
-                        window.minimize_window();
-                    }),
-            )
-            .child(
-                div()
-                    .id("maximize-btn")
-                    .w(px(12.0))
-                    .h(px(12.0))
-                    .rounded(px(6.0))
-                    .bg(rgba(0x28ca42ff))
-                    .cursor_pointer()
-                    .hover(|style| style.bg(rgba(0x26a641ff)))
-                    .on_click(|_, window, _| {
-                        window.zoom_window();
-                    }),
-            )
+        #[cfg(target_os = "macos")]
+        {
+            div()
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .child(
+                    div()
+                        .id("close-mac")
+                        .w(px(12.0))
+                        .h(px(12.0))
+                        .rounded(px(6.0))
+                        .bg(rgba(0xff5f57ff))
+                        .cursor_pointer()
+                        .hover(|style| style.bg(rgba(0xff3b30ff)))
+                        .on_click(|_, window, _| {
+                            window.remove_window();
+                        }),
+                )
+                .child(
+                    div()
+                        .id("minimize-mac")
+                        .w(px(12.0))
+                        .h(px(12.0))
+                        .rounded(px(6.0))
+                        .bg(rgba(0xffbd2eff))
+                        .cursor_pointer()
+                        .hover(|style| style.bg(rgba(0xffa726ff)))
+                        .on_click(|_, window, _| {
+                            window.minimize_window();
+                        }),
+                )
+                .child(
+                    div()
+                        .id("maximize-mac")
+                        .w(px(12.0))
+                        .h(px(12.0))
+                        .rounded(px(6.0))
+                        .bg(rgba(0x28ca42ff))
+                        .cursor_pointer()
+                        .hover(|style| style.bg(rgba(0x26a641ff)))
+                        .on_click(|_, window, _| {
+                            window.zoom_window();
+                        }),
+                )
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            div()
+        }
     }
 
-    fn todo_button(current_view: AppView, app_entity: WeakEntity<App>) -> impl IntoElement {
+    fn todo_button(current_view: AppView, app_entity: Entity<App>) -> impl IntoElement {
         let is_selected = current_view == AppView::Reminder;
 
         div()
@@ -90,6 +89,10 @@ impl Header {
             .h(px(30.0))
             .rounded(px(6.0))
             .cursor_pointer()
+            .on_mouse_down(MouseButton::Left, |_, window, cx| {
+                window.prevent_default();
+                cx.stop_propagation();
+            })
             .when(is_selected, |this| {
                 this.bg(rgb(0xffffff)).shadow(vec![gpui::BoxShadow {
                     color: rgba(0x00000011).into(),
@@ -105,7 +108,9 @@ impl Header {
             .when(!is_selected, |this| {
                 this.hover(|style| style.bg(rgba(0x00000008)))
                     .on_click(move |_, _, cx| {
-                        app_entity.update(cx, |this, _| this.state.set_current_view(AppView::Reminder)).ok();
+                        app_entity.update(cx, |this, _| {
+                            this.state.set_current_view(AppView::Reminder)
+                        });
                     })
             })
             .child(
@@ -119,7 +124,7 @@ impl Header {
             )
     }
 
-    fn calendar_button(current_view: AppView, app_entity: WeakEntity<App>) -> impl IntoElement {
+    fn calendar_button(current_view: AppView, app_entity: Entity<App>) -> impl IntoElement {
         let is_selected = current_view == AppView::Calendar;
 
         div()
@@ -131,6 +136,10 @@ impl Header {
             .h(px(30.0))
             .rounded(px(6.0))
             .cursor_pointer()
+            .on_mouse_down(MouseButton::Left, |_, window, cx| {
+                window.prevent_default();
+                cx.stop_propagation();
+            })
             .when(is_selected, |this| {
                 this.bg(rgb(0xffffff)).shadow(vec![gpui::BoxShadow {
                     color: rgba(0x00000011).into(),
@@ -146,7 +155,9 @@ impl Header {
             .when(!is_selected, |this| {
                 this.hover(|style| style.bg(rgba(0x00000008)))
                     .on_click(move |_, _, cx| {
-                        app_entity.update(cx, |this, _| this.state.set_current_view(AppView::Calendar)).ok();
+                        app_entity.update(cx, |this, _| {
+                            this.state.set_current_view(AppView::Calendar)
+                        });
                     })
             })
             .child(

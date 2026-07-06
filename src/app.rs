@@ -21,15 +21,14 @@ impl App {
     fn build(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let current_view = self.state.current_view;
         let show_modal = self.state.show_add_modal;
-        let app_entity = cx.entity().downgrade();
         
         div()
             .flex()
             .flex_col()
-            .w(px(800.0))
-            .h(px(660.0))
+            .w_full()
+            .h_full()
             .bg(rgb(0xffffff))
-            .child(Header::build(self, app_entity))
+            .child(Header::build(self, cx))
             .child(
                 div()
                     .flex_1()

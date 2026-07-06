@@ -11,8 +11,8 @@ impl ReminderView {
     pub fn build(app: &mut App) -> impl IntoElement {
         div()
             .flex()
-            .w(px(800.0))
-            .h(px(604.0))
+            .w_full()
+            .h_full()
             .bg(rgb(0xffffff))
             .child(Self::build_sidebar(app))
             .child(Self::build_content_area(app))
