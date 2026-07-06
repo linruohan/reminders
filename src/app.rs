@@ -18,7 +18,7 @@ impl App {
         }
     }
 
-    fn build(&mut self, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn build(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let current_view = self.state.current_view;
         let show_modal = self.state.show_add_modal;
         
@@ -36,7 +36,7 @@ impl App {
                         this.child(ReminderView::build(self))
                     })
                     .when(current_view == AppView::Calendar, |this| {
-                        this.child(CalendarView::build(self))
+                        this.child(CalendarView::build(self, cx))
                     }),
             )
             .when(show_modal, |this| {

@@ -1,6 +1,14 @@
 use crate::models::reminder::{AppView, Reminder, ReminderList};
-use chrono::NaiveDate;
+use chrono::{Local, NaiveDate, Datelike};
 use uuid::Uuid;
+
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum CalendarViewMode {
+    #[default]
+    Day,
+    Week,
+    Month,
+}
 
 pub struct AppState {
     pub reminders: Vec<Reminder>,
@@ -9,6 +17,9 @@ pub struct AppState {
     pub selected_list_id: Option<Uuid>,
     pub selected_date: Option<NaiveDate>,
     pub show_add_modal: bool,
+    pub calendar_year: i32,
+    pub calendar_month: u32,
+    pub calendar_view_mode: CalendarViewMode,
 }
 
 impl AppState {
@@ -31,13 +42,17 @@ impl AppState {
             }
         }
 
+        let today = Local::now().date_naive();
         Self {
             reminders,
             lists,
             current_view: AppView::Reminder,
             selected_list_id: None,
-            selected_date: None,
+            selected_date: Some(today),
             show_add_modal: false,
+            calendar_year: today.year(),
+            calendar_month: today.month(),
+            calendar_view_mode: CalendarViewMode::Day,
         }
     }
 
@@ -87,6 +102,51 @@ impl AppState {
 
     pub fn toggle_add_modal(&mut self) {
         self.show_add_modal = !self.show_add_modal;
+    }
+
+    pub fn prev_month(&mut self) {
+        if self.calendar_month == 1 {
+            self.calendar_month = 12;
+            self.calendar_year -= 1;
+        } else {
+            self.calendar_month -= 1;
+        }
+    }
+
+    pub fn next_month(&mut self) {
+        if self.calendar_month == 12 {
+            self.calendar_month = 1;
+            self.calendar_year += 1;
+        } else {
+            self.calendar_month += 1;
+        }
+    }
+
+    pub fn go_to_today(&mut self) {
+        let today = Local::now().date_naive();
+        self.calendar_year = today.year();
+        self.calendar_month = today.month();
+        self.selected_date = Some(today);
+    }
+
+    pub fn set_calendar_view_mode(&mut self, mode: CalendarViewMode) {
+        self.calendar_view_mode = mode;
+    }
+
+    pub fn get_reminders_for_date(&self, date: Option<NaiveDate>) -> Vec<Reminder> {
+        if let Some(d) = date {
+            self.reminders.iter()
+                .filter(|r| r.due_date == Some(d) && !r.is_completed)
+                .cloned()
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn has_reminder_on_date(&self, date: NaiveDate) -> bool {
+        self.reminders.iter()
+            .any(|r| r.due_date == Some(date) && !r.is_completed)
     }
 
     pub fn get_filtered_reminders(&self) -> Vec<Reminder> {

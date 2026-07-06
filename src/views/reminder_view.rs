@@ -3,6 +3,7 @@ use crate::app::App;
 use chrono::{Local, NaiveDate};
 use gpui::*;
 use gpui::prelude::{FluentBuilder, InteractiveElement};
+use gpui_component::{Icon, IconName};
 
 pub struct ReminderView;
 
@@ -43,14 +44,14 @@ impl ReminderView {
                     .gap(px(8.0))
                     .px(px(12.0))
                     .py(px(8.0))
-                    .child(Self::quick_item("今天", "📅", "#007AFF", true, today_count))
-                    .child(Self::quick_item("计划", "📋", "#FF9500", false, planned_count)),
+                    .child(Self::quick_item("今天", IconName::Clock, true, today_count))
+                    .child(Self::quick_item("计划", IconName::ListTodo, false, planned_count)),
             )
             .child(
                 div()
                     .px(px(12.0))
                     .pb(px(8.0))
-                    .child(Self::quick_item("全部", "📝", "#8E8E93", false, total_reminders)),
+                    .child(Self::quick_item("全部", IconName::List, false, total_reminders)),
             )
             .child(
                 div()
@@ -87,11 +88,9 @@ impl ReminderView {
                             .hover(|style| style.bg(rgba(0x00000008)))
                             .rounded(px(8.0))
                             .child(
-                                svg()
-                                    .path("M12 4v16m8-8H4")
+                                Icon::new(IconName::Plus)
                                     .text_color(rgba(0x007AFFff))
-                                    .w(px(14.0))
-                                    .h(px(14.0)),
+                                    .size(px(14.0)),
                             )
                             .child(
                                 div()
@@ -119,11 +118,9 @@ impl ReminderView {
                     .border_color(rgba(0x0000000d))
                     .p(px(8.0))
                     .child(
-                        svg()
-                            .path("M11 19a8 8 0 110-16 8 8 0 010 16zm-7 4h14a3 3 0 003-3V8a3 3 0 00-3-3H4a3 3 0 00-3 3v12a3 3 0 003 3z")
+                        Icon::new(IconName::Search)
                             .text_color(rgba(0x8e8e93ff))
-                            .w(px(14.0))
-                            .h(px(14.0)),
+                            .size(px(14.0)),
                     )
                     .child(
                         div()
@@ -135,9 +132,8 @@ impl ReminderView {
             )
     }
 
-    fn quick_item(label: &str, icon: &str, color: &str, selected: bool, count: usize) -> impl IntoElement {
+    fn quick_item(label: &str, icon: IconName, selected: bool, count: usize) -> impl IntoElement {
         let label_str = label.to_string();
-        let icon_str = icon.to_string();
         
         div()
             .flex_1()
@@ -159,9 +155,13 @@ impl ReminderView {
                     .items_center()
                     .gap(px(8.0))
                     .child(
-                        div()
-                            .text_size(px(16.0))
-                            .child(icon_str),
+                        Icon::new(icon)
+                            .text_color(if selected {
+                                rgba(0x007AFFff)
+                            } else {
+                                rgba(0x000000cc)
+                            })
+                            .size(px(16.0)),
                     )
                     .child(
                         div()
@@ -287,11 +287,9 @@ impl ReminderView {
                                     .items_center()
                                     .justify_center()
                                     .child(
-                                        svg()
-                                            .path("M12 4v16m8-8H4")
+                                        Icon::new(IconName::Plus)
                                             .text_color(rgba(0x007AFFff))
-                                            .w(px(16.0))
-                                            .h(px(16.0)),
+                                            .size(px(16.0)),
                                     ),
                             ),
                     ),

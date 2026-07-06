@@ -5,9 +5,12 @@ mod views;
 
 use app::App;
 use gpui::*;
+use gpui_component_assets::Assets;
 
 fn main() {
-    Application::new().run(|cx| {
+    gpui_platform::application().with_assets(Assets).run(|cx| {
+        gpui_component::init(cx);
+        
         cx.open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(Bounds {

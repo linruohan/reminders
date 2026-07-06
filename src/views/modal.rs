@@ -1,6 +1,7 @@
 use crate::app::App;
 use gpui::*;
 use gpui::prelude::InteractiveElement;
+use gpui_component::{Icon, IconName};
 
 pub struct AddReminderModal;
 
@@ -26,6 +27,7 @@ impl AddReminderModal {
                         offset: gpui::Point { x: px(0.0), y: px(8.0) },
                         blur_radius: px(24.0),
                         spread_radius: px(0.0),
+                        inset: false,
                     }])
                     .flex()
                     .flex_col()
@@ -56,11 +58,9 @@ impl AddReminderModal {
                                     .cursor_pointer()
                                     .hover(|style| style.bg(rgba(0x00000011)))
                                     .child(
-                                        svg()
-                                            .path("M6 18L18 6M6 6l12 12")
+                                        Icon::new(IconName::Close)
                                             .text_color(rgba(0x8e8e93ff))
-                                            .w(px(14.0))
-                                            .h(px(14.0)),
+                                            .size(px(14.0)),
                                     ),
                             ),
                     )
@@ -150,11 +150,9 @@ impl AddReminderModal {
                                                     .child("设置日期"),
                                             )
                                             .child(
-                                                svg()
-                                                    .path("M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z")
+                                                Icon::new(IconName::Calendar)
                                                     .text_color(rgba(0x8e8e93ff))
-                                                    .w(px(16.0))
-                                                    .h(px(16.0)),
+                                                    .size(px(16.0)),
                                             ),
                                     ),
                             ),
