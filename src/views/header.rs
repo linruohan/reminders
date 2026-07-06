@@ -19,8 +19,20 @@ impl Header {
                     .gap(px(8.0))
                     .px(px(12.0))
                     .child(Self::traffic_lights())
-                    .child(Self::todo_button(current_view, app_entity.clone()))
-                    .child(Self::calendar_button(current_view, app_entity)),
+                    .child(Self::tab_button(
+                        "todo-btn",
+                        IconName::Check,
+                        current_view == AppView::Reminder,
+                        app_entity.clone(),
+                        AppView::Reminder,
+                    ))
+                    .child(Self::tab_button(
+                        "calendar-btn",
+                        IconName::Calendar,
+                        current_view == AppView::Calendar,
+                        app_entity,
+                        AppView::Calendar,
+                    )),
             )
     }
 
@@ -77,11 +89,17 @@ impl Header {
         }
     }
 
-    fn todo_button(current_view: AppView, app_entity: Entity<App>) -> impl IntoElement {
-        let is_selected = current_view == AppView::Reminder;
+    fn tab_button(
+        id: &str,
+        icon: IconName,
+        is_selected: bool,
+        app_entity: Entity<App>,
+        target_view: AppView,
+    ) -> impl IntoElement {
+        let id_str = id.to_string();
 
         div()
-            .id("todo-btn")
+            .id(id_str)
             .flex()
             .items_center()
             .justify_center()
@@ -109,59 +127,12 @@ impl Header {
                 this.hover(|style| style.bg(rgba(0x00000008)))
                     .on_click(move |_, _, cx| {
                         app_entity.update(cx, |this, _| {
-                            this.state.set_current_view(AppView::Reminder)
+                            this.state.set_current_view(target_view)
                         });
                     })
             })
             .child(
-                Icon::new(IconName::Check)
-                    .text_color(if is_selected {
-                        rgba(0x007AFFff)
-                    } else {
-                        rgba(0x000000aa)
-                    })
-                    .size(px(18.0)),
-            )
-    }
-
-    fn calendar_button(current_view: AppView, app_entity: Entity<App>) -> impl IntoElement {
-        let is_selected = current_view == AppView::Calendar;
-
-        div()
-            .id("calendar-btn")
-            .flex()
-            .items_center()
-            .justify_center()
-            .w(px(36.0))
-            .h(px(30.0))
-            .rounded(px(6.0))
-            .cursor_pointer()
-            .on_mouse_down(MouseButton::Left, |_, window, cx| {
-                window.prevent_default();
-                cx.stop_propagation();
-            })
-            .when(is_selected, |this| {
-                this.bg(rgb(0xffffff)).shadow(vec![gpui::BoxShadow {
-                    color: rgba(0x00000011).into(),
-                    offset: gpui::Point {
-                        x: px(0.0),
-                        y: px(1.5),
-                    },
-                    blur_radius: px(3.0),
-                    spread_radius: px(0.0),
-                    inset: false,
-                }])
-            })
-            .when(!is_selected, |this| {
-                this.hover(|style| style.bg(rgba(0x00000008)))
-                    .on_click(move |_, _, cx| {
-                        app_entity.update(cx, |this, _| {
-                            this.state.set_current_view(AppView::Calendar)
-                        });
-                    })
-            })
-            .child(
-                Icon::new(IconName::Calendar)
+                Icon::new(icon)
                     .text_color(if is_selected {
                         rgba(0x007AFFff)
                     } else {

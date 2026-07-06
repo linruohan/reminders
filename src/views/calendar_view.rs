@@ -44,9 +44,12 @@ impl CalendarView {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(4.0))
+                    .rounded(px(6.0))
+                    .bg(rgba(0xf2f2f7ff))
                     .child(Self::view_toggle(app, CalendarViewMode::Day, "日", app_entity.clone()))
+                    .child(div().w(px(1.0)).h(px(20.0)).bg(rgba(0x0000000d)))
                     .child(Self::view_toggle(app, CalendarViewMode::Week, "周", app_entity.clone()))
+                    .child(div().w(px(1.0)).h(px(20.0)).bg(rgba(0x0000000d)))
                     .child(Self::view_toggle(app, CalendarViewMode::Month, "月", app_entity.clone())),
             )
             .child(
@@ -65,14 +68,10 @@ impl CalendarView {
                             .rounded(px(8.0))
                             .cursor_pointer()
                             .when(prev_month_enabled, |this| {
-                                this.text_color(rgba(0x007AFFff))
-                                    .hover(|style| style.bg(rgba(0x007AFF11)))
+                                this.hover(|style| style.bg(rgba(0x007AFF11)))
                                     .on_click(move |_, _, cx| {
                                         prev_app_entity.update(cx, |this, _| this.state.prev_month()).ok();
                                     })
-                            })
-                            .when(!prev_month_enabled, |this| {
-                                this.text_color(rgba(0xc7c7ccff))
                             })
                             .child(
                                 Icon::new(IconName::ChevronLeft)
@@ -98,20 +97,22 @@ impl CalendarView {
                             .rounded(px(8.0))
                             .cursor_pointer()
                             .when(next_month_enabled, |this| {
-                                this.text_color(rgba(0x007AFFff))
-                                    .hover(|style| style.bg(rgba(0x007AFF11)))
+                                this.hover(|style| style.bg(rgba(0x007AFF11)))
                                     .on_click(move |_, _, cx| {
                                         next_app_entity.update(cx, |this, _| this.state.next_month()).ok();
                                     })
-                            })
-                            .when(!next_month_enabled, |this| {
-                                this.text_color(rgba(0xc7c7ccff))
                             })
                             .child(
                                 Icon::new(IconName::ChevronRight)
                                     .text_color(if next_month_enabled { rgba(0x007AFFff) } else { rgba(0xc7c7ccff) })
                                     .size(px(20.0)),
                             ),
+                    )
+                    .child(
+                        div()
+                            .w(px(1.0))
+                            .h(px(24.0))
+                            .bg(rgba(0x0000000d)),
                     )
                     .child(
                         div()
@@ -134,7 +135,7 @@ impl CalendarView {
                 div()
                     .flex()
                     .items_center()
-                    .w(px(140.0))
+                    .w(px(160.0))
                     .h(px(32.0))
                     .bg(rgba(0xf2f2f7ff))
                     .rounded(px(8.0))
@@ -151,7 +152,7 @@ impl CalendarView {
                             .ml(px(6.0))
                             .text_size(px(13.0))
                             .text_color(rgba(0x8e8e93ff))
-                            .child("搜索"),
+                            .child("搜索日程"),
                     ),
             )
     }
@@ -167,16 +168,21 @@ impl CalendarView {
             .justify_center()
             .w(px(40.0))
             .h(px(28.0))
-            .rounded(px(6.0))
             .cursor_pointer()
             .when(is_selected, |this| {
-                this.bg(rgba(0x007AFFff))
-                    .text_color(rgba(0xffffffff))
+                this.bg(rgba(0xffffff))
+                    .shadow(vec![gpui::BoxShadow {
+                        color: rgba(0x00000011).into(),
+                        offset: gpui::Point { x: px(0.0), y: px(1.0) },
+                        blur_radius: px(2.0),
+                        spread_radius: px(0.0),
+                        inset: false,
+                    }])
+                    .text_color(rgba(0x007AFFff))
             })
             .when(!is_selected, |this| {
-                this.bg(rgba(0xf2f2f7ff))
-                    .text_color(rgba(0x000000aa))
-                    .hover(|style| style.bg(rgba(0xe5e5ea)))
+                this.text_color(rgba(0x000000aa))
+                    .hover(|style| style.bg(rgba(0x00000008)))
                     .on_click(move |_, _, cx| {
                         app_entity.update(cx, |this, _| this.state.set_calendar_view_mode(mode)).ok();
                     })

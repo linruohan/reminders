@@ -8,6 +8,16 @@ pub enum CalendarViewMode {
     Day,
     Week,
     Month,
+    Year,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum ReminderFilter {
+    #[default]
+    Today,
+    Planned,
+    All,
+    List(Uuid),
 }
 
 pub struct AppState {
@@ -15,6 +25,7 @@ pub struct AppState {
     pub lists: Vec<ReminderList>,
     pub current_view: AppView,
     pub selected_list_id: Option<Uuid>,
+    pub reminder_filter: ReminderFilter,
     pub selected_date: Option<NaiveDate>,
     pub show_add_modal: bool,
     pub calendar_year: i32,
@@ -48,6 +59,7 @@ impl AppState {
             lists,
             current_view: AppView::Reminder,
             selected_list_id: None,
+            reminder_filter: ReminderFilter::Today,
             selected_date: Some(today),
             show_add_modal: false,
             calendar_year: today.year(),
@@ -86,10 +98,19 @@ impl AppState {
         if self.selected_list_id == Some(id) {
             self.selected_list_id = None;
         }
+        if let ReminderFilter::List(list_id) = self.reminder_filter {
+            if list_id == id {
+                self.reminder_filter = ReminderFilter::All;
+            }
+        }
     }
 
     pub fn set_current_view(&mut self, view: AppView) {
         self.current_view = view;
+    }
+
+    pub fn set_reminder_filter(&mut self, filter: ReminderFilter) {
+        self.reminder_filter = filter;
     }
 
     pub fn set_selected_list(&mut self, list_id: Option<Uuid>) {
@@ -150,13 +171,29 @@ impl AppState {
     }
 
     pub fn get_filtered_reminders(&self) -> Vec<Reminder> {
-        match self.selected_list_id {
-            Some(id) => self.reminders
+        let today = Local::now().date_naive();
+        
+        match self.reminder_filter {
+            ReminderFilter::Today => self.reminders
                 .iter()
-                .filter(|r| r.list_id == Some(id))
+                .filter(|r| r.due_date.map(|d| d == today).unwrap_or(false) && !r.is_completed)
                 .cloned()
                 .collect(),
-            None => self.reminders.clone(),
+            ReminderFilter::Planned => self.reminders
+                .iter()
+                .filter(|r| r.due_date.is_some() && !r.is_completed)
+                .cloned()
+                .collect(),
+            ReminderFilter::All => self.reminders
+                .iter()
+                .filter(|r| !r.is_completed)
+                .cloned()
+                .collect(),
+            ReminderFilter::List(id) => self.reminders
+                .iter()
+                .filter(|r| r.list_id == Some(id) && !r.is_completed)
+                .cloned()
+                .collect(),
         }
     }
 }

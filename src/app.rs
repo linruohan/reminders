@@ -33,7 +33,7 @@ impl App {
                 div()
                     .flex_1()
                     .when(current_view == AppView::Reminder, |this| {
-                        this.child(ReminderView::build(self))
+                        this.child(ReminderView::build(self, cx))
                     })
                     .when(current_view == AppView::Calendar, |this| {
                         this.child(CalendarView::build(self, cx))
