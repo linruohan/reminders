@@ -31,13 +31,6 @@ pub struct ReminderList {
     pub icon: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
-pub enum AppView {
-    #[default]
-    Reminder,
-    Calendar,
-}
-
 impl Reminder {
     pub fn new(title: String) -> Self {
         let now = Local::now();
@@ -54,6 +47,43 @@ impl Reminder {
             updated_at: now,
         }
     }
+
+    pub fn with_list_id(mut self, list_id: Uuid) -> Self {
+        self.list_id = Some(list_id);
+        self
+    }
+
+    pub fn with_due_date(mut self, due_date: NaiveDate) -> Self {
+        self.due_date = Some(due_date);
+        self
+    }
+
+    pub fn with_due_time(mut self, due_time: NaiveTime) -> Self {
+        self.due_time = Some(due_time);
+        self
+    }
+
+    pub fn with_description(mut self, description: String) -> Self {
+        self.description = Some(description);
+        self
+    }
+
+    pub fn with_priority(mut self, priority: Priority) -> Self {
+        self.priority = priority;
+        self
+    }
+
+    pub fn mark_completed(mut self) -> Self {
+        self.is_completed = true;
+        self.updated_at = Local::now();
+        self
+    }
+
+    pub fn mark_incomplete(mut self) -> Self {
+        self.is_completed = false;
+        self.updated_at = Local::now();
+        self
+    }
 }
 
 impl ReminderList {
@@ -64,5 +94,15 @@ impl ReminderList {
             color: "#007AFF".to_string(),
             icon: "list".to_string(),
         }
+    }
+
+    pub fn with_color(mut self, color: String) -> Self {
+        self.color = color;
+        self
+    }
+
+    pub fn with_icon(mut self, icon: String) -> Self {
+        self.icon = icon;
+        self
     }
 }

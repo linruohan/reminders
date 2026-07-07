@@ -1,24 +1,7 @@
-use crate::models::reminder::{AppView, Reminder, ReminderList};
-use chrono::{Local, NaiveDate, Datelike};
+use crate::models::reminder::{Reminder, ReminderList};
+use crate::state::enums::{AppView, CalendarViewMode, ReminderFilter};
+use chrono::{Datelike, Local, NaiveDate};
 use uuid::Uuid;
-
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub enum CalendarViewMode {
-    #[default]
-    Day,
-    Week,
-    Month,
-    Year,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub enum ReminderFilter {
-    #[default]
-    Today,
-    Planned,
-    All,
-    List(Uuid),
-}
 
 pub struct AppState {
     pub reminders: Vec<Reminder>,
@@ -38,28 +21,10 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
-        let lists = vec![
-            ReminderList::new("提醒事项".to_string()),
-            ReminderList::new("工作".to_string()),
-            ReminderList::new("个人".to_string()),
-        ];
-
-        let mut reminders = vec![
-            Reminder::new("完成项目设计".to_string()),
-            Reminder::new("购买生活用品".to_string()),
-            Reminder::new("参加会议".to_string()),
-        ];
-
-        if let Some(list_id) = lists.first().map(|l| l.id) {
-            for reminder in &mut reminders {
-                reminder.list_id = Some(list_id);
-            }
-        }
-
         let today = Local::now().date_naive();
         Self {
-            reminders,
-            lists,
+            reminders: Vec::new(),
+            lists: Vec::new(),
             current_view: AppView::Reminder,
             selected_list_id: None,
             reminder_filter: ReminderFilter::Today,
@@ -74,6 +39,11 @@ impl AppState {
         }
     }
 
+    pub fn refresh_data(&mut self, reminders: Vec<Reminder>, lists: Vec<ReminderList>) {
+        self.reminders = reminders;
+        self.lists = lists;
+    }
+
     pub fn add_reminder(&mut self, reminder: Reminder) {
         self.reminders.push(reminder);
     }
@@ -86,6 +56,10 @@ impl AppState {
 
     pub fn delete_reminder(&mut self, id: Uuid) {
         self.reminders.retain(|r| r.id != id);
+        if self.selected_reminder_id == Some(id) {
+            self.selected_reminder_id = None;
+            self.show_detail_panel = false;
+        }
     }
 
     pub fn add_list(&mut self, list: ReminderList) {
@@ -179,12 +153,14 @@ impl AppState {
     }
 
     pub fn get_selected_reminder(&self) -> Option<&Reminder> {
-        self.selected_reminder_id.and_then(|id| self.reminders.iter().find(|r| r.id == id))
+        self.selected_reminder_id
+            .and_then(|id| self.reminders.iter().find(|r| r.id == id))
     }
 
     pub fn get_reminders_for_date(&self, date: Option<NaiveDate>) -> Vec<Reminder> {
         if let Some(d) = date {
-            self.reminders.iter()
+            self.reminders
+                .iter()
                 .filter(|r| r.due_date == Some(d) && !r.is_completed)
                 .cloned()
                 .collect()
@@ -194,30 +170,35 @@ impl AppState {
     }
 
     pub fn has_reminder_on_date(&self, date: NaiveDate) -> bool {
-        self.reminders.iter()
+        self.reminders
+            .iter()
             .any(|r| r.due_date == Some(date) && !r.is_completed)
     }
 
     pub fn get_filtered_reminders(&self) -> Vec<Reminder> {
         let today = Local::now().date_naive();
-        
+
         match self.reminder_filter {
-            ReminderFilter::Today => self.reminders
+            ReminderFilter::Today => self
+                .reminders
                 .iter()
                 .filter(|r| r.due_date.map(|d| d == today).unwrap_or(false) && !r.is_completed)
                 .cloned()
                 .collect(),
-            ReminderFilter::Planned => self.reminders
+            ReminderFilter::Planned => self
+                .reminders
                 .iter()
                 .filter(|r| r.due_date.is_some() && !r.is_completed)
                 .cloned()
                 .collect(),
-            ReminderFilter::All => self.reminders
+            ReminderFilter::All => self
+                .reminders
                 .iter()
                 .filter(|r| !r.is_completed)
                 .cloned()
                 .collect(),
-            ReminderFilter::List(id) => self.reminders
+            ReminderFilter::List(id) => self
+                .reminders
                 .iter()
                 .filter(|r| r.list_id == Some(id) && !r.is_completed)
                 .cloned()

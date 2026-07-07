@@ -1,5 +1,5 @@
 use crate::app::App;
-use crate::models::reminder::AppView;
+use crate::state::AppView;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 use gpui_component::{Icon, IconName, TitleBar};
@@ -11,45 +11,44 @@ impl Header {
         let current_view = app.state.current_view;
         let app_entity = cx.entity().clone();
 
-        TitleBar::new()
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .w_full()
-                    .justify_between()
-                    .px(px(12.0))
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(8.0))
-                            .child(Self::traffic_lights())
-                            .child(Self::tab_button(
-                                "todo-btn",
-                                IconName::Check,
-                                current_view == AppView::Reminder,
-                                app_entity.clone(),
-                                AppView::Reminder,
-                            ))
-                            .child(Self::tab_button(
-                                "calendar-btn",
-                                IconName::Calendar,
-                                current_view == AppView::Calendar,
-                                app_entity.clone(),
-                                AppView::Calendar,
-                            )),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(4.0))
-                            .child(Self::icon_button("list-btn", IconName::List))
-                            .child(Self::icon_button("share-btn", IconName::Share))
-                            .child(Self::icon_button("add-btn", IconName::Plus)),
-                    ),
-            )
+        TitleBar::new().child(
+            div()
+                .flex()
+                .items_center()
+                .w_full()
+                .justify_between()
+                .px(px(12.0))
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(Self::traffic_lights())
+                        .child(Self::tab_button(
+                            "todo-btn",
+                            IconName::Check,
+                            current_view == AppView::Reminder,
+                            app_entity.clone(),
+                            AppView::Reminder,
+                        ))
+                        .child(Self::tab_button(
+                            "calendar-btn",
+                            IconName::Calendar,
+                            current_view == AppView::Calendar,
+                            app_entity.clone(),
+                            AppView::Calendar,
+                        )),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(4.0))
+                        .child(Self::icon_button("list-btn", IconName::List))
+                        .child(Self::icon_button("share-btn", IconName::Share))
+                        .child(Self::icon_button("add-btn", IconName::Plus)),
+                ),
+        )
     }
 
     fn traffic_lights() -> impl IntoElement {
@@ -142,9 +141,7 @@ impl Header {
             .when(!is_selected, |this| {
                 this.hover(|style| style.bg(rgba(0x00000008)))
                     .on_click(move |_, _, cx| {
-                        app_entity.update(cx, |this, _| {
-                            this.state.set_current_view(target_view)
-                        });
+                        app_entity.update(cx, |this, _| this.state.set_current_view(target_view));
                     })
             })
             .child(
@@ -171,10 +168,6 @@ impl Header {
             .rounded(px(6.0))
             .cursor_pointer()
             .hover(|style| style.bg(rgba(0x00000008)))
-            .child(
-                Icon::new(icon)
-                    .text_color(rgba(0x000000aa))
-                    .size(px(16.0)),
-            )
+            .child(Icon::new(icon).text_color(rgba(0x000000aa)).size(px(16.0)))
     }
 }
