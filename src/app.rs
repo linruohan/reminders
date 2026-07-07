@@ -8,6 +8,9 @@ use crate::views::modal::{AddReminderModal, EventDetailModal};
 use crate::views::reminder_view::ReminderView;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
+use gpui_component::scroll::ScrollableElement;
+use gpui_component::{Icon, IconName, Placement, Root, WindowExt};
+use uuid::Uuid;
 
 pub struct App {
     pub state: AppState,
@@ -15,6 +18,204 @@ pub struct App {
 }
 
 impl App {
+    pub fn open_reminder_detail(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        reminder_id: Uuid,
+    ) {
+        let reminder = self.state.reminders.iter().find(|r| r.id == reminder_id);
+        if reminder.is_none() {
+            return;
+        }
+
+        let reminder = reminder.unwrap();
+        let title = reminder.title.clone();
+        let description = reminder.description.clone().unwrap_or_default();
+
+        let date_str = reminder
+            .due_date
+            .map(|d| d.format("%m月%d日").to_string())
+            .unwrap_or_default();
+        let time_str = reminder
+            .due_time
+            .map(|t| t.format("%H:%M").to_string())
+            .unwrap_or_default();
+
+        let list_name = reminder
+            .list_id
+            .and_then(|id| self.state.lists.iter().find(|l| l.id == id))
+            .map(|l| l.name.clone())
+            .unwrap_or_else(|| "默认".to_string());
+
+        window.open_sheet_at(Placement::Right, cx, move |sheet, _, _| {
+            sheet
+                .title(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(
+                            Icon::new(IconName::Eye)
+                                .text_color(rgba(0x007AFFff))
+                                .size(px(16.0)),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight(600.0))
+                                .text_color(rgba(0x000000ee))
+                                .child("查看"),
+                        ),
+                )
+                .size(px(320.0))
+                .child(
+                    div()
+                        .flex_1()
+                        .p(px(16.0))
+                        .flex()
+                        .flex_col()
+                        .overflow_y_scrollbar()
+                        .child(
+                            div()
+                                .flex_1()
+                                .text_size(px(18.0))
+                                .text_color(rgba(0x000000ee))
+                                .child(title.clone()),
+                        )
+                        .child(
+                            div()
+                                .mt(px(8.0))
+                                .text_size(px(14.0))
+                                .text_color(rgba(0x8e8e93ff))
+                                .child(description.clone()),
+                        )
+                        .when(!date_str.is_empty() || !time_str.is_empty(), |this| {
+                            let time_text = if date_str.is_empty() {
+                                time_str.clone()
+                            } else if time_str.is_empty() {
+                                date_str.clone()
+                            } else {
+                                format!("{} {}", date_str.clone(), time_str.clone())
+                            };
+                            this.child(
+                                div()
+                                    .mt(px(16.0))
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(8.0))
+                                    .child(
+                                        Icon::new(IconName::Clock)
+                                            .text_color(rgba(0xff9500ff))
+                                            .size(px(14.0)),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_size(px(13.0))
+                                            .text_color(rgba(0xff9500ff))
+                                            .child(time_text),
+                                    ),
+                            )
+                        }),
+                )
+                .child(
+                    div()
+                        .p(px(16.0))
+                        .border_t(px(1.0))
+                        .border_color(rgba(0x0000000d))
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap(px(8.0))
+                                .child(
+                                    div()
+                                        .w(px(16.0))
+                                        .h(px(16.0))
+                                        .rounded(px(8.0))
+                                        .bg(rgba(0x007AFFff)),
+                                )
+                                .child(
+                                    div()
+                                        .text_size(px(13.0))
+                                        .text_color(rgba(0x8e8e93ff))
+                                        .child("文字颜色"),
+                                ),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap(px(4.0))
+                                .text_size(px(13.0))
+                                .text_color(rgba(0x8e8e93ff))
+                                .child("所属分类:")
+                                .child(list_name.clone()),
+                        ),
+                )
+                .footer(
+                    div()
+                        .p(px(16.0))
+                        .flex()
+                        .items_center()
+                        .justify_end()
+                        .gap(px(8.0))
+                        .child(
+                            div()
+                                .px(px(12.0))
+                                .py(px(6.0))
+                                .rounded(px(6.0))
+                                .border(px(1.0))
+                                .border_color(rgba(0xc7c7ccff))
+                                .cursor_pointer()
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight(500.0))
+                                .text_color(rgba(0x000000cc))
+                                .hover(|style| style.bg(rgba(0x00000008)))
+                                .on_mouse_down(MouseButton::Left, move |_, window, cx| {
+                                    window.close_sheet(cx);
+                                })
+                                .child("删除"),
+                        )
+                        .child(
+                            div()
+                                .px(px(12.0))
+                                .py(px(6.0))
+                                .rounded(px(6.0))
+                                .border(px(1.0))
+                                .border_color(rgba(0xc7c7ccff))
+                                .cursor_pointer()
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight(500.0))
+                                .text_color(rgba(0x000000cc))
+                                .hover(|style| style.bg(rgba(0x00000008)))
+                                .on_mouse_down(MouseButton::Left, move |_, window, cx| {
+                                    window.close_sheet(cx);
+                                })
+                                .child("完成"),
+                        )
+                        .child(
+                            div()
+                                .px(px(12.0))
+                                .py(px(6.0))
+                                .rounded(px(6.0))
+                                .border(px(1.0))
+                                .border_color(rgba(0xc7c7ccff))
+                                .cursor_pointer()
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight(500.0))
+                                .text_color(rgba(0x000000cc))
+                                .hover(|style| style.bg(rgba(0x00000008)))
+                                .child("编辑"),
+                        ),
+                )
+                .on_close(move |_, _, _| {})
+        });
+    }
+
     pub fn new(db: Database, _cx: &mut Context<Self>) -> Self {
         let mut state = AppState::new();
 
@@ -32,9 +233,10 @@ impl App {
         Self { state, db }
     }
 
-    fn build(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn build(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let current_view = self.state.current_view;
         let show_modal = self.state.show_add_modal;
+        let sheet_layer = Root::render_sheet_layer(window, cx);
 
         div()
             .flex()
@@ -57,6 +259,7 @@ impl App {
             .when(self.state.show_event_modal, |this| {
                 this.child(EventDetailModal::build(self, cx))
             })
+            .children(sheet_layer)
     }
 
     pub fn refresh_from_db(&mut self) {
@@ -74,7 +277,7 @@ impl App {
 }
 
 impl Render for App {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.build(cx)
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.build(window, cx)
     }
 }

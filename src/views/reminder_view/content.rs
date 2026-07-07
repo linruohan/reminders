@@ -6,6 +6,7 @@ use chrono::{Local, NaiveDate};
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 use gpui_component::{Icon, IconName};
+use gpui_component::menu::{ContextMenuExt, PopupMenuItem};
 
 pub struct ReminderContent;
 
@@ -125,10 +126,72 @@ impl ReminderContent {
             .when(is_selected, |this| this.bg(rgba(0xe8f0feff)))
             .on_click({
                 let app_entity = app_entity.clone();
-                move |_, _, cx| {
-                    app_entity.update(cx, |this, _| {
-                        this.state.set_selected_reminder(Some(reminder_id));
+                move |_, window, cx| {
+                    app_entity.update(cx, |this, cx| {
+                        this.open_reminder_detail(window, cx, reminder_id);
                     });
+                }
+            })
+            .context_menu({
+                let app_entity = app_entity.clone();
+                let reminder_id_clone = reminder_id;
+                let is_completed_clone = is_completed;
+                move |menu, window, _cx| {
+                    let toggle_app = app_entity.clone();
+                    let toggle_id = reminder_id_clone;
+                    let toggle_completed = is_completed_clone;
+                    
+                    let show_app = app_entity.clone();
+                    let show_id = reminder_id_clone;
+                    
+                    let delete_app = app_entity.clone();
+                    let delete_id = reminder_id_clone;
+                    
+                    let due_app = app_entity.clone();
+                    let due_id = reminder_id_clone;
+
+                    menu
+                        .item(PopupMenuItem::new(
+                            if toggle_completed { "标记为未完成" } else { "标记为完成" }
+                        ).on_click(window.listener_for(&toggle_app, move |this, _, _, _cx| {
+                            if let Some(r) = this.state.reminders.iter_mut().find(|r| r.id == toggle_id) {
+                                r.is_completed = !r.is_completed;
+                            }
+                            let repo = ReminderRepository::new(this.db.conn());
+                            if let Some(r) = this.state.reminders.iter().find(|r| r.id == toggle_id) {
+                                let _ = repo.update(r);
+                            }
+                        })))
+                        .item(PopupMenuItem::new("显示简介").on_click(window.listener_for(&show_app, move |this, _, window, cx| {
+                            this.open_reminder_detail(window, cx, show_id);
+                        })))
+                        .separator()
+                        .item(PopupMenuItem::new("删除").on_click(window.listener_for(&delete_app, move |this, _, _, _cx| {
+                            let repo = ReminderRepository::new(this.db.conn());
+                            let _ = repo.delete(&delete_id);
+                            this.state.delete_reminder(delete_id);
+                        })))
+                        .separator()
+                        .item(PopupMenuItem::new("剪切"))
+                        .item(PopupMenuItem::new("拷贝"))
+                        .item(PopupMenuItem::new("粘贴"))
+                        .separator()
+                        .item(PopupMenuItem::new("明天到期").on_click(window.listener_for(&due_app, move |this, _, _, _cx| {
+                            let tomorrow = Local::now().date_naive().succ_opt().unwrap();
+                            if let Some(r) = this.state.reminders.iter_mut().find(|r| r.id == due_id) {
+                                r.due_date = Some(tomorrow);
+                            }
+                            let repo = ReminderRepository::new(this.db.conn());
+                            if let Some(r) = this.state.reminders.iter().find(|r| r.id == due_id) {
+                                let _ = repo.update(r);
+                            }
+                        })))
+                        .separator()
+                        .item(PopupMenuItem::new("移到列表"))
+                        .separator()
+                        .item(PopupMenuItem::new("设定优先级"))
+                        .separator()
+                        .item(PopupMenuItem::new("通知"))
                 }
             })
             .child(

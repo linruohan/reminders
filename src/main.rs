@@ -7,7 +7,7 @@ mod views;
 
 use app::App;
 use gpui::*;
-use gpui_component::TitleBar;
+use gpui_component::{Root, TitleBar};
 use gpui_component_assets::Assets;
 use std::path::Path;
 
@@ -33,7 +33,10 @@ fn main() {
                         titlebar: Some(TitleBar::title_bar_options()),
                         ..Default::default()
                     },
-                    |_window, cx| cx.new(|cx| App::new(db, cx)),
+                    |window, cx| {
+                        let app_view = cx.new(|cx| App::new(db, cx));
+                        cx.new(|cx| Root::new(app_view, window, cx))
+                    },
                 )
                 .unwrap();
             }
