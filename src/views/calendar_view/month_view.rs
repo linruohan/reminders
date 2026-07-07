@@ -148,12 +148,12 @@ impl MonthView {
             )
             .when(!is_empty && !reminders.is_empty(), |this| {
                 this.child(
-                    div().flex().flex_col().gap(px(2.0)).mt(px(4.0)).children(
-                        reminders
-                            .into_iter()
-                            .take(3)
-                            .map(Self::mini_event_card),
-                    ),
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(2.0))
+                        .mt(px(4.0))
+                        .children(reminders.into_iter().take(3).map(Self::mini_event_card)),
                 )
             })
     }

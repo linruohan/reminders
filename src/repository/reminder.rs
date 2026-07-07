@@ -16,17 +16,14 @@ impl<'a> ReminderRepository<'a> {
         let mut stmt = self
             .conn
             .prepare("SELECT * FROM reminders ORDER BY created_at DESC")?;
-        let reminders = stmt
-            .query_map([], Self::row_to_reminder)?
-            .collect();
+        let reminders = stmt.query_map([], Self::row_to_reminder)?.collect();
         reminders
     }
 
     pub fn get_by_id(&self, id: &Uuid) -> Result<Option<Reminder>> {
         let mut stmt = self.conn.prepare("SELECT * FROM reminders WHERE id = ?")?;
         let id_str = id.to_string();
-        stmt.query_row([id_str], Self::row_to_reminder)
-            .optional()
+        stmt.query_row([id_str], Self::row_to_reminder).optional()
     }
 
     pub fn get_by_list_id(&self, list_id: &Uuid) -> Result<Vec<Reminder>> {
@@ -43,9 +40,7 @@ impl<'a> ReminderRepository<'a> {
     pub fn get_by_date(&self, date: &NaiveDate) -> Result<Vec<Reminder>> {
         let mut stmt = self.conn.prepare("SELECT * FROM reminders WHERE due_date = ? AND is_completed = 0 ORDER BY created_at DESC")?;
         let date_str = date.format("%Y-%m-%d").to_string();
-        let reminders = stmt
-            .query_map([date_str], Self::row_to_reminder)?
-            .collect();
+        let reminders = stmt.query_map([date_str], Self::row_to_reminder)?.collect();
         reminders
     }
 
@@ -53,17 +48,13 @@ impl<'a> ReminderRepository<'a> {
         let today = Local::now().date_naive();
         let mut stmt = self.conn.prepare("SELECT * FROM reminders WHERE due_date = ? AND is_completed = 0 ORDER BY created_at DESC")?;
         let date_str = today.format("%Y-%m-%d").to_string();
-        let reminders = stmt
-            .query_map([date_str], Self::row_to_reminder)?
-            .collect();
+        let reminders = stmt.query_map([date_str], Self::row_to_reminder)?.collect();
         reminders
     }
 
     pub fn get_planned(&self) -> Result<Vec<Reminder>> {
         let mut stmt = self.conn.prepare("SELECT * FROM reminders WHERE due_date IS NOT NULL AND is_completed = 0 ORDER BY created_at DESC")?;
-        let reminders = stmt
-            .query_map([], Self::row_to_reminder)?
-            .collect();
+        let reminders = stmt.query_map([], Self::row_to_reminder)?.collect();
         reminders
     }
 
@@ -71,9 +62,7 @@ impl<'a> ReminderRepository<'a> {
         let mut stmt = self
             .conn
             .prepare("SELECT * FROM reminders WHERE is_completed = 0 ORDER BY created_at DESC")?;
-        let reminders = stmt
-            .query_map([], Self::row_to_reminder)?
-            .collect();
+        let reminders = stmt.query_map([], Self::row_to_reminder)?.collect();
         reminders
     }
 

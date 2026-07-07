@@ -4,14 +4,16 @@ use crate::state::ReminderFilter;
 use chrono::Local;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
+use gpui_component::input::{Input, InputState};
 use gpui_component::{Icon, IconName};
+use std::sync::Arc;
 
 pub struct ReminderSidebar;
 
 impl ReminderSidebar {
     pub fn build(app: &mut App, app_entity: Entity<App>) -> impl IntoElement {
         let lists = app.state.lists.clone();
-        let filter = app.state.reminder_filter;
+        let filter = &app.state.reminder_filter;
         let today = Local::now().date_naive();
 
         let today_count = app
@@ -33,6 +35,8 @@ impl ReminderSidebar {
             .filter(|r| !r.is_completed)
             .count();
 
+        let search_input_state = app.search_input_state.as_ref();
+
         div()
             .w(px(220.0))
             .h_full()
@@ -41,7 +45,7 @@ impl ReminderSidebar {
             .border_color(rgba(0x0000000d))
             .flex()
             .flex_col()
-            .child(Self::build_search_bar())
+            .child(Self::build_search_bar(search_input_state))
             .child(
                 div()
                     .flex()
@@ -52,7 +56,7 @@ impl ReminderSidebar {
                     .child(Self::quick_item(
                         "今天",
                         IconName::Clock,
-                        filter == ReminderFilter::Today,
+                        matches!(filter, ReminderFilter::Today),
                         today_count,
                         app_entity.clone(),
                         ReminderFilter::Today,
@@ -60,7 +64,7 @@ impl ReminderSidebar {
                     .child(Self::quick_item(
                         "计划",
                         IconName::ListTodo,
-                        filter == ReminderFilter::Planned,
+                        matches!(filter, ReminderFilter::Planned),
                         planned_count,
                         app_entity.clone(),
                         ReminderFilter::Planned,
@@ -68,11 +72,12 @@ impl ReminderSidebar {
                     .child(Self::quick_item(
                         "全部",
                         IconName::List,
-                        filter == ReminderFilter::All,
+                        matches!(filter, ReminderFilter::All),
                         total_count,
                         app_entity.clone(),
                         ReminderFilter::All,
-                    )))
+                    )),
+            )
             .child(
                 div()
                     .px(px(16.0))
@@ -88,7 +93,7 @@ impl ReminderSidebar {
                     .overflow_y_hidden()
                     .children(lists.into_iter().map(|list| {
                         let is_selected =
-                            matches!(filter, ReminderFilter::List(id) if id == list.id);
+                            matches!(filter, ReminderFilter::List(id) if *id == list.id);
                         let list_count = app
                             .state
                             .reminders
@@ -124,7 +129,7 @@ impl ReminderSidebar {
             )
     }
 
-    fn build_search_bar() -> impl IntoElement {
+    fn build_search_bar(search_input_state: Option<&Entity<InputState>>) -> impl IntoElement {
         div().p(px(12.0)).child(
             div()
                 .flex()
@@ -141,13 +146,16 @@ impl ReminderSidebar {
                         .text_color(rgba(0x8e8e93ff))
                         .size(px(14.0)),
                 )
-                .child(
-                    div()
-                        .ml(px(6.0))
-                        .text_size(px(13.0))
-                        .text_color(rgba(0x8e8e93ff))
-                        .child("搜索"),
-                ),
+                .when_some(search_input_state, |this, input_state| {
+                    this.child(
+                        Input::new(input_state)
+                            .appearance(false)
+                            .bordered(false)
+                            .focus_bordered(false)
+                            .w(px(160.0))
+                            .h(px(24.0)),
+                    )
+                }),
         )
     }
 
@@ -161,6 +169,7 @@ impl ReminderSidebar {
     ) -> impl IntoElement {
         let label_str = label.to_string();
         let id_str = format!("quick-item-{}", label_str);
+        let filter_arc = Arc::new(filter);
 
         div()
             .id(id_str)
@@ -173,9 +182,12 @@ impl ReminderSidebar {
             .cursor_pointer()
             .when(selected, |this| this.bg(rgba(0xe8f0feff)))
             .when(!selected, |this| {
+                let filter_clone = filter_arc.clone();
                 this.hover(|style| style.bg(rgba(0x00000008)))
                     .on_click(move |_, _, cx| {
-                        app_entity.update(cx, |this, _| this.state.set_reminder_filter(filter));
+                        app_entity.update(cx, |this, _| {
+                            this.state.set_reminder_filter((*filter_clone).clone());
+                        });
                     })
             })
             .child(

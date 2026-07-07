@@ -85,6 +85,36 @@ impl AppState {
         }
     }
 
+    pub fn search_reminders(&self, keyword: &str) -> Vec<Reminder> {
+        let keyword_lower = keyword.to_lowercase();
+        self.reminders
+            .iter()
+            .filter(|r| {
+                let title_match = r.title.to_lowercase().contains(&keyword_lower);
+                let desc_match = r
+                    .description
+                    .as_ref()
+                    .map(|d| d.to_lowercase().contains(&keyword_lower))
+                    .unwrap_or(false);
+                let date_match = r
+                    .due_date
+                    .map(|d| d.format("%m月%d日").to_string().contains(&keyword_lower))
+                    .unwrap_or(false);
+                let time_match = r
+                    .due_time
+                    .map(|t| t.format("%H:%M").to_string().contains(&keyword_lower))
+                    .unwrap_or(false);
+                let list_name_match = r
+                    .list_id
+                    .and_then(|id| self.lists.iter().find(|l| l.id == id))
+                    .map(|l| l.name.to_lowercase().contains(&keyword_lower))
+                    .unwrap_or(false);
+                title_match || desc_match || date_match || time_match || list_name_match
+            })
+            .cloned()
+            .collect()
+    }
+
     pub fn set_current_view(&mut self, view: AppView) {
         self.current_view = view;
     }
@@ -178,7 +208,7 @@ impl AppState {
     pub fn get_filtered_reminders(&self) -> Vec<Reminder> {
         let today = Local::now().date_naive();
 
-        match self.reminder_filter {
+        match &self.reminder_filter {
             ReminderFilter::Today => self
                 .reminders
                 .iter()
@@ -200,9 +230,10 @@ impl AppState {
             ReminderFilter::List(id) => self
                 .reminders
                 .iter()
-                .filter(|r| r.list_id == Some(id) && !r.is_completed)
+                .filter(|r| r.list_id == Some(*id) && !r.is_completed)
                 .cloned()
                 .collect(),
+            ReminderFilter::Search(keyword) => self.search_reminders(keyword),
         }
     }
 }

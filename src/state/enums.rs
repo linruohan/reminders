@@ -10,13 +10,14 @@ pub enum CalendarViewMode {
     Year,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub enum ReminderFilter {
     #[default]
     Today,
     Planned,
     All,
     List(Uuid),
+    Search(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]

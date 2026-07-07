@@ -8,6 +8,7 @@ use crate::views::modal::{AddReminderModal, EventDetailModal};
 use crate::views::reminder_view::ReminderView;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
+use gpui_component::input::{InputEvent, InputState};
 use gpui_component::scroll::ScrollableElement;
 use gpui_component::{Icon, IconName, Placement, Root, WindowExt};
 use uuid::Uuid;
@@ -15,6 +16,8 @@ use uuid::Uuid;
 pub struct App {
     pub state: AppState,
     pub db: Database,
+    pub search_input_state: Option<Entity<InputState>>,
+    pub _search_subscription: Option<Subscription>,
 }
 
 impl App {
@@ -230,10 +233,39 @@ impl App {
             state.lists = lists;
         }
 
-        Self { state, db }
+        Self {
+            state,
+            db,
+            search_input_state: None,
+            _search_subscription: None,
+        }
+    }
+
+    pub fn init_search_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.search_input_state.is_none() {
+            let search_input_state = cx.new(|cx| InputState::new(window, cx).placeholder("搜索"));
+            let app_entity = cx.entity().clone();
+            let subscription = cx.subscribe_in(&search_input_state, window, {
+                let search_input_state = search_input_state.clone();
+                let app_entity = app_entity.clone();
+                move |_, _, ev: &InputEvent, _, cx| if let InputEvent::PressEnter { .. } = ev {
+                    let value = search_input_state.read(cx).value();
+                    if !value.trim().is_empty() {
+                        app_entity.update(cx, |this, _| {
+                            this.state.set_reminder_filter(
+                                crate::state::ReminderFilter::Search(value.trim().to_string()),
+                            );
+                        });
+                    }
+                }
+            });
+            self.search_input_state = Some(search_input_state);
+            self._search_subscription = Some(subscription);
+        }
     }
 
     fn build(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.init_search_input(window, cx);
         let current_view = self.state.current_view;
         let show_modal = self.state.show_add_modal;
         let sheet_layer = Root::render_sheet_layer(window, cx);

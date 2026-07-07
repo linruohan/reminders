@@ -24,16 +24,14 @@ impl<'a> ListRepository<'a> {
             .conn
             .prepare("SELECT * FROM reminder_lists WHERE id = ?")?;
         let id_str = id.to_string();
-        stmt.query_row([id_str], Self::row_to_list)
-            .optional()
+        stmt.query_row([id_str], Self::row_to_list).optional()
     }
 
     pub fn get_by_name(&self, name: &str) -> Result<Option<ReminderList>> {
         let mut stmt = self
             .conn
             .prepare("SELECT * FROM reminder_lists WHERE name = ?")?;
-        stmt.query_row([name], Self::row_to_list)
-            .optional()
+        stmt.query_row([name], Self::row_to_list).optional()
     }
 
     pub fn insert(&self, list: &ReminderList) -> Result<()> {
