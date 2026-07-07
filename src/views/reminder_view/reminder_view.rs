@@ -15,6 +15,7 @@ impl ReminderView {
         div()
             .flex()
             .w_full()
+            .h_full()
             .flex_1()
             .child(ReminderSidebar::build(app, app_entity.clone()))
             .child(ReminderContent::build(app, app_entity.clone()))

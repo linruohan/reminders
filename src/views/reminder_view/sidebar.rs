@@ -45,7 +45,8 @@ impl ReminderSidebar {
             .child(
                 div()
                     .flex()
-                    .gap(px(8.0))
+                    .flex_col()
+                    .gap(px(4.0))
                     .px(px(12.0))
                     .py(px(8.0))
                     .child(Self::quick_item(
@@ -63,16 +64,15 @@ impl ReminderSidebar {
                         planned_count,
                         app_entity.clone(),
                         ReminderFilter::Planned,
-                    )),
-            )
-            .child(div().px(px(12.0)).pb(px(8.0)).child(Self::quick_item(
-                "全部",
-                IconName::List,
-                filter == ReminderFilter::All,
-                total_count,
-                app_entity.clone(),
-                ReminderFilter::All,
-            )))
+                    ))
+                    .child(Self::quick_item(
+                        "全部",
+                        IconName::List,
+                        filter == ReminderFilter::All,
+                        total_count,
+                        app_entity.clone(),
+                        ReminderFilter::All,
+                    )))
             .child(
                 div()
                     .px(px(16.0))

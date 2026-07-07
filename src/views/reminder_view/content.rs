@@ -13,7 +13,7 @@ impl ReminderContent {
     pub fn build(app: &mut App, app_entity: Entity<App>) -> impl IntoElement + '_ {
         let reminders = app.state.get_filtered_reminders();
         let filter = app.state.reminder_filter;
-        let show_detail = app.state.show_detail_panel;
+        let _show_detail = app.state.show_detail_panel;
 
         let title = match filter {
             ReminderFilter::Today => "今天".to_string(),
@@ -34,87 +34,73 @@ impl ReminderContent {
             .flex_1()
             .h_full()
             .flex()
+            .flex_col()
             .child(
                 div()
-                    .flex_1()
-                    .h_full()
                     .flex()
-                    .flex_col()
+                    .items_center()
+                    .justify_between()
+                    .px(px(24.0))
+                    .py(px(20.0))
+                    .border_b(px(1.0))
+                    .border_color(rgba(0x0000000d))
+                    .child(
+                        div()
+                            .text_size(px(24.0))
+                            .font_weight(FontWeight(700.0))
+                            .text_color(rgba(0x007AFFff))
+                            .child(title),
+                    )
                     .child(
                         div()
                             .flex()
                             .items_center()
-                            .justify_between()
-                            .px(px(24.0))
-                            .py(px(20.0))
-                            .border_b(px(1.0))
-                            .border_color(rgba(0x0000000d))
+                            .gap(px(16.0))
                             .child(
                                 div()
-                                    .text_size(px(24.0))
-                                    .font_weight(FontWeight(700.0))
-                                    .text_color(rgba(0x007AFFff))
-                                    .child(title),
+                                    .text_size(px(18.0))
+                                    .font_weight(FontWeight(600.0))
+                                    .text_color(rgba(0x8e8e93ff))
+                                    .child(count.to_string()),
                             )
                             .child(
                                 div()
+                                    .w(px(28.0))
+                                    .h(px(28.0))
+                                    .rounded(px(14.0))
+                                    .cursor_pointer()
+                                    .hover(|style| style.bg(rgba(0x007AFF11)))
                                     .flex()
                                     .items_center()
-                                    .gap(px(16.0))
+                                    .justify_center()
                                     .child(
-                                        div()
-                                            .text_size(px(18.0))
-                                            .font_weight(FontWeight(600.0))
-                                            .text_color(rgba(0x8e8e93ff))
-                                            .child(count.to_string()),
-                                    )
-                                    .child(
-                                        div()
-                                            .w(px(28.0))
-                                            .h(px(28.0))
-                                            .rounded(px(14.0))
-                                            .cursor_pointer()
-                                            .hover(|style| style.bg(rgba(0x007AFF11)))
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .child(
-                                                Icon::new(IconName::Plus)
-                                                    .text_color(rgba(0x007AFFff))
-                                                    .size(px(16.0)),
-                                            ),
+                                        Icon::new(IconName::Plus)
+                                            .text_color(rgba(0x007AFFff))
+                                            .size(px(16.0)),
                                     ),
                             ),
-                    )
-                    .child(
-                        div()
-                            .flex_1()
-                            .overflow_y_hidden()
-                            .when(reminders.is_empty(), |this| {
-                                this.child(
-                                    div().flex().flex_1().items_center().justify_center().child(
-                                        div()
-                                            .text_size(px(16.0))
-                                            .text_color(rgba(0x8e8e93ff))
-                                            .child("没有提醒事项"),
-                                    ),
-                                )
-                            })
-                            .when(!reminders.is_empty(), |this| {
-                                this.children(reminders.into_iter().map(|reminder| {
-                                    Self::reminder_item(app, reminder, app_entity.clone())
-                                }))
-                            }),
                     ),
             )
-            .when(show_detail, |this| {
-                this.child(
-                    crate::views::reminder_view::detail_panel::ReminderDetailPanel::build(
-                        app,
-                        app_entity.clone(),
-                    ),
-                )
-            })
+            .child(
+                div()
+                    .flex_1()
+                    .overflow_y_hidden()
+                    .when(reminders.is_empty(), |this| {
+                        this.child(
+                            div().flex().flex_1().items_center().justify_center().child(
+                                div()
+                                    .text_size(px(16.0))
+                                    .text_color(rgba(0x8e8e93ff))
+                                    .child("没有提醒事项"),
+                            ),
+                        )
+                    })
+                    .when(!reminders.is_empty(), |this| {
+                        this.children(reminders.into_iter().map(|reminder| {
+                            Self::reminder_item(app, reminder, app_entity.clone())
+                        }))
+                    }),
+            )
     }
 
     fn reminder_item(app: &App, reminder: Reminder, app_entity: Entity<App>) -> impl IntoElement {
