@@ -28,6 +28,9 @@ pub struct AppState {
     pub reminder_filter: ReminderFilter,
     pub selected_date: Option<NaiveDate>,
     pub show_add_modal: bool,
+    pub show_event_modal: bool,
+    pub selected_reminder_id: Option<Uuid>,
+    pub show_detail_panel: bool,
     pub calendar_year: i32,
     pub calendar_month: u32,
     pub calendar_view_mode: CalendarViewMode,
@@ -62,6 +65,9 @@ impl AppState {
             reminder_filter: ReminderFilter::Today,
             selected_date: Some(today),
             show_add_modal: false,
+            show_event_modal: false,
+            selected_reminder_id: None,
+            show_detail_panel: false,
             calendar_year: today.year(),
             calendar_month: today.month(),
             calendar_view_mode: CalendarViewMode::Day,
@@ -152,6 +158,28 @@ impl AppState {
 
     pub fn set_calendar_view_mode(&mut self, mode: CalendarViewMode) {
         self.calendar_view_mode = mode;
+    }
+
+    pub fn set_selected_reminder(&mut self, id: Option<Uuid>) {
+        self.selected_reminder_id = id;
+        self.show_detail_panel = id.is_some();
+    }
+
+    pub fn toggle_event_modal(&mut self) {
+        self.show_event_modal = !self.show_event_modal;
+    }
+
+    pub fn toggle_detail_panel(&mut self) {
+        self.show_detail_panel = !self.show_detail_panel;
+    }
+
+    pub fn close_detail_panel(&mut self) {
+        self.show_detail_panel = false;
+        self.selected_reminder_id = None;
+    }
+
+    pub fn get_selected_reminder(&self) -> Option<&Reminder> {
+        self.selected_reminder_id.and_then(|id| self.reminders.iter().find(|r| r.id == id))
     }
 
     pub fn get_reminders_for_date(&self, date: Option<NaiveDate>) -> Vec<Reminder> {

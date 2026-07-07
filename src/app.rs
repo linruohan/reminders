@@ -3,7 +3,7 @@ use crate::state::AppState;
 use crate::views::header::Header;
 use crate::views::reminder_view::ReminderView;
 use crate::views::calendar_view::CalendarView;
-use crate::views::modal::AddReminderModal;
+use crate::views::modal::{AddReminderModal, EventDetailModal};
 use gpui::*;
 use gpui::prelude::FluentBuilder;
 
@@ -41,6 +41,9 @@ impl App {
             )
             .when(show_modal, |this| {
                 this.child(AddReminderModal::build(self))
+            })
+            .when(self.state.show_event_modal, |this| {
+                this.child(EventDetailModal::build(self, cx))
             })
     }
 }

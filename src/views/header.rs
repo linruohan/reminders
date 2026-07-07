@@ -16,23 +16,39 @@ impl Header {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(8.0))
+                    .w_full()
+                    .justify_between()
                     .px(px(12.0))
-                    .child(Self::traffic_lights())
-                    .child(Self::tab_button(
-                        "todo-btn",
-                        IconName::Check,
-                        current_view == AppView::Reminder,
-                        app_entity.clone(),
-                        AppView::Reminder,
-                    ))
-                    .child(Self::tab_button(
-                        "calendar-btn",
-                        IconName::Calendar,
-                        current_view == AppView::Calendar,
-                        app_entity,
-                        AppView::Calendar,
-                    )),
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(8.0))
+                            .child(Self::traffic_lights())
+                            .child(Self::tab_button(
+                                "todo-btn",
+                                IconName::Check,
+                                current_view == AppView::Reminder,
+                                app_entity.clone(),
+                                AppView::Reminder,
+                            ))
+                            .child(Self::tab_button(
+                                "calendar-btn",
+                                IconName::Calendar,
+                                current_view == AppView::Calendar,
+                                app_entity.clone(),
+                                AppView::Calendar,
+                            )),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(4.0))
+                            .child(Self::icon_button("list-btn", IconName::List))
+                            .child(Self::icon_button("share-btn", IconName::Share))
+                            .child(Self::icon_button("add-btn", IconName::Plus)),
+                    ),
             )
     }
 
@@ -139,6 +155,26 @@ impl Header {
                         rgba(0x000000aa)
                     })
                     .size(px(18.0)),
+            )
+    }
+
+    fn icon_button(id: &str, icon: IconName) -> impl IntoElement {
+        let id_str = id.to_string();
+
+        div()
+            .id(id_str)
+            .flex()
+            .items_center()
+            .justify_center()
+            .w(px(32.0))
+            .h(px(28.0))
+            .rounded(px(6.0))
+            .cursor_pointer()
+            .hover(|style| style.bg(rgba(0x00000008)))
+            .child(
+                Icon::new(icon)
+                    .text_color(rgba(0x000000aa))
+                    .size(px(16.0)),
             )
     }
 }
