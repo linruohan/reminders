@@ -248,14 +248,16 @@ impl App {
             let subscription = cx.subscribe_in(&search_input_state, window, {
                 let search_input_state = search_input_state.clone();
                 let app_entity = app_entity.clone();
-                move |_, _, ev: &InputEvent, _, cx| if let InputEvent::PressEnter { .. } = ev {
-                    let value = search_input_state.read(cx).value();
-                    if !value.trim().is_empty() {
-                        app_entity.update(cx, |this, _| {
-                            this.state.set_reminder_filter(
-                                crate::state::ReminderFilter::Search(value.trim().to_string()),
-                            );
-                        });
+                move |_, _, ev: &InputEvent, _, cx| {
+                    if let InputEvent::PressEnter { .. } = ev {
+                        let value = search_input_state.read(cx).value();
+                        if !value.trim().is_empty() {
+                            app_entity.update(cx, |this, _| {
+                                this.state.set_reminder_filter(
+                                    crate::state::ReminderFilter::Search(value.trim().to_string()),
+                                );
+                            });
+                        }
                     }
                 }
             });

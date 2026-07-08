@@ -13,6 +13,7 @@ pub struct AppState {
     pub show_add_modal: bool,
     pub show_event_modal: bool,
     pub selected_reminder_id: Option<Uuid>,
+    pub editing_reminder_id: Option<Uuid>,
     pub show_detail_panel: bool,
     pub calendar_year: i32,
     pub calendar_month: u32,
@@ -32,6 +33,7 @@ impl AppState {
             show_add_modal: false,
             show_event_modal: false,
             selected_reminder_id: None,
+            editing_reminder_id: None,
             show_detail_panel: false,
             calendar_year: today.year(),
             calendar_month: today.month(),
@@ -184,6 +186,15 @@ impl AppState {
 
     pub fn get_selected_reminder(&self) -> Option<&Reminder> {
         self.selected_reminder_id
+            .and_then(|id| self.reminders.iter().find(|r| r.id == id))
+    }
+
+    pub fn set_editing_reminder(&mut self, id: Option<Uuid>) {
+        self.editing_reminder_id = id;
+    }
+
+    pub fn get_editing_reminder(&self) -> Option<&Reminder> {
+        self.editing_reminder_id
             .and_then(|id| self.reminders.iter().find(|r| r.id == id))
     }
 
