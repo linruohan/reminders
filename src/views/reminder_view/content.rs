@@ -90,9 +90,9 @@ impl ReminderContent {
                                     .on_click({
                                         let app_entity = app_entity.clone();
                                         move |_, _, cx| {
-                                            app_entity.update(cx, |this, _| {
+                                            app_entity.update(cx, |this, cx| {
                                                 let id = this.create_reminder("新提醒");
-                                                this.state.set_editing_reminder(Some(id));
+                                                this.set_editing_reminder(Some(id), cx);
                                             });
                                         }
                                     })
@@ -111,9 +111,12 @@ impl ReminderContent {
                     .overflow_y_hidden()
                     .on_mouse_down(MouseButton::Left, {
                         let app_entity = app_entity.clone();
-                        move |_, _, cx| {
-                            app_entity.update(cx, |this, _| {
-                                this.state.set_editing_reminder(None);
+                        move |event, _, cx| {
+                            if event.default_prevented() {
+                                return;
+                            }
+                            app_entity.update(cx, |this, cx| {
+                                this.set_editing_reminder(None, cx);
                             });
                         }
                     })
@@ -136,7 +139,7 @@ impl ReminderContent {
     }
 
     fn reminder_item(
-        app: &App,
+        app: &mut App,
         reminder: Reminder,
         app_entity: Entity<App>,
         cx: &mut Context<App>,
@@ -149,9 +152,9 @@ impl ReminderContent {
         let is_editing = app.state.editing_reminder_id == Some(reminder_id);
 
         if is_editing {
-            return cx
-                .new(|cx| EditableReminder::new(reminder, app_entity, cx))
-                .into_any_element();
+            if let Some(view) = app.ensure_editing_view(app_entity, cx) {
+                return view.into_any_element();
+            }
         }
 
         let app_entity_clone = app_entity.clone();
@@ -172,8 +175,8 @@ impl ReminderContent {
                 let app_entity = app_entity.clone();
                 move |_, _, cx| {
                     cx.stop_propagation();
-                    app_entity.update(cx, |this, _| {
-                        this.state.set_editing_reminder(Some(reminder_id));
+                    app_entity.update(cx, |this, cx| {
+                        this.set_editing_reminder(Some(reminder_id), cx);
                     });
                 }
             })

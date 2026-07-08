@@ -7,6 +7,7 @@ use crate::state::AppView;
 use crate::views::calendar_view::CalendarView;
 use crate::views::header::Header;
 use crate::views::modal::{AddReminderModal, EventDetailModal};
+use crate::views::reminder_view::content::EditableReminder;
 use crate::views::reminder_view::ReminderView;
 use chrono::Local;
 use gpui::prelude::FluentBuilder;
@@ -21,6 +22,7 @@ pub struct App {
     pub db: Database,
     pub search_input_state: Option<Entity<InputState>>,
     pub _search_subscription: Option<Subscription>,
+    pub editing_view: Option<Entity<EditableReminder>>,
 }
 
 impl App {
@@ -307,8 +309,8 @@ impl App {
                                     let app = edit_app.clone();
                                     move |_, window, cx| {
                                         window.close_sheet(cx);
-                                        app.update(cx, |this, _| {
-                                            this.state.set_editing_reminder(Some(reminder_id));
+                                        app.update(cx, |this, cx| {
+                                            this.set_editing_reminder(Some(reminder_id), cx);
                                         });
                                     }
                                 })
@@ -343,7 +345,40 @@ impl App {
             db,
             search_input_state: None,
             _search_subscription: None,
+            editing_view: None,
         }
+    }
+
+    pub fn set_editing_reminder(&mut self, id: Option<Uuid>, _cx: &mut Context<Self>) {
+        if self.state.editing_reminder_id == id {
+            return;
+        }
+        self.state.set_editing_reminder(id);
+        self.editing_view = None;
+    }
+
+    pub fn ensure_editing_view(
+        &mut self,
+        app_entity: Entity<App>,
+        cx: &mut Context<Self>,
+    ) -> Option<Entity<EditableReminder>> {
+        let editing_id = self.state.editing_reminder_id?;
+        if let Some(view) = &self.editing_view {
+            if view.read(cx).reminder_id() == editing_id {
+                return Some(view.clone());
+            }
+        }
+
+        let reminder = self
+            .state
+            .reminders
+            .iter()
+            .find(|r| r.id == editing_id)
+            .cloned()?;
+
+        let view = cx.new(|cx| EditableReminder::new(reminder, app_entity, cx));
+        self.editing_view = Some(view.clone());
+        Some(view)
     }
 
     pub fn init_search_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -425,6 +460,9 @@ impl App {
     pub fn delete_reminder(&mut self, id: Uuid) {
         let repo = ReminderRepository::new(self.db.conn());
         let _ = repo.delete(&id);
+        if self.state.editing_reminder_id == Some(id) {
+            self.editing_view = None;
+        }
         self.state.delete_reminder(id);
     }
 
