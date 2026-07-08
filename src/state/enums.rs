@@ -14,8 +14,19 @@ pub enum CalendarViewMode {
 pub enum ReminderFilter {
     #[default]
     Today,
+    Tomorrow,
+    Week,
+    Overdue,
+    /// Has a due date and is incomplete (remindctl: upcoming)
     Planned,
+    Upcoming,
+    /// All incomplete reminders (remindctl: open)
     All,
+    Open,
+    Completed,
+    /// All reminders including completed (remindctl: all)
+    Everything,
+    Date(chrono::NaiveDate),
     List(Uuid),
     Search(String),
 }

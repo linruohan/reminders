@@ -1,11 +1,14 @@
 use crate::database::Database;
-use crate::repository::{ListRepository, ReminderRepository};
+use crate::models::owner::Owner;
+use crate::models::reminder::{Priority, Reminder, ReminderList};
+use crate::repository::{ListRepository, OwnerRepository, ReminderRepository};
 use crate::state::AppState;
 use crate::state::AppView;
 use crate::views::calendar_view::CalendarView;
 use crate::views::header::Header;
 use crate::views::modal::{AddReminderModal, EventDetailModal};
 use crate::views::reminder_view::ReminderView;
+use chrono::Local;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 use gpui_component::input::{InputEvent, InputState};
@@ -45,11 +48,24 @@ impl App {
             .map(|t| t.format("%H:%M").to_string())
             .unwrap_or_default();
 
-        let list_name = reminder
-            .list_id
-            .and_then(|id| self.state.lists.iter().find(|l| l.id == id))
-            .map(|l| l.name.clone())
-            .unwrap_or_else(|| "默认".to_string());
+        let list_name = self.state.list_name(reminder.list_id);
+        let priority_label = Self::priority_label(&reminder.priority);
+        let url = reminder.url.clone().unwrap_or_default();
+        let recurrence = reminder
+            .recurrence
+            .as_ref()
+            .map(|r| r.display_string())
+            .unwrap_or_default();
+        let location = reminder
+            .location
+            .as_ref()
+            .map(|l| l.address.clone())
+            .unwrap_or_default();
+        let owner_name = self.state.owner_name(reminder.owner_id);
+        let is_completed = reminder.is_completed;
+        let delete_app = cx.entity().clone();
+        let complete_app = cx.entity().clone();
+        let edit_app = cx.entity().clone();
 
         window.open_sheet_at(Placement::Right, cx, move |sheet, _, _| {
             sheet
@@ -86,13 +102,24 @@ impl App {
                                 .text_color(rgba(0x000000ee))
                                 .child(title.clone()),
                         )
-                        .child(
-                            div()
-                                .mt(px(8.0))
-                                .text_size(px(14.0))
-                                .text_color(rgba(0x8e8e93ff))
-                                .child(description.clone()),
-                        )
+                        .when(!description.is_empty(), |this| {
+                            this.child(
+                                div()
+                                    .mt(px(8.0))
+                                    .text_size(px(14.0))
+                                    .text_color(rgba(0x8e8e93ff))
+                                    .child(description.clone()),
+                            )
+                        })
+                        .when(!url.is_empty(), |this| {
+                            this.child(
+                                div()
+                                    .mt(px(12.0))
+                                    .text_size(px(13.0))
+                                    .text_color(rgba(0x007AFFff))
+                                    .child(url.clone()),
+                            )
+                        })
                         .when(!date_str.is_empty() || !time_str.is_empty(), |this| {
                             let time_text = if date_str.is_empty() {
                                 time_str.clone()
@@ -117,6 +144,44 @@ impl App {
                                             .text_size(px(13.0))
                                             .text_color(rgba(0xff9500ff))
                                             .child(time_text),
+                                    ),
+                            )
+                        })
+                        .when(!recurrence.is_empty(), |this| {
+                            this.child(
+                                div()
+                                    .mt(px(12.0))
+                                    .text_size(px(13.0))
+                                    .text_color(rgba(0x8e8e93ff))
+                                    .child(format!("重复: {}", recurrence)),
+                            )
+                        })
+                        .when(!location.is_empty(), |this| {
+                            this.child(
+                                div()
+                                    .mt(px(12.0))
+                                    .text_size(px(13.0))
+                                    .text_color(rgba(0x34c759ff))
+                                    .child(location.clone()),
+                            )
+                        })
+                        .when(!owner_name.is_empty(), |this| {
+                            this.child(
+                                div()
+                                    .mt(px(12.0))
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(8.0))
+                                    .child(
+                                        Icon::new(IconName::User)
+                                            .text_color(rgba(0x5856D6ff))
+                                            .size(px(14.0)),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_size(px(13.0))
+                                            .text_color(rgba(0x5856D6ff))
+                                            .child(format!("负责人: {}", owner_name)),
                                     ),
                             )
                         }),
@@ -157,6 +222,12 @@ impl App {
                                 .text_color(rgba(0x8e8e93ff))
                                 .child("所属分类:")
                                 .child(list_name.clone()),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(13.0))
+                                .text_color(rgba(0x8e8e93ff))
+                                .child(format!("优先级: {}", priority_label)),
                         ),
                 )
                 .footer(
@@ -178,8 +249,14 @@ impl App {
                                 .font_weight(FontWeight(500.0))
                                 .text_color(rgba(0x000000cc))
                                 .hover(|style| style.bg(rgba(0x00000008)))
-                                .on_mouse_down(MouseButton::Left, move |_, window, cx| {
-                                    window.close_sheet(cx);
+                                .on_mouse_down(MouseButton::Left, {
+                                    let app = delete_app.clone();
+                                    move |_, window, cx| {
+                                        app.update(cx, |this, _| {
+                                            this.delete_reminder(reminder_id);
+                                        });
+                                        window.close_sheet(cx);
+                                    }
                                 })
                                 .child("删除"),
                         )
@@ -195,10 +272,24 @@ impl App {
                                 .font_weight(FontWeight(500.0))
                                 .text_color(rgba(0x000000cc))
                                 .hover(|style| style.bg(rgba(0x00000008)))
-                                .on_mouse_down(MouseButton::Left, move |_, window, cx| {
-                                    window.close_sheet(cx);
+                                .on_mouse_down(MouseButton::Left, {
+                                    let app = complete_app.clone();
+                                    move |_, window, cx| {
+                                        app.update(cx, |this, _| {
+                                            if is_completed {
+                                                this.uncomplete_reminder(reminder_id);
+                                            } else {
+                                                this.complete_reminder(reminder_id);
+                                            }
+                                        });
+                                        window.close_sheet(cx);
+                                    }
                                 })
-                                .child("完成"),
+                                .child(if is_completed {
+                                    "标记未完成"
+                                } else {
+                                    "完成"
+                                }),
                         )
                         .child(
                             div()
@@ -212,6 +303,15 @@ impl App {
                                 .font_weight(FontWeight(500.0))
                                 .text_color(rgba(0x000000cc))
                                 .hover(|style| style.bg(rgba(0x00000008)))
+                                .on_mouse_down(MouseButton::Left, {
+                                    let app = edit_app.clone();
+                                    move |_, window, cx| {
+                                        window.close_sheet(cx);
+                                        app.update(cx, |this, _| {
+                                            this.state.set_editing_reminder(Some(reminder_id));
+                                        });
+                                    }
+                                })
                                 .child("编辑"),
                         ),
                 )
@@ -224,6 +324,7 @@ impl App {
 
         let reminder_repo = ReminderRepository::new(db.conn());
         let list_repo = ListRepository::new(db.conn());
+        let owner_repo = OwnerRepository::new(db.conn());
 
         if let Ok(reminders) = reminder_repo.get_all() {
             state.reminders = reminders;
@@ -231,6 +332,10 @@ impl App {
 
         if let Ok(lists) = list_repo.get_all() {
             state.lists = lists;
+        }
+
+        if let Ok(owners) = owner_repo.get_all() {
+            state.owners = owners;
         }
 
         Self {
@@ -296,9 +401,95 @@ impl App {
             .children(sheet_layer)
     }
 
+    pub fn persist_reminder(&mut self, id: Uuid) {
+        if let Some(reminder) = self.state.reminders.iter().find(|r| r.id == id).cloned() {
+            let repo = ReminderRepository::new(self.db.conn());
+            let _ = repo.update(&reminder);
+        }
+    }
+
+    pub fn create_reminder(&mut self, title: &str) -> Uuid {
+        let today = Local::now().date_naive();
+        let mut reminder = Reminder::new(title.to_string());
+        reminder.due_date = Some(today);
+        if let Some(list_id) = self.state.default_list_id() {
+            reminder.list_id = Some(list_id);
+        }
+        let id = reminder.id;
+        let repo = ReminderRepository::new(self.db.conn());
+        let _ = repo.insert(&reminder);
+        self.state.add_reminder(reminder);
+        id
+    }
+
+    pub fn delete_reminder(&mut self, id: Uuid) {
+        let repo = ReminderRepository::new(self.db.conn());
+        let _ = repo.delete(&id);
+        self.state.delete_reminder(id);
+    }
+
+    pub fn complete_reminder(&mut self, id: Uuid) {
+        self.state.toggle_completed(id);
+        self.persist_reminder(id);
+    }
+
+    pub fn uncomplete_reminder(&mut self, id: Uuid) {
+        self.state.toggle_completed(id);
+        self.persist_reminder(id);
+    }
+
+    pub fn set_priority(&mut self, id: Uuid, priority: Priority) {
+        self.state.set_priority(id, priority);
+        self.persist_reminder(id);
+    }
+
+    pub fn move_reminder_to_list(&mut self, id: Uuid, list_id: Uuid) {
+        self.state.move_reminder_to_list(id, list_id);
+        self.persist_reminder(id);
+    }
+
+    pub fn set_due_tomorrow(&mut self, id: Uuid) {
+        self.state.set_due_tomorrow(id);
+        self.persist_reminder(id);
+    }
+
+    pub fn create_list(&mut self, name: &str) -> Uuid {
+        let list = ReminderList::new(name.to_string());
+        let id = list.id;
+        let repo = ListRepository::new(self.db.conn());
+        let _ = repo.insert(&list);
+        self.state.add_list(list);
+        id
+    }
+
+    pub fn create_owner(&mut self, name: &str) -> Uuid {
+        let owner = Owner::new(name.to_string());
+        let id = owner.id;
+        let repo = OwnerRepository::new(self.db.conn());
+        let _ = repo.insert(&owner);
+        self.state.add_owner(owner);
+        id
+    }
+
+    pub fn delete_owner(&mut self, id: Uuid) {
+        let repo = OwnerRepository::new(self.db.conn());
+        let _ = repo.delete(&id);
+        self.state.delete_owner(id);
+    }
+
+    fn priority_label(priority: &Priority) -> &'static str {
+        match priority {
+            Priority::None => "无",
+            Priority::High => "高",
+            Priority::Medium => "中",
+            Priority::Low => "低",
+        }
+    }
+
     pub fn refresh_from_db(&mut self) {
         let reminder_repo = ReminderRepository::new(self.db.conn());
         let list_repo = ListRepository::new(self.db.conn());
+        let owner_repo = OwnerRepository::new(self.db.conn());
 
         if let Ok(reminders) = reminder_repo.get_all() {
             self.state.reminders = reminders;
@@ -306,6 +497,10 @@ impl App {
 
         if let Ok(lists) = list_repo.get_all() {
             self.state.lists = lists;
+        }
+
+        if let Ok(owners) = owner_repo.get_all() {
+            self.state.owners = owners;
         }
     }
 }

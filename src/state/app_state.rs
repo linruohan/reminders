@@ -1,11 +1,14 @@
-use crate::models::reminder::{Reminder, ReminderList};
-use crate::state::enums::{AppView, CalendarViewMode, ReminderFilter};
+use crate::models::owner::Owner;
+use crate::models::reminder::{Priority, Reminder, ReminderList};
+use crate::state::filtering::apply_filter;
+use crate::state::{AppView, CalendarViewMode, ReminderFilter};
 use chrono::{Datelike, Local, NaiveDate};
 use uuid::Uuid;
 
 pub struct AppState {
     pub reminders: Vec<Reminder>,
     pub lists: Vec<ReminderList>,
+    pub owners: Vec<Owner>,
     pub current_view: AppView,
     pub selected_list_id: Option<Uuid>,
     pub reminder_filter: ReminderFilter,
@@ -26,6 +29,7 @@ impl AppState {
         Self {
             reminders: Vec::new(),
             lists: Vec::new(),
+            owners: Vec::new(),
             current_view: AppView::Reminder,
             selected_list_id: None,
             reminder_filter: ReminderFilter::Today,
@@ -41,9 +45,27 @@ impl AppState {
         }
     }
 
-    pub fn refresh_data(&mut self, reminders: Vec<Reminder>, lists: Vec<ReminderList>) {
+    pub fn default_list_id(&self) -> Option<Uuid> {
+        self.selected_list_id
+            .or_else(|| self.lists.first().map(|l| l.id))
+    }
+
+    pub fn list_name(&self, list_id: Option<Uuid>) -> String {
+        list_id
+            .and_then(|id| self.lists.iter().find(|l| l.id == id))
+            .map(|l| l.name.clone())
+            .unwrap_or_else(|| "提醒事项".to_string())
+    }
+
+    pub fn refresh_data(
+        &mut self,
+        reminders: Vec<Reminder>,
+        lists: Vec<ReminderList>,
+        owners: Vec<Owner>,
+    ) {
         self.reminders = reminders;
         self.lists = lists;
+        self.owners = owners;
     }
 
     pub fn add_reminder(&mut self, reminder: Reminder) {
@@ -61,6 +83,9 @@ impl AppState {
         if self.selected_reminder_id == Some(id) {
             self.selected_reminder_id = None;
             self.show_detail_panel = false;
+        }
+        if self.editing_reminder_id == Some(id) {
+            self.editing_reminder_id = None;
         }
     }
 
@@ -82,39 +107,35 @@ impl AppState {
         }
         if let ReminderFilter::List(list_id) = self.reminder_filter {
             if list_id == id {
-                self.reminder_filter = ReminderFilter::All;
+                self.reminder_filter = ReminderFilter::Open;
             }
         }
     }
 
-    pub fn search_reminders(&self, keyword: &str) -> Vec<Reminder> {
-        let keyword_lower = keyword.to_lowercase();
-        self.reminders
-            .iter()
-            .filter(|r| {
-                let title_match = r.title.to_lowercase().contains(&keyword_lower);
-                let desc_match = r
-                    .description
-                    .as_ref()
-                    .map(|d| d.to_lowercase().contains(&keyword_lower))
-                    .unwrap_or(false);
-                let date_match = r
-                    .due_date
-                    .map(|d| d.format("%m月%d日").to_string().contains(&keyword_lower))
-                    .unwrap_or(false);
-                let time_match = r
-                    .due_time
-                    .map(|t| t.format("%H:%M").to_string().contains(&keyword_lower))
-                    .unwrap_or(false);
-                let list_name_match = r
-                    .list_id
-                    .and_then(|id| self.lists.iter().find(|l| l.id == id))
-                    .map(|l| l.name.to_lowercase().contains(&keyword_lower))
-                    .unwrap_or(false);
-                title_match || desc_match || date_match || time_match || list_name_match
-            })
-            .cloned()
-            .collect()
+    pub fn add_owner(&mut self, owner: Owner) {
+        self.owners.push(owner);
+    }
+
+    pub fn update_owner(&mut self, id: Uuid, updated: Owner) {
+        if let Some(index) = self.owners.iter().position(|o| o.id == id) {
+            self.owners[index] = updated;
+        }
+    }
+
+    pub fn delete_owner(&mut self, id: Uuid) {
+        self.owners.retain(|o| o.id != id);
+        for reminder in &mut self.reminders {
+            if reminder.owner_id == Some(id) {
+                reminder.owner_id = None;
+            }
+        }
+    }
+
+    pub fn owner_name(&self, owner_id: Option<Uuid>) -> String {
+        owner_id
+            .and_then(|id| self.owners.iter().find(|o| o.id == id))
+            .map(|o| o.name.clone())
+            .unwrap_or_default()
     }
 
     pub fn set_current_view(&mut self, view: AppView) {
@@ -217,34 +238,44 @@ impl AppState {
     }
 
     pub fn get_filtered_reminders(&self) -> Vec<Reminder> {
-        let today = Local::now().date_naive();
+        apply_filter(&self.reminders, &self.reminder_filter)
+    }
 
-        match &self.reminder_filter {
-            ReminderFilter::Today => self
-                .reminders
-                .iter()
-                .filter(|r| r.due_date.map(|d| d == today).unwrap_or(false) && !r.is_completed)
-                .cloned()
-                .collect(),
-            ReminderFilter::Planned => self
-                .reminders
-                .iter()
-                .filter(|r| r.due_date.is_some() && !r.is_completed)
-                .cloned()
-                .collect(),
-            ReminderFilter::All => self
-                .reminders
-                .iter()
-                .filter(|r| !r.is_completed)
-                .cloned()
-                .collect(),
-            ReminderFilter::List(id) => self
-                .reminders
-                .iter()
-                .filter(|r| r.list_id == Some(*id) && !r.is_completed)
-                .cloned()
-                .collect(),
-            ReminderFilter::Search(keyword) => self.search_reminders(keyword),
+    pub fn count_for_filter(&self, filter: ReminderFilter) -> usize {
+        apply_filter(&self.reminders, &filter).len()
+    }
+
+    pub fn set_priority(&mut self, id: Uuid, priority: Priority) {
+        if let Some(r) = self.reminders.iter_mut().find(|r| r.id == id) {
+            r.priority = priority;
+            r.updated_at = Local::now();
+        }
+    }
+
+    pub fn move_reminder_to_list(&mut self, id: Uuid, list_id: Uuid) {
+        if let Some(r) = self.reminders.iter_mut().find(|r| r.id == id) {
+            r.list_id = Some(list_id);
+            r.updated_at = Local::now();
+        }
+    }
+
+    pub fn toggle_completed(&mut self, id: Uuid) {
+        if let Some(r) = self.reminders.iter_mut().find(|r| r.id == id) {
+            if r.is_completed {
+                r.is_completed = false;
+                r.completion_date = None;
+            } else {
+                r.is_completed = true;
+                r.completion_date = Some(Local::now());
+            }
+            r.updated_at = Local::now();
+        }
+    }
+
+    pub fn set_due_tomorrow(&mut self, id: Uuid) {
+        if let Some(r) = self.reminders.iter_mut().find(|r| r.id == id) {
+            r.due_date = Local::now().date_naive().succ_opt();
+            r.updated_at = Local::now();
         }
     }
 }

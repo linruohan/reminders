@@ -87,6 +87,7 @@ impl EventDetailModal {
                                             Priority::High => rgba(0xFF3B30ff),
                                             Priority::Medium => rgba(0x007AFFff),
                                             Priority::Low => rgba(0x4CD964ff),
+                                            Priority::None => rgba(0x8e8e93ff),
                                         },
                                     ))
                                     .child(

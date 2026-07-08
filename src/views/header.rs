@@ -44,9 +44,11 @@ impl Header {
                         .flex()
                         .items_center()
                         .gap(px(4.0))
-                        .child(Self::icon_button("list-btn", IconName::List))
-                        .child(Self::icon_button("share-btn", IconName::Share))
-                        .child(Self::icon_button("add-btn", IconName::Plus)),
+                        .child(Self::icon_button(
+                            "add-btn",
+                            IconName::Plus,
+                            app_entity.clone(),
+                        )),
                 ),
         )
     }
@@ -155,11 +157,11 @@ impl Header {
             )
     }
 
-    fn icon_button(id: &str, icon: IconName) -> impl IntoElement {
-        let id_str = id.to_string();
+    fn icon_button(id: &str, icon: IconName, app_entity: Entity<App>) -> impl IntoElement {
+        let is_add = id == "add-btn";
 
         div()
-            .id(id_str)
+            .id(id.to_string())
             .flex()
             .items_center()
             .justify_center()
@@ -168,6 +170,14 @@ impl Header {
             .rounded(px(6.0))
             .cursor_pointer()
             .hover(|style| style.bg(rgba(0x00000008)))
+            .on_click(move |_, _, cx| {
+                if is_add {
+                    app_entity.update(cx, |this, _| {
+                        let id = this.create_reminder("新提醒");
+                        this.state.set_editing_reminder(Some(id));
+                    });
+                }
+            })
             .child(Icon::new(icon).text_color(rgba(0x000000aa)).size(px(16.0)))
     }
 }
