@@ -349,12 +349,34 @@ impl App {
         }
     }
 
+    /// 设置当前正在编辑的提醒ID,不指定选择器类型
     pub fn set_editing_reminder(&mut self, id: Option<Uuid>, _cx: &mut Context<Self>) {
         if self.state.editing_reminder_id == id {
             return;
         }
         self.state.set_editing_reminder(id);
         self.editing_view = None;
+    }
+
+    /// 设置当前正在编辑的提醒ID,并指定需要自动打开的选择器类型
+    pub fn set_editing_reminder_with_picker(
+        &mut self,
+        id: Option<Uuid>,
+        picker_type: &str,
+        cx: &mut Context<Self>,
+    ) {
+        // 先设置编辑状态
+        self.set_editing_reminder(id, cx);
+
+        // 如果设置了编辑ID,确保编辑视图存在并设置选择器类型
+        if let Some(_editing_id) = id {
+            if let Some(view) = self.ensure_editing_view(cx.entity().clone(), cx) {
+                view.update(cx, |view, cx| {
+                    view.auto_open_picker = Some(picker_type.to_string());
+                    cx.notify();
+                });
+            }
+        }
     }
 
     pub fn ensure_editing_view(

@@ -172,9 +172,9 @@ impl Header {
             .hover(|style| style.bg(rgba(0x00000008)))
             .on_click(move |_, _, cx| {
                 if is_add {
-                    app_entity.update(cx, |this, _| {
+                    app_entity.update(cx, |this, cx| {
                         let id = this.create_reminder("新提醒");
-                        this.state.set_editing_reminder(Some(id));
+                        this.set_editing_reminder(Some(id), cx);
                     });
                 }
             })

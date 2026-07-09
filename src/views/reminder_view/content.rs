@@ -1,25 +1,41 @@
-use crate::app::App;
-use crate::models::owner::Owner;
-use crate::models::reminder::{Priority, Reminder, ReminderList};
+use crate::app::App as RemindersApp;
+use crate::models::reminder::{
+    LocationProximity, LocationTrigger, Priority, Reminder, ReminderList,
+};
 use crate::repository::ReminderRepository;
 use crate::state::ReminderFilter;
 use chrono::{Datelike, Duration, Local, NaiveDate, NaiveTime, Timelike, Weekday};
 use gpui::prelude::{FluentBuilder, InteractiveElement};
 use gpui::*;
 
+use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::input::{Input, InputEvent, InputState};
-use gpui_component::menu::{ContextMenuExt, PopupMenuItem};
-use gpui_component::scroll::ScrollableElement;
+use gpui_component::menu::{ContextMenuExt, DropdownMenu, PopupMenuItem};
+use gpui_component::list::{List, ListState};
+use gpui_component::popover::{Popover, PopoverState};
+use gpui_component::tag::Tag;
+use gpui_component::calendar::{Calendar, CalendarEvent, CalendarState, Date};
+use gpui_component::Selectable;
+use gpui_component::Sizable;
+
+use super::suggestion_list::{
+    SuggestionAction, SuggestionEntry, SuggestionListDelegate, SuggestionSection,
+};
 
 use gpui_component::{h_flex, v_flex, Icon, IconName};
 
 pub struct ReminderContent;
 
 impl ReminderContent {
-    pub fn build(app: &mut App, cx: &mut Context<App>) -> impl IntoElement {
+    pub fn build(app: &mut RemindersApp, cx: &mut Context<RemindersApp>) -> impl IntoElement {
         let reminders = app.state.get_filtered_reminders();
         let filter = &app.state.reminder_filter;
         let app_entity = cx.entity().clone();
+        let is_editing = app.state.editing_reminder_id.is_some();
+        let picker_open = app
+            .editing_view
+            .as_ref()
+            .is_some_and(|view| view.read(cx).has_open_picker());
 
         let title = match filter {
             ReminderFilter::Today => "今天".to_string(),
@@ -42,6 +58,7 @@ impl ReminderContent {
         };
 
         let count = reminders.len();
+        let has_reminders = !reminders.is_empty();
 
         div()
             .flex_1()
@@ -108,17 +125,18 @@ impl ReminderContent {
                 div()
                     .id("reminder-list")
                     .flex_1()
-                    .overflow_y_hidden()
-                    .on_mouse_down(MouseButton::Left, {
-                        let app_entity = app_entity.clone();
-                        move |event, _, cx| {
-                            if event.default_prevented() {
-                                return;
+                    .when(!picker_open, |this| this.overflow_y_hidden())
+                    .flex()
+                    .flex_col()
+                    .when(reminders.is_empty(), |this| {
+                        this.on_mouse_down(MouseButton::Left, {
+                            let app_entity = app_entity.clone();
+                            move |_, _, cx| {
+                                app_entity.update(cx, |this, cx| {
+                                    this.set_editing_reminder(None, cx);
+                                });
                             }
-                            app_entity.update(cx, |this, cx| {
-                                this.set_editing_reminder(None, cx);
-                            });
-                        }
+                        })
                     })
                     .when(reminders.is_empty(), |this| {
                         this.child(
@@ -130,19 +148,32 @@ impl ReminderContent {
                             ),
                         )
                     })
-                    .when(!reminders.is_empty(), |this| {
+                    .when(has_reminders, |this| {
                         this.children(reminders.into_iter().map(|reminder| {
                             Self::reminder_item(app, reminder, app_entity.clone(), cx)
                         }))
+                    })
+                    .when(is_editing && has_reminders && !picker_open, |this| {
+                        let app_entity = app_entity.clone();
+                        this.child(div().flex_1().min_h(px(48.0)).on_mouse_down(
+                            MouseButton::Left,
+                            move |_, _, cx| {
+                                app_entity.update(cx, |this, cx| {
+                                    this.set_editing_reminder(None, cx);
+                                });
+                            },
+                        ))
                     }),
             )
     }
 
+    /// 渲染单个提醒项,包含复选框、标题、日期时间标签和信息按钮
+    /// 点击提醒项会显示编辑菜单(PopupMenu)
     fn reminder_item(
-        app: &mut App,
+        app: &mut RemindersApp,
         reminder: Reminder,
-        app_entity: Entity<App>,
-        cx: &mut Context<App>,
+        app_entity: Entity<RemindersApp>,
+        cx: &mut Context<RemindersApp>,
     ) -> impl IntoElement {
         let due_date = reminder.due_date;
         let due_time = reminder.due_time;
@@ -150,9 +181,11 @@ impl ReminderContent {
         let reminder_id = reminder.id;
         let is_completed = reminder.is_completed;
         let is_editing = app.state.editing_reminder_id == Some(reminder_id);
+        let another_editing = app.state.editing_reminder_id.is_some() && !is_editing;
 
+        // 如果处于编辑状态,渲染编辑视图
         if is_editing {
-            if let Some(view) = app.ensure_editing_view(app_entity, cx) {
+            if let Some(view) = app.ensure_editing_view(app_entity.clone(), cx) {
                 return view.into_any_element();
             }
         }
@@ -163,6 +196,24 @@ impl ReminderContent {
             .and_then(|id| owners.iter().find(|o| o.id == id))
             .map(|o| o.name.clone());
 
+        // 创建编辑菜单的按钮
+        let reminder_clone = reminder.clone();
+        let app_entity_for_menu = app_entity.clone();
+        let edit_menu_btn = Button::new("edit-btn")
+            .icon(IconName::Pencil)
+            .ghost()
+            .small()
+            .dropdown_menu(move |menu, window, cx| {
+                Self::build_edit_menu(
+                    menu,
+                    window,
+                    cx,
+                    app_entity_for_menu.clone(),
+                    reminder_id,
+                    reminder_clone.clone(),
+                )
+            });
+
         div()
             .id(format!("reminder-item-{}", reminder_id))
             .px(px(24.0))
@@ -170,15 +221,22 @@ impl ReminderContent {
             .border_b(px(1.0))
             .border_color(rgba(0x00000008))
             .cursor_pointer()
-            .hover(|style| style.bg(rgba(0x00000004)))
-            .on_mouse_down(MouseButton::Left, {
-                let app_entity = app_entity.clone();
-                move |_, _, cx| {
+            .when(another_editing, |this| {
+                this.on_mouse_down(MouseButton::Left, |_, _, cx| {
                     cx.stop_propagation();
-                    app_entity.update(cx, |this, cx| {
-                        this.set_editing_reminder(Some(reminder_id), cx);
-                    });
-                }
+                })
+            })
+            .when(!another_editing, |this| {
+                this.hover(|style| style.bg(rgba(0x00000004)))
+                    .on_mouse_down(MouseButton::Left, {
+                        let app_entity = app_entity.clone();
+                        move |_, _, cx| {
+                            cx.stop_propagation();
+                            app_entity.update(cx, |this, cx| {
+                                this.set_editing_reminder(Some(reminder_id), cx);
+                            });
+                        }
+                    })
             })
             .context_menu(Self::context_menu(
                 app_entity.clone(),
@@ -257,6 +315,7 @@ impl ReminderContent {
                                 },
                             ),
                     )
+                    .child(edit_menu_btn)
                     .child(Self::info_button(app_entity_clone, reminder_id, false)),
             )
             .into_any_element()
@@ -266,7 +325,7 @@ impl ReminderContent {
         reminder_id: uuid::Uuid,
         is_completed: bool,
         editing: bool,
-        app_entity: Entity<App>,
+        app_entity: Entity<RemindersApp>,
     ) -> impl IntoElement {
         let size = if editing { px(22.0) } else { px(18.0) };
         let radius = if editing { px(11.0) } else { px(9.0) };
@@ -320,7 +379,7 @@ impl ReminderContent {
     }
 
     fn info_button(
-        app_entity: Entity<App>,
+        app_entity: Entity<RemindersApp>,
         reminder_id: uuid::Uuid,
         editing: bool,
     ) -> impl IntoElement {
@@ -354,8 +413,86 @@ impl ReminderContent {
             )
     }
 
+    /// 构建编辑菜单(PopupMenu),包含编辑标题、设置日期、设置时间等选项
+    fn build_edit_menu(
+        menu: gpui_component::menu::PopupMenu,
+        window: &mut Window,
+        _cx: &mut Context<gpui_component::menu::PopupMenu>,
+        app_entity: Entity<RemindersApp>,
+        reminder_id: uuid::Uuid,
+        reminder: Reminder,
+    ) -> gpui_component::menu::PopupMenu {
+        menu.label("编辑选项")
+            .item(PopupMenuItem::new("编辑标题").on_click(window.listener_for(
+                &app_entity,
+                move |this, _, _, cx| {
+                    this.set_editing_reminder(Some(reminder_id), cx);
+                },
+            )))
+            .separator()
+            .item(PopupMenuItem::new("设置日期").on_click(window.listener_for(
+                &app_entity,
+                move |this, _, _, cx| {
+                    // 进入编辑模式并标记需要自动打开日期选择器
+                    this.set_editing_reminder_with_picker(Some(reminder_id), "date", cx);
+                },
+            )))
+            .item(PopupMenuItem::new("设置时间").on_click(window.listener_for(
+                &app_entity,
+                move |this, _, _, cx| {
+                    this.set_editing_reminder_with_picker(Some(reminder_id), "time", cx);
+                },
+            )))
+            .item(PopupMenuItem::new("设置位置").on_click(window.listener_for(
+                &app_entity,
+                move |this, _, _, cx| {
+                    this.set_editing_reminder_with_picker(Some(reminder_id), "location", cx);
+                },
+            )))
+            .item(
+                PopupMenuItem::new("设置负责人").on_click(window.listener_for(
+                    &app_entity,
+                    move |this, _, _, cx| {
+                        this.set_editing_reminder(Some(reminder_id), cx);
+                    },
+                )),
+            )
+            .separator()
+            .item(
+                PopupMenuItem::new(if reminder.is_completed {
+                    "标记为未完成"
+                } else {
+                    "标记为完成"
+                })
+                .on_click(window.listener_for(
+                    &app_entity,
+                    move |this, _, _, _cx| {
+                        if reminder.is_completed {
+                            this.uncomplete_reminder(reminder_id);
+                        } else {
+                            this.complete_reminder(reminder_id);
+                        }
+                    },
+                )),
+            )
+            .separator()
+            .item(PopupMenuItem::new("显示简介").on_click(window.listener_for(
+                &app_entity,
+                move |this, _, window, cx| {
+                    this.open_reminder_detail(window, cx, reminder_id);
+                },
+            )))
+            .separator()
+            .item(PopupMenuItem::new("删除").on_click(window.listener_for(
+                &app_entity,
+                move |this, _, _, _cx| {
+                    this.delete_reminder(reminder_id);
+                },
+            )))
+    }
+
     fn context_menu(
-        app_entity: Entity<App>,
+        app_entity: Entity<RemindersApp>,
         reminder_id: uuid::Uuid,
         is_completed: bool,
         lists: Vec<ReminderList>,
@@ -486,35 +623,287 @@ impl ReminderContent {
 
 pub struct EditableReminder {
     reminder: Reminder,
-    app_entity: Entity<App>,
+    app_entity: Entity<RemindersApp>,
     title_input: Option<Entity<InputState>>,
     notes_input: Option<Entity<InputState>>,
     editing_title: String,
     editing_notes: String,
     editing_date: Option<NaiveDate>,
     editing_time: Option<NaiveTime>,
+    editing_location: Option<String>,
     editing_owner_id: Option<uuid::Uuid>,
     show_date_picker: bool,
     show_time_picker: bool,
+    show_location_picker: bool,
     show_owner_picker: bool,
+    pub(crate) auto_open_picker: Option<String>,
+    calendar_state: Option<Entity<CalendarState>>,
+    _calendar_subscription: Option<Subscription>,
+    date_list_state: Option<Entity<ListState<SuggestionListDelegate>>>,
+    time_list_state: Option<Entity<ListState<SuggestionListDelegate>>>,
+    location_list_state: Option<Entity<ListState<SuggestionListDelegate>>>,
 }
 
 impl EditableReminder {
-    fn new(reminder: Reminder, app_entity: Entity<App>, _cx: &mut Context<Self>) -> Self {
+    pub fn reminder_id(&self) -> uuid::Uuid {
+        self.reminder.id
+    }
+
+    pub fn has_open_picker(&self) -> bool {
+        self.show_date_picker || self.show_time_picker || self.show_location_picker
+    }
+
+    /// 创建可编辑提醒视图,初始化编辑状态和输入组件
+    pub(crate) fn new(
+        reminder: Reminder,
+        app_entity: Entity<RemindersApp>,
+        _cx: &mut Context<Self>,
+    ) -> Self {
         Self {
             editing_title: reminder.title.clone(),
             editing_notes: reminder.description.clone().unwrap_or_default(),
             editing_date: reminder.due_date,
             editing_time: reminder.due_time,
+            editing_location: reminder.location.as_ref().map(|l| l.address.clone()),
             editing_owner_id: reminder.owner_id,
             show_date_picker: false,
             show_time_picker: false,
+            show_location_picker: false,
             show_owner_picker: false,
             title_input: None,
             notes_input: None,
             reminder,
             app_entity,
+            auto_open_picker: None,
+            calendar_state: None,
+            _calendar_subscription: None,
+            date_list_state: None,
+            time_list_state: None,
+            location_list_state: None,
         }
+    }
+
+    pub(crate) fn apply_suggestion(&mut self, action: SuggestionAction, cx: &mut Context<Self>) {
+        match action {
+            SuggestionAction::Date(date) => self.set_date(date, cx),
+            SuggestionAction::Time(time) => self.select_time(&time, cx),
+            SuggestionAction::Location(location) => self.set_location(location, cx),
+        }
+    }
+
+    fn ensure_calendar(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.calendar_state.is_some() {
+            if let Some(date) = self.editing_date {
+                if let Some(state) = &self.calendar_state {
+                    state.update(cx, |calendar, cx| {
+                        if calendar.date().start() != Some(date) {
+                            calendar.set_date(Date::Single(Some(date)), window, cx);
+                        }
+                    });
+                }
+            }
+            return;
+        }
+
+        let entity = cx.entity().clone();
+        let initial_date = self.editing_date;
+        let calendar = cx.new(|cx| {
+            let mut state = CalendarState::new(window, cx);
+            if let Some(date) = initial_date {
+                state.set_date(Date::Single(Some(date)), window, cx);
+            }
+            state
+        });
+
+        let subscription = cx.subscribe_in(&calendar, window, move |_, _, ev: &CalendarEvent, _, cx| {
+            let CalendarEvent::Selected(date) = ev;
+                if let Some(selected) = date.start() {
+                    entity.update(cx, |this, cx| {
+                        this.set_date(selected, cx);
+                    });
+                }
+            }
+        });
+
+        self.calendar_state = Some(calendar);
+        self._calendar_subscription = Some(subscription);
+    }
+
+    fn ensure_date_list(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let quick_options: Vec<_> = Self::generate_date_options().into_iter().take(3).collect();
+        let confirmed = self
+            .editing_date
+            .map(SuggestionAction::Date);
+        let sections = vec![SuggestionSection {
+            title: "建议".into(),
+            items: quick_options
+                .into_iter()
+                .map(|(date, label, subtitle)| SuggestionEntry {
+                    icon: IconName::Calendar,
+                    icon_color: rgba(0x007AFFff).into(),
+                    primary: label.into(),
+                    secondary: subtitle.map(Into::into),
+                    action: SuggestionAction::Date(date),
+                })
+                .collect(),
+        }];
+
+        let entity = cx.entity().clone();
+        Self::refresh_list_state(
+            &mut self.date_list_state,
+            sections,
+            confirmed,
+            entity,
+            window,
+            cx,
+        );
+    }
+
+    fn ensure_time_list(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let confirmed = self.editing_time.map(|time| {
+            SuggestionAction::Time(time.format("%H:%M").to_string())
+        });
+        let sections = vec![SuggestionSection {
+            title: "建议".into(),
+            items: Self::generate_time_options()
+                .into_iter()
+                .map(|(time_val, time_label, period)| SuggestionEntry {
+                    icon: IconName::Clock,
+                    icon_color: rgba(0xff9500ff).into(),
+                    primary: time_label.into(),
+                    secondary: Some(period.into()),
+                    action: SuggestionAction::Time(time_val),
+                })
+                .collect(),
+        }];
+
+        let entity = cx.entity().clone();
+        Self::refresh_list_state(
+            &mut self.time_list_state,
+            sections,
+            confirmed,
+            entity,
+            window,
+            cx,
+        );
+    }
+
+    fn ensure_location_list(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let confirmed = self
+            .editing_location
+            .clone()
+            .map(SuggestionAction::Location);
+        let sections = vec![SuggestionSection {
+            title: "建议".into(),
+            items: vec![
+                ("家".to_string(), "到达时".to_string()),
+                ("公司".to_string(), "到达时".to_string()),
+                ("当前位置".to_string(), "离开时".to_string()),
+            ]
+            .into_iter()
+            .map(|(label, subtitle)| SuggestionEntry {
+                icon: IconName::MapPin,
+                icon_color: rgba(0x5856D6ff).into(),
+                primary: label.clone().into(),
+                secondary: Some(subtitle.into()),
+                action: SuggestionAction::Location(label),
+            })
+            .collect(),
+        }];
+
+        let entity = cx.entity().clone();
+        Self::refresh_list_state(
+            &mut self.location_list_state,
+            sections,
+            confirmed,
+            entity,
+            window,
+            cx,
+        );
+    }
+
+    fn refresh_list_state(
+        state: &mut Option<Entity<ListState<SuggestionListDelegate>>>,
+        sections: Vec<SuggestionSection>,
+        confirmed: Option<SuggestionAction>,
+        reminder_entity: Entity<EditableReminder>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(list_state) = state {
+            list_state.update(cx, |list, cx| {
+                list.delegate_mut().set_data(sections, confirmed);
+                cx.notify();
+            });
+            return;
+        }
+
+        let delegate = SuggestionListDelegate::new(sections, confirmed, reminder_entity);
+        *state = Some(cx.new(|cx| ListState::new(delegate, window, cx)));
+    }
+
+    fn build_date_popover(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.ensure_calendar(window, cx);
+        self.ensure_date_list(window, cx);
+
+        let date_list = self.date_list_state.as_ref().unwrap().clone();
+        let calendar = self.calendar_state.as_ref().unwrap().clone();
+
+        v_flex()
+            .w(px(300.0))
+            .max_h(px(420.0))
+            .child(
+                List::new(&date_list)
+                    .small()
+                    .max_h(px(168.0))
+                    .scrollbar_visible(true),
+            )
+            .child(
+                div()
+                    .px(px(8.0))
+                    .py(px(4.0))
+                    .text_size(px(11.0))
+                    .font_weight(FontWeight(600.0))
+                    .text_color(rgba(0x8e8e93ff))
+                    .child("具体日期"),
+            )
+            .child(
+                Calendar::new(&calendar)
+                    .number_of_months(1)
+                    .small()
+                    .border_0()
+                    .p_0(),
+            )
+    }
+
+    fn build_time_popover(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.ensure_time_list(window, cx);
+        let time_list = self.time_list_state.as_ref().unwrap().clone();
+
+        v_flex()
+            .w(px(260.0))
+            .max_h(px(320.0))
+            .child(
+                List::new(&time_list)
+                    .small()
+                    .max_h(px(280.0))
+                    .scrollbar_visible(true),
+            )
+    }
+
+    fn build_location_popover(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.ensure_location_list(window, cx);
+        let location_list = self.location_list_state.as_ref().unwrap().clone();
+
+        v_flex()
+            .w(px(260.0))
+            .max_h(px(240.0))
+            .child(
+                List::new(&location_list)
+                    .small()
+                    .max_h(px(220.0))
+                    .scrollbar_visible(true),
+            )
     }
 
     fn format_time_display(time: NaiveTime) -> String {
@@ -545,6 +934,16 @@ impl EditableReminder {
                 };
                 r.due_date = self.editing_date;
                 r.due_time = self.editing_time;
+                r.location = self
+                    .editing_location
+                    .as_ref()
+                    .map(|address| LocationTrigger {
+                        address: address.clone(),
+                        latitude: None,
+                        longitude: None,
+                        radius: 100.0,
+                        proximity: LocationProximity::Arriving,
+                    });
                 r.owner_id = self.editing_owner_id;
             }
             let repo = ReminderRepository::new(app.db.conn());
@@ -566,9 +965,10 @@ impl EditableReminder {
         cx.notify();
     }
 
+    /// 选择日期后更新提醒数据,但不关闭选择器以保持编辑状态
     fn set_date(&mut self, date: NaiveDate, cx: &mut Context<Self>) {
         self.editing_date = Some(date);
-        self.show_date_picker = false;
+        // 不立即关闭选择器,保持编辑状态
         self.sync_to_app(cx);
         cx.notify();
     }
@@ -576,7 +976,12 @@ impl EditableReminder {
     fn open_date_picker(&mut self, cx: &mut Context<Self>) {
         self.show_date_picker = true;
         self.show_time_picker = false;
-        self.show_owner_picker = false;
+        self.show_location_picker = false;
+        cx.notify();
+    }
+
+    fn close_date_picker(&mut self, cx: &mut Context<Self>) {
+        self.show_date_picker = false;
         cx.notify();
     }
 
@@ -584,7 +989,7 @@ impl EditableReminder {
         self.show_date_picker = !self.show_date_picker;
         if self.show_date_picker {
             self.show_time_picker = false;
-            self.show_owner_picker = false;
+            self.show_location_picker = false;
         }
         cx.notify();
     }
@@ -596,11 +1001,12 @@ impl EditableReminder {
         cx.notify();
     }
 
+    /// 选择时间后更新提醒数据,但不关闭选择器以保持编辑状态
     fn select_time(&mut self, time_str: &str, cx: &mut Context<Self>) {
         if let Ok(time) = NaiveTime::parse_from_str(time_str, "%H:%M") {
             self.editing_time = Some(time);
         }
-        self.show_time_picker = false;
+        // 不立即关闭选择器,保持编辑状态
         self.sync_to_app(cx);
         cx.notify();
     }
@@ -608,7 +1014,12 @@ impl EditableReminder {
     fn open_time_picker(&mut self, cx: &mut Context<Self>) {
         self.show_time_picker = true;
         self.show_date_picker = false;
-        self.show_owner_picker = false;
+        self.show_location_picker = false;
+        cx.notify();
+    }
+
+    fn close_time_picker(&mut self, cx: &mut Context<Self>) {
+        self.show_time_picker = false;
         cx.notify();
     }
 
@@ -616,7 +1027,41 @@ impl EditableReminder {
         self.show_time_picker = !self.show_time_picker;
         if self.show_time_picker {
             self.show_date_picker = false;
-            self.show_owner_picker = false;
+            self.show_location_picker = false;
+        }
+        cx.notify();
+    }
+
+    fn remove_location(&mut self, cx: &mut Context<Self>) {
+        self.editing_location = None;
+        self.show_location_picker = false;
+        self.sync_to_app(cx);
+        cx.notify();
+    }
+
+    fn set_location(&mut self, address: String, cx: &mut Context<Self>) {
+        self.editing_location = Some(address);
+        self.sync_to_app(cx);
+        cx.notify();
+    }
+
+    fn open_location_picker(&mut self, cx: &mut Context<Self>) {
+        self.show_location_picker = true;
+        self.show_date_picker = false;
+        self.show_time_picker = false;
+        cx.notify();
+    }
+
+    fn close_location_picker(&mut self, cx: &mut Context<Self>) {
+        self.show_location_picker = false;
+        cx.notify();
+    }
+
+    fn toggle_location_picker(&mut self, cx: &mut Context<Self>) {
+        self.show_location_picker = !self.show_location_picker;
+        if self.show_location_picker {
+            self.show_date_picker = false;
+            self.show_time_picker = false;
         }
         cx.notify();
     }
@@ -628,9 +1073,10 @@ impl EditableReminder {
         cx.notify();
     }
 
+    /// 选择负责人后更新提醒数据,但不关闭选择器以保持编辑状态
     fn set_owner(&mut self, owner_id: uuid::Uuid, cx: &mut Context<Self>) {
         self.editing_owner_id = Some(owner_id);
-        self.show_owner_picker = false;
+        // 不立即关闭选择器,保持编辑状态
         self.sync_to_app(cx);
         cx.notify();
     }
@@ -691,313 +1137,161 @@ impl EditableReminder {
         options
     }
 
-    fn render_picker_dropdown(
-        _entity: Entity<EditableReminder>,
-        children: impl IntoIterator<Item = AnyElement>,
+    fn chip_tag(label: impl Into<SharedString>, icon: IconName, icon_color: Rgba) -> Tag {
+        Tag::custom(
+            rgba(0x00000008).into(),
+            rgba(0x000000cc).into(),
+            rgba(0x00000000).into(),
+        )
+        .small()
+        .rounded_full()
+        .child(Icon::new(icon).size(px(13.0)).text_color(icon_color))
+        .child(label.into())
+    }
+
+    fn chip_tag_placeholder(
+        label: impl Into<SharedString>,
+        icon: IconName,
+        icon_color: Rgba,
+    ) -> Tag {
+        Tag::custom(
+            rgba(0x00000000).into(),
+            icon_color.into(),
+            rgba(0x00000000).into(),
+        )
+        .small()
+        .rounded_full()
+        .child(Icon::new(icon).size(px(13.0)).text_color(icon_color))
+        .child(label.into())
+    }
+
+    fn chip_close_button(
+        entity: Entity<EditableReminder>,
+        on_remove: fn(&mut EditableReminder, &mut Context<EditableReminder>),
     ) -> impl IntoElement {
         div()
-            .absolute()
-            .top(px(36.0))
-            .left(px(0.0))
-            .w(px(240.0))
-            .max_h(px(320.0))
-            .overflow_y_scrollbar()
-            .bg(rgba(0xffffffee))
-            .rounded(px(12.0))
-            .border(px(1.0))
-            .border_color(rgba(0x00000012))
-            .shadow(vec![BoxShadow {
-                color: rgba(0x00000028).into(),
-                offset: Point {
-                    x: px(0.0),
-                    y: px(6.0),
-                },
-                blur_radius: px(20.0),
-                spread_radius: px(0.0),
-                inset: false,
-            }])
-            .p(px(6.0))
-            .on_mouse_down(MouseButton::Left, |_, _, cx| {
+            .w(px(16.0))
+            .h(px(16.0))
+            .rounded(px(8.0))
+            .cursor_pointer()
+            .flex()
+            .items_center()
+            .justify_center()
+            .hover(|style| style.bg(rgba(0x00000011)))
+            .on_mouse_down(MouseButton::Left, move |_, window, cx| {
+                window.prevent_default();
                 cx.stop_propagation();
+                entity.update(cx, on_remove);
             })
-            .child(v_flex().children(children))
-    }
-
-    fn render_date_picker(
-        entity: Entity<EditableReminder>,
-        editing_date: Option<NaiveDate>,
-    ) -> impl IntoElement {
-        let quick_options: Vec<_> = Self::generate_date_options().into_iter().take(3).collect();
-        let specific_options: Vec<_> = Self::generate_date_options().into_iter().skip(3).collect();
-
-        let entity_for_quick = entity.clone();
-        let entity_for_specific = entity.clone();
-
-        Self::render_picker_dropdown(
-            entity.clone(),
-            std::iter::once(
-                div()
-                    .px(px(8.0))
-                    .py(px(4.0))
-                    .text_size(px(11.0))
-                    .font_weight(FontWeight(600.0))
-                    .text_color(rgba(0x8e8e93ff))
-                    .child("建议")
-                    .into_any_element(),
+            .child(
+                Icon::new(IconName::Close)
+                    .size(px(10.0))
+                    .text_color(rgba(0x8e8e93ff)),
             )
-            .chain(
-                quick_options
-                    .into_iter()
-                    .map(move |(date, label, subtitle)| {
-                        let is_selected = editing_date == Some(date);
-                        let select_entity = entity_for_quick.clone();
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(10.0))
-                            .px(px(8.0))
-                            .py(px(7.0))
-                            .rounded(px(8.0))
-                            .cursor_pointer()
-                            .when(is_selected, |this| this.bg(rgba(0x007AFFff)))
-                            .when(!is_selected, |this| {
-                                this.hover(|style| style.bg(rgba(0x00000008)))
-                            })
-                            .on_mouse_down(MouseButton::Left, move |_, _, cx| {
-                                cx.stop_propagation();
-                                select_entity.update(cx, |this, cx| {
-                                    this.set_date(date, cx);
-                                });
-                            })
-                            .child(Icon::new(IconName::Calendar).size(px(16.0)).text_color(
-                                if is_selected {
-                                    rgba(0xffffffff)
-                                } else {
-                                    rgba(0x007AFFff)
-                                },
-                            ))
-                            .child(
-                                v_flex()
-                                    .child(
-                                        div()
-                                            .text_size(px(14.0))
-                                            .font_weight(FontWeight(500.0))
-                                            .text_color(if is_selected {
-                                                rgba(0xffffffff)
-                                            } else {
-                                                rgba(0x000000ee)
-                                            })
-                                            .child(label),
-                                    )
-                                    .when_some(subtitle, |this, sub| {
-                                        this.child(
-                                            div()
-                                                .text_size(px(12.0))
-                                                .text_color(if is_selected {
-                                                    rgba(0xffffffbb)
-                                                } else {
-                                                    rgba(0x8e8e93ff)
-                                                })
-                                                .child(sub),
-                                        )
-                                    }),
-                            )
-                            .into_any_element()
-                    }),
-            )
-            .chain(std::iter::once(
-                div()
-                    .px(px(8.0))
-                    .py(px(4.0))
-                    .mt(px(4.0))
-                    .text_size(px(11.0))
-                    .font_weight(FontWeight(600.0))
-                    .text_color(rgba(0x8e8e93ff))
-                    .child("具体日期")
-                    .into_any_element(),
-            ))
-            .chain(
-                specific_options
-                    .into_iter()
-                    .map(move |(date, label, subtitle)| {
-                        let is_selected = editing_date == Some(date);
-                        let select_entity = entity_for_specific.clone();
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(10.0))
-                            .px(px(8.0))
-                            .py(px(7.0))
-                            .rounded(px(8.0))
-                            .cursor_pointer()
-                            .when(is_selected, |this| this.bg(rgba(0x007AFFff)))
-                            .when(!is_selected, |this| {
-                                this.hover(|style| style.bg(rgba(0x00000008)))
-                            })
-                            .on_mouse_down(MouseButton::Left, move |_, _, cx| {
-                                cx.stop_propagation();
-                                select_entity.update(cx, |this, cx| {
-                                    this.set_date(date, cx);
-                                });
-                            })
-                            .child(Icon::new(IconName::Calendar).size(px(16.0)).text_color(
-                                if is_selected {
-                                    rgba(0xffffffff)
-                                } else {
-                                    rgba(0x007AFFff)
-                                },
-                            ))
-                            .child(
-                                v_flex()
-                                    .child(
-                                        div()
-                                            .text_size(px(14.0))
-                                            .font_weight(FontWeight(500.0))
-                                            .text_color(if is_selected {
-                                                rgba(0xffffffff)
-                                            } else {
-                                                rgba(0x000000ee)
-                                            })
-                                            .child(label),
-                                    )
-                                    .when_some(subtitle, |this, sub| {
-                                        this.child(
-                                            div()
-                                                .text_size(px(12.0))
-                                                .text_color(if is_selected {
-                                                    rgba(0xffffffbb)
-                                                } else {
-                                                    rgba(0x8e8e93ff)
-                                                })
-                                                .child(sub),
-                                        )
-                                    }),
-                            )
-                            .into_any_element()
-                    }),
-            ),
-        )
-    }
-
-    fn render_owner_picker(
-        entity: Entity<EditableReminder>,
-        owners: Vec<Owner>,
-        editing_owner_id: Option<uuid::Uuid>,
-    ) -> impl IntoElement {
-        Self::render_picker_dropdown(
-            entity.clone(),
-            std::iter::once(
-                div()
-                    .px(px(8.0))
-                    .py(px(4.0))
-                    .text_size(px(11.0))
-                    .font_weight(FontWeight(600.0))
-                    .text_color(rgba(0x8e8e93ff))
-                    .child("选择负责人")
-                    .into_any_element(),
-            )
-            .chain(owners.into_iter().map(move |owner| {
-                let is_selected = editing_owner_id == Some(owner.id);
-                let owner_id = owner.id;
-                let owner_name = owner.name.clone();
-                let owner_color = owner.color.clone();
-                let select_entity = entity.clone();
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(10.0))
-                    .px(px(8.0))
-                    .py(px(7.0))
-                    .rounded(px(8.0))
-                    .cursor_pointer()
-                    .when(is_selected, |this| this.bg(rgba(0x5856D6ff)))
-                    .when(!is_selected, |this| {
-                        this.hover(|style| style.bg(rgba(0x00000008)))
-                    })
-                    .on_mouse_down(MouseButton::Left, move |_, _, cx| {
-                        cx.stop_propagation();
-                        select_entity.update(cx, |this, cx| {
-                            this.set_owner(owner_id, cx);
-                        });
-                    })
-                    .child(
-                        div()
-                            .w(px(20.0))
-                            .h(px(20.0))
-                            .rounded(px(10.0))
-                            .bg(Self::parse_owner_color(&owner_color))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .child(
-                                div()
-                                    .text_size(px(10.0))
-                                    .font_weight(FontWeight(600.0))
-                                    .text_color(rgba(0xffffffff))
-                                    .child(owner_name.chars().next().unwrap_or('?').to_string()),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(14.0))
-                            .font_weight(FontWeight(500.0))
-                            .text_color(if is_selected {
-                                rgba(0xffffffff)
-                            } else {
-                                rgba(0x000000ee)
-                            })
-                            .child(owner_name),
-                    )
-                    .into_any_element()
-            })),
-        )
-    }
-
-    fn parse_owner_color(color: &str) -> Rgba {
-        match color {
-            "#007AFF" => rgba(0x007AFFff),
-            "#FF3B30" => rgba(0xFF3B30ff),
-            "#FF9500" => rgba(0xFF9500ff),
-            "#4CD964" => rgba(0x4CD964ff),
-            "#5856D6" => rgba(0x5856D6ff),
-            "#FF2D55" => rgba(0xFF2D55ff),
-            _ => rgba(0x5856D6ff),
-        }
     }
 
     fn generate_time_options() -> Vec<(String, String, String)> {
-        vec![
-            (
-                "09:00".to_string(),
-                "上午9:00".to_string(),
-                "上午".to_string(),
-            ),
-            (
-                "12:00".to_string(),
-                "下午12:00".to_string(),
-                "中午".to_string(),
-            ),
-            (
-                "15:00".to_string(),
-                "下午3:00".to_string(),
-                "下午".to_string(),
-            ),
-            (
-                "18:00".to_string(),
-                "下午6:00".to_string(),
-                "晚上".to_string(),
-            ),
-            (
-                "21:00".to_string(),
-                "下午9:00".to_string(),
-                "夜间".to_string(),
-            ),
-        ]
+        let now = Local::now().time();
+        let base_hour = now.hour();
+
+        let candidate_hours = [
+            base_hour,
+            (base_hour + 1) % 24,
+            (base_hour + 2) % 24,
+            (base_hour + 3) % 24,
+            if base_hour < 12 { 12 } else { 18 },
+        ];
+
+        let mut options = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+
+        for hour in candidate_hours {
+            if !seen.insert(hour) {
+                continue;
+            }
+            if let Some(time) = NaiveTime::from_hms_opt(hour, 0, 0) {
+                options.push((
+                    time.format("%H:%M").to_string(),
+                    Self::format_time_display(time),
+                    Self::time_period_label(hour),
+                ));
+            }
+        }
+
+        if options.len() < 5 {
+            for (hour, period) in [
+                (9, "上午"),
+                (12, "中午"),
+                (15, "下午"),
+                (18, "晚上"),
+                (21, "夜间"),
+            ] {
+                if options.len() >= 5 {
+                    break;
+                }
+                if !seen.insert(hour) {
+                    continue;
+                }
+                if let Some(time) = NaiveTime::from_hms_opt(hour, 0, 0) {
+                    options.push((
+                        time.format("%H:%M").to_string(),
+                        Self::format_time_display(time),
+                        period.to_string(),
+                    ));
+                }
+            }
+        }
+
+        options
+    }
+
+    fn time_period_label(hour: u32) -> String {
+        match hour {
+            0..=11 => "上午".to_string(),
+            12 => "中午".to_string(),
+            13..=17 => "下午".to_string(),
+            18..=21 => "晚上".to_string(),
+            _ => "夜间".to_string(),
+        }
+    }
+
+    fn render_chip_popover<F, E>(
+        id: SharedString,
+        entity: Entity<EditableReminder>,
+        open: bool,
+        trigger: impl IntoElement + Selectable + 'static,
+        content: F,
+        on_open_change: impl Fn(bool, Entity<EditableReminder>, &mut App) + 'static,
+    ) -> impl IntoElement
+    where
+        F: Fn(&mut PopoverState, &mut Window, &mut Context<PopoverState>) -> E + 'static,
+        E: IntoElement,
+    {
+        Popover::new(id)
+            .anchor(Anchor::TopLeft)
+            .open(open)
+            .overlay_closable(true)
+            .on_open_change(move |is_open, _, cx| {
+                on_open_change(*is_open, entity.clone(), cx);
+            })
+            .trigger(trigger)
+            .content(content)
     }
 }
 
 impl Render for EditableReminder {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // 处理自动打开选择器
+        if let Some(picker_type) = &self.auto_open_picker {
+            match picker_type.as_str() {
+                "date" => self.open_date_picker(cx),
+                "time" => self.open_time_picker(cx),
+                "location" => self.open_location_picker(cx),
+                _ => {}
+            }
+            self.auto_open_picker = None;
+        }
+
         if self.title_input.is_none() {
             self.title_input = Some(cx.new(|cx| {
                 let mut state = InputState::new(window, cx);
@@ -1046,19 +1340,283 @@ impl Render for EditableReminder {
         let entity = cx.entity().clone();
         let editing_date = self.editing_date;
         let formatted_date = editing_date.map(|d| ReminderContent::format_due_date(&Some(d)));
-        let time_options = Self::generate_time_options();
         let show_date_picker = self.show_date_picker;
         let show_time_picker = self.show_time_picker;
-        let show_owner_picker = self.show_owner_picker;
+        let show_location_picker = self.show_location_picker;
         let editing_time = self.editing_time;
-        let editing_owner_id = self.editing_owner_id;
+        let editing_location = self.editing_location.clone();
         let time_display = editing_time.map(Self::format_time_display);
 
         let lists = app_entity.read(cx).state.lists.clone();
-        let owners = app_entity.read(cx).state.owners.clone();
-        let owner_name = editing_owner_id
-            .and_then(|id| owners.iter().find(|o| o.id == id))
-            .map(|o| o.name.clone());
+
+        let date_remove_entity = entity.clone();
+        let time_remove_entity = entity.clone();
+        let location_remove_entity = entity.clone();
+
+        let date_chip = if let Some(date_label) = formatted_date.clone() {
+            let picker_entity = entity.clone();
+            Self::render_chip_popover(
+                format!("date-chip-{}", reminder_id).into(),
+                entity.clone(),
+                show_date_picker,
+                Button::new(format!("date-trigger-{}", reminder_id))
+                    .ghost()
+                    .small()
+                    .child(
+                        h_flex()
+                            .items_center()
+                            .gap(px(6.0))
+                            .px(px(10.0))
+                            .py(px(5.0))
+                            .bg(rgba(0x00000008))
+                            .rounded(px(16.0))
+                            .child(
+                                Icon::new(IconName::Calendar)
+                                    .size(px(13.0))
+                                    .text_color(rgba(0x007AFFff)),
+                            )
+                            .child(
+                                div()
+                                    .px(px(4.0))
+                                    .py(px(1.0))
+                                    .rounded(px(4.0))
+                                    .when(show_date_picker, |this| this.bg(rgba(0x007AFFff)))
+                                    .child(
+                                        div()
+                                            .text_size(px(13.0))
+                                            .text_color(if show_date_picker {
+                                                rgba(0xffffffff)
+                                            } else {
+                                                rgba(0x000000cc)
+                                            })
+                                            .child(date_label),
+                                    ),
+                            )
+                            .child(Self::chip_close_button(
+                                date_remove_entity,
+                                EditableReminder::remove_date,
+                            )),
+                    ),
+                move |_, window, cx| {
+                    picker_entity.update(cx, |this, cx| this.build_date_popover(window, cx))
+                },
+                move |open, picker_entity, cx| {
+                    picker_entity.update(cx, |this, cx| {
+                        if open {
+                            this.open_date_picker(cx);
+                        } else {
+                            this.close_date_picker(cx);
+                        }
+                    });
+                },
+            )
+            .into_any_element()
+        } else {
+            let picker_entity = entity.clone();
+            Self::render_chip_popover(
+                format!("add-date-chip-{}", reminder_id).into(),
+                entity.clone(),
+                show_date_picker,
+                Button::new(format!("add-date-trigger-{}", reminder_id))
+                    .ghost()
+                    .small()
+                    .child(Self::chip_tag_placeholder(
+                        "添加日期",
+                        IconName::Calendar,
+                        rgba(0x007AFFff),
+                    )),
+                move |_, window, cx| {
+                    picker_entity.update(cx, |this, cx| this.build_date_popover(window, cx))
+                },
+                move |open, picker_entity, cx| {
+                    picker_entity.update(cx, |this, cx| {
+                        if open {
+                            this.open_date_picker(cx);
+                        } else {
+                            this.close_date_picker(cx);
+                        }
+                    });
+                },
+            )
+            .into_any_element()
+        };
+
+        let time_chip = if let Some(time_label) = time_display.clone() {
+            let picker_entity = entity.clone();
+            Self::render_chip_popover(
+                format!("time-chip-{}", reminder_id).into(),
+                entity.clone(),
+                show_time_picker,
+                Button::new(format!("time-trigger-{}", reminder_id))
+                    .ghost()
+                    .small()
+                    .child(
+                        h_flex()
+                            .items_center()
+                            .gap(px(6.0))
+                            .px(px(10.0))
+                            .py(px(5.0))
+                            .bg(rgba(0x00000008))
+                            .rounded(px(16.0))
+                            .child(
+                                Icon::new(IconName::Clock)
+                                    .size(px(13.0))
+                                    .text_color(rgba(0xff9500ff)),
+                            )
+                            .child(
+                                div()
+                                    .px(px(4.0))
+                                    .py(px(1.0))
+                                    .rounded(px(4.0))
+                                    .when(show_time_picker, |this| this.bg(rgba(0x007AFFff)))
+                                    .child(
+                                        div()
+                                            .text_size(px(13.0))
+                                            .text_color(if show_time_picker {
+                                                rgba(0xffffffff)
+                                            } else {
+                                                rgba(0x000000cc)
+                                            })
+                                            .child(time_label),
+                                    ),
+                            )
+                            .child(Self::chip_close_button(
+                                time_remove_entity,
+                                EditableReminder::remove_time,
+                            )),
+                    ),
+                move |_, window, cx| {
+                    picker_entity.update(cx, |this, cx| this.build_time_popover(window, cx))
+                },
+                move |open, picker_entity, cx| {
+                    picker_entity.update(cx, |this, cx| {
+                        if open {
+                            this.open_time_picker(cx);
+                        } else {
+                            this.close_time_picker(cx);
+                        }
+                    });
+                },
+            )
+            .into_any_element()
+        } else {
+            let picker_entity = entity.clone();
+            Self::render_chip_popover(
+                format!("add-time-chip-{}", reminder_id).into(),
+                entity.clone(),
+                show_time_picker,
+                Button::new(format!("add-time-trigger-{}", reminder_id))
+                    .ghost()
+                    .small()
+                    .child(Self::chip_tag_placeholder(
+                        "添加时间",
+                        IconName::Clock,
+                        rgba(0xff9500ff),
+                    )),
+                move |_, window, cx| {
+                    picker_entity.update(cx, |this, cx| this.build_time_popover(window, cx))
+                },
+                move |open, picker_entity, cx| {
+                    picker_entity.update(cx, |this, cx| {
+                        if open {
+                            this.open_time_picker(cx);
+                        } else {
+                            this.close_time_picker(cx);
+                        }
+                    });
+                },
+            )
+            .into_any_element()
+        };
+
+        let location_label = editing_location.clone();
+        let location_chip = if let Some(location_name) = location_label.clone() {
+            let picker_entity = entity.clone();
+            Self::render_chip_popover(
+                format!("location-chip-{}", reminder_id).into(),
+                entity.clone(),
+                show_location_picker,
+                Button::new(format!("location-trigger-{}", reminder_id))
+                    .ghost()
+                    .small()
+                    .child(
+                        h_flex()
+                            .items_center()
+                            .gap(px(6.0))
+                            .px(px(10.0))
+                            .py(px(5.0))
+                            .bg(rgba(0x00000008))
+                            .rounded(px(16.0))
+                            .child(
+                                Icon::new(IconName::MapPin)
+                                    .size(px(13.0))
+                                    .text_color(rgba(0x5856D6ff)),
+                            )
+                            .child(
+                                div()
+                                    .px(px(4.0))
+                                    .py(px(1.0))
+                                    .rounded(px(4.0))
+                                    .when(show_location_picker, |this| this.bg(rgba(0x007AFFff)))
+                                    .child(
+                                        div()
+                                            .text_size(px(13.0))
+                                            .text_color(if show_location_picker {
+                                                rgba(0xffffffff)
+                                            } else {
+                                                rgba(0x000000cc)
+                                            })
+                                            .child(location_name),
+                                    ),
+                            )
+                            .child(Self::chip_close_button(
+                                location_remove_entity,
+                                EditableReminder::remove_location,
+                            )),
+                    ),
+                move |_, window, cx| {
+                    picker_entity.update(cx, |this, cx| this.build_location_popover(window, cx))
+                },
+                move |open, picker_entity, cx| {
+                    picker_entity.update(cx, |this, cx| {
+                        if open {
+                            this.open_location_picker(cx);
+                        } else {
+                            this.close_location_picker(cx);
+                        }
+                    });
+                },
+            )
+            .into_any_element()
+        } else {
+            let picker_entity = entity.clone();
+            Self::render_chip_popover(
+                format!("add-location-chip-{}", reminder_id).into(),
+                entity.clone(),
+                show_location_picker,
+                Button::new(format!("add-location-trigger-{}", reminder_id))
+                    .ghost()
+                    .small()
+                    .child(Self::chip_tag_placeholder(
+                        "添加位置",
+                        IconName::MapPin,
+                        rgba(0x5856D6ff),
+                    )),
+                move |_, window, cx| {
+                    picker_entity.update(cx, |this, cx| this.build_location_popover(window, cx))
+                },
+                move |open, picker_entity, cx| {
+                    picker_entity.update(cx, |this, cx| {
+                        if open {
+                            this.open_location_picker(cx);
+                        } else {
+                            this.close_location_picker(cx);
+                        }
+                    });
+                },
+            )
+            .into_any_element()
+        };
 
         div()
             .id(format!("reminder-item-{}", reminder_id))
@@ -1067,7 +1625,8 @@ impl Render for EditableReminder {
             .border_b(px(1.0))
             .border_color(rgba(0x00000008))
             .bg(rgba(0xf8f9fbff))
-            .on_mouse_down(MouseButton::Left, |_, _, cx| {
+            .on_mouse_down(MouseButton::Left, |_, window, cx| {
+                window.prevent_default();
                 cx.stop_propagation();
             })
             .context_menu(ReminderContent::context_menu(
@@ -1092,36 +1651,46 @@ impl Render for EditableReminder {
                             .flex_1()
                             .gap(px(2.0))
                             .child(
-                                if let Some(input) = &self.title_input {
-                                    Input::new(input)
-                                        .appearance(true)
-                                        .bordered(false)
-                                        .focus_bordered(false)
-                                        .w_full()
-                                        .text_size(px(15.0))
-                                        .font_weight(FontWeight(600.0))
-                                        .into_any_element()
-                                } else {
-                                    div().into_any_element()
-                                },
+                                div()
+                                    .w_full()
+                                    .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                                        cx.stop_propagation();
+                                    })
+                                    .child(if let Some(input) = &self.title_input {
+                                        Input::new(input)
+                                            .appearance(true)
+                                            .bordered(false)
+                                            .focus_bordered(false)
+                                            .w_full()
+                                            .text_size(px(15.0))
+                                            .font_weight(FontWeight(600.0))
+                                            .into_any_element()
+                                    } else {
+                                        div().into_any_element()
+                                    }),
                             )
                             .child(
-                                if let Some(input) = &self.notes_input {
-                                    Input::new(input)
-                                        .appearance(true)
-                                        .bordered(false)
-                                        .focus_bordered(false)
-                                        .w_full()
-                                        .text_size(px(13.0))
-                                        .text_color(rgba(0x8e8e93ff))
-                                        .into_any_element()
-                                } else {
-                                    div()
-                                        .text_size(px(13.0))
-                                        .text_color(rgba(0x8e8e93ff))
-                                        .child("备注")
-                                        .into_any_element()
-                                },
+                                div()
+                                    .w_full()
+                                    .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                                        cx.stop_propagation();
+                                    })
+                                    .child(if let Some(input) = &self.notes_input {
+                                        Input::new(input)
+                                            .appearance(true)
+                                            .bordered(false)
+                                            .focus_bordered(false)
+                                            .w_full()
+                                            .text_size(px(13.0))
+                                            .text_color(rgba(0x8e8e93ff))
+                                            .into_any_element()
+                                    } else {
+                                        div()
+                                            .text_size(px(13.0))
+                                            .text_color(rgba(0x8e8e93ff))
+                                            .child("备注")
+                                            .into_any_element()
+                                    }),
                             ),
                     )
                     .child(ReminderContent::info_button(
@@ -1131,652 +1700,13 @@ impl Render for EditableReminder {
                     )),
             )
             .child(
-                div()
+                h_flex()
                     .mt(px(10.0))
-                    .pt(px(10.0))
-                    .border_t(px(1.0))
-                    .border_color(rgba(0x0000000d))
-                    .child(
-                        h_flex()
-                            .gap(px(8.0))
-                            .flex_wrap()
-                            .when(editing_date.is_some(), |this| {
-                                let date_label = formatted_date.clone().unwrap();
-                                let remove_entity = entity.clone();
-                                let picker_entity = entity.clone();
-                                this.child(
-                                    div()
-                                        .relative()
-                                        .child(
-                                            div()
-                                                .flex()
-                                                .items_center()
-                                                .gap(px(6.0))
-                                                .px(px(10.0))
-                                                .py(px(5.0))
-                                                .bg(rgba(0x00000008))
-                                                .rounded(px(16.0))
-                                                .cursor_pointer()
-                                                .on_mouse_down(MouseButton::Left, move |_, _, cx| {
-                                                    cx.stop_propagation();
-                                                    picker_entity.update(cx, |this, cx| {
-                                                        this.toggle_date_picker(cx);
-                                                    });
-                                                })
-                                                .child(
-                                                    Icon::new(IconName::Calendar)
-                                                        .size(px(13.0))
-                                                        .text_color(rgba(0x007AFFff)),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .px(px(4.0))
-                                                        .py(px(1.0))
-                                                        .rounded(px(4.0))
-                                                        .when(show_date_picker, |this| {
-                                                            this.bg(rgba(0x007AFFff))
-                                                        })
-                                                        .child(
-                                                            div()
-                                                                .text_size(px(13.0))
-                                                                .text_color(if show_date_picker {
-                                                                    rgba(0xffffffff)
-                                                                } else {
-                                                                    rgba(0x000000cc)
-                                                                })
-                                                                .child(date_label),
-                                                        ),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .w(px(16.0))
-                                                        .h(px(16.0))
-                                                        .rounded(px(8.0))
-                                                        .cursor_pointer()
-                                                        .flex()
-                                                        .items_center()
-                                                        .justify_center()
-                                                        .hover(|style| style.bg(rgba(0x00000011)))
-                                                        .on_mouse_down(
-                                                            MouseButton::Left,
-                                                            move |_, _, cx| {
-                                                                cx.stop_propagation();
-                                                                remove_entity.update(cx, |this, cx| {
-                                                                    this.remove_date(cx);
-                                                                });
-                                                            },
-                                                        )
-                                                        .child(
-                                                            Icon::new(IconName::Close)
-                                                                .size(px(10.0))
-                                                                .text_color(rgba(0x8e8e93ff)),
-                                                        ),
-                                                ),
-                                        )
-                                        .when(show_date_picker, |this| {
-                                            this.child(Self::render_date_picker(
-                                                entity.clone(),
-                                                editing_date,
-                                            ))
-                                        }),
-                                )
-                            })
-                            .when(editing_date.is_none(), |this| {
-                                let picker_entity = entity.clone();
-                                this.child(
-                                    div()
-                                        .relative()
-                                        .child(
-                                            div()
-                                                .flex()
-                                                .items_center()
-                                                .gap(px(6.0))
-                                                .px(px(10.0))
-                                                .py(px(5.0))
-                                                .rounded(px(16.0))
-                                                .cursor_pointer()
-                                                .hover(|style| style.bg(rgba(0x00000008)))
-                                                .on_mouse_down(MouseButton::Left, move |_, _, cx| {
-                                                    cx.stop_propagation();
-                                                    picker_entity.update(cx, |this, cx| {
-                                                        this.open_date_picker(cx);
-                                                    });
-                                                })
-                                                .child(
-                                                    Icon::new(IconName::Calendar)
-                                                        .size(px(13.0))
-                                                        .text_color(rgba(0x007AFFff)),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .text_size(px(13.0))
-                                                        .text_color(rgba(0x007AFFff))
-                                                        .child("添加日期"),
-                                                ),
-                                        )
-                                        .when(show_date_picker, |this| {
-                                            this.child(Self::render_date_picker(
-                                                entity.clone(),
-                                                editing_date,
-                                            ))
-                                        }),
-                                )
-                            })
-                            .when(editing_time.is_some(), |this| {
-                                let time_label = time_display.clone().unwrap();
-                                let remove_entity = entity.clone();
-                                let picker_entity = entity.clone();
-                                this.child(
-                                    div()
-                                        .relative()
-                                        .child(
-                                            div()
-                                                .flex()
-                                                .items_center()
-                                                .gap(px(6.0))
-                                                .px(px(10.0))
-                                                .py(px(5.0))
-                                                .bg(rgba(0x00000008))
-                                                .rounded(px(16.0))
-                                                .cursor_pointer()
-                                                .on_mouse_down(MouseButton::Left, move |_, _, cx| {
-                                                    cx.stop_propagation();
-                                                    picker_entity.update(cx, |this, cx| {
-                                                        this.toggle_time_picker(cx);
-                                                    });
-                                                })
-                                                .child(
-                                                    Icon::new(IconName::Clock)
-                                                        .size(px(13.0))
-                                                        .text_color(rgba(0xff9500ff)),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .px(px(4.0))
-                                                        .py(px(1.0))
-                                                        .rounded(px(4.0))
-                                                        .when(show_time_picker, |this| {
-                                                            this.bg(rgba(0x007AFFff))
-                                                        })
-                                                        .child(
-                                                            div()
-                                                                .text_size(px(13.0))
-                                                                .text_color(if show_time_picker {
-                                                                    rgba(0xffffffff)
-                                                                } else {
-                                                                    rgba(0x000000cc)
-                                                                })
-                                                                .child(time_label),
-                                                        ),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .w(px(16.0))
-                                                        .h(px(16.0))
-                                                        .rounded(px(8.0))
-                                                        .cursor_pointer()
-                                                        .flex()
-                                                        .items_center()
-                                                        .justify_center()
-                                                        .hover(|style| style.bg(rgba(0x00000011)))
-                                                        .on_mouse_down(
-                                                            MouseButton::Left,
-                                                            move |_, _, cx| {
-                                                                cx.stop_propagation();
-                                                                remove_entity.update(cx, |this, cx| {
-                                                                    this.remove_time(cx);
-                                                                });
-                                                            },
-                                                        )
-                                                        .child(
-                                                            Icon::new(IconName::Close)
-                                                                .size(px(10.0))
-                                                                .text_color(rgba(0x8e8e93ff)),
-                                                        ),
-                                                ),
-                                        )
-                                        .when(show_time_picker, |this| {
-                                            this.child(
-                                                div()
-                                                    .absolute()
-                                                    .top(px(36.0))
-                                                    .left(px(0.0))
-                                                    .w(px(220.0))
-                                                    .bg(rgba(0xffffffee))
-                                                    .rounded(px(12.0))
-                                                    .border(px(1.0))
-                                                    .border_color(rgba(0x00000012))
-                                                    .shadow(vec![BoxShadow {
-                                                        color: rgba(0x00000028).into(),
-                                                        offset: Point {
-                                                            x: px(0.0),
-                                                            y: px(6.0),
-                                                        },
-                                                        blur_radius: px(20.0),
-                                                        spread_radius: px(0.0),
-                                                        inset: false,
-                                                    }])
-                                                    .p(px(6.0))
-                                                    .child(
-                                                        v_flex()
-                                                            .child(
-                                                                div()
-                                                                    .px(px(8.0))
-                                                                    .py(px(4.0))
-                                                                    .text_size(px(11.0))
-                                                                    .font_weight(FontWeight(600.0))
-                                                                    .text_color(rgba(0x8e8e93ff))
-                                                                    .child("建议"),
-                                                            )
-                                                            .children(
-                                                                time_options.iter().map(
-                                                                    |(time_val, time_label, period)| {
-                                                                        let is_selected = editing_time
-                                                                            .map(|t| {
-                                                                                t.format("%H:%M")
-                                                                                    .to_string()
-                                                                            })
-                                                                            == Some(
-                                                                                time_val.clone(),
-                                                                            );
-                                                                        let time_val_clone =
-                                                                            time_val.clone();
-                                                                        let select_entity =
-                                                                            entity.clone();
-                                                                        div()
-                                                                            .flex()
-                                                                            .items_center()
-                                                                            .gap(px(10.0))
-                                                                            .px(px(8.0))
-                                                                            .py(px(7.0))
-                                                                            .rounded(px(8.0))
-                                                                            .cursor_pointer()
-                                                                            .when(is_selected, |this| {
-                                                                                this.bg(rgba(
-                                                                                    0x007AFFff,
-                                                                                ))
-                                                                            })
-                                                                            .when(!is_selected, |this| {
-                                                                                this.hover(|style| {
-                                                                                    style.bg(rgba(
-                                                                                        0x00000008,
-                                                                                    ))
-                                                                                })
-                                                                            })
-                                                                            .on_mouse_down(
-                                                                                MouseButton::Left,
-                                                                                move |_, _, cx| {
-                                                                                    cx.stop_propagation();
-                                                                                    select_entity.update(
-                                                                                        cx,
-                                                                                        |this, cx| {
-                                                                                            this.select_time(
-                                                                                                &time_val_clone,
-                                                                                                cx,
-                                                                                            );
-                                                                                        },
-                                                                                    );
-                                                                                },
-                                                                                )
-                                                                            .child(
-                                                                                Icon::new(
-                                                                                    IconName::Clock,
-                                                                                )
-                                                                                .size(px(16.0))
-                                                                                .text_color(
-                                                                                    if is_selected {
-                                                                                        rgba(
-                                                                                            0xffffffff,
-                                                                                        )
-                                                                                    } else {
-                                                                                        rgba(
-                                                                                            0xff9500ff,
-                                                                                        )
-                                                                                    },
-                                                                                ),
-                                                                            )
-                                                                            .child(
-                                                                                v_flex()
-                                                                                    .child(
-                                                                                        div()
-                                                                                            .text_size(
-                                                                                                px(14.0),
-                                                                                            )
-                                                                                            .font_weight(
-                                                                                                FontWeight(
-                                                                                                    500.0,
-                                                                                                ),
-                                                                                            )
-                                                                                            .text_color(
-                                                                                                if is_selected
-                                                                                                {
-                                                                                                    rgba(
-                                                                                                        0xffffffff,
-                                                                                                    )
-                                                                                                } else {
-                                                                                                    rgba(
-                                                                                                        0x000000ee,
-                                                                                                    )
-                                                                                                },
-                                                                                            )
-                                                                                            .child(
-                                                                                                time_label
-                                                                                                    .clone(),
-                                                                                            ),
-                                                                                    )
-                                                                                    .child(
-                                                                                        div()
-                                                                                            .text_size(
-                                                                                                px(12.0),
-                                                                                            )
-                                                                                            .text_color(
-                                                                                                if is_selected
-                                                                                                {
-                                                                                                    rgba(
-                                                                                                        0xffffffbb,
-                                                                                                    )
-                                                                                                } else {
-                                                                                                    rgba(
-                                                                                                        0x8e8e93ff,
-                                                                                                    )
-                                                                                                },
-                                                                                            )
-                                                                                            .child(
-                                                                                                period
-                                                                                                    .clone(),
-                                                                                            ),
-                                                                                    ),
-                                                                            )
-                                                                    },
-                                                                ),
-                                                            ),
-                                                    ),
-                                            )
-                                        }),
-                                )
-                            })
-                            .when(editing_time.is_none(), |this| {
-                                let picker_entity = entity.clone();
-                                this.child(
-                                    div()
-                                        .relative()
-                                        .child(
-                                            div()
-                                                .flex()
-                                                .items_center()
-                                                .gap(px(6.0))
-                                                .px(px(10.0))
-                                                .py(px(5.0))
-                                                .rounded(px(16.0))
-                                                .cursor_pointer()
-                                                .hover(|style| style.bg(rgba(0x00000008)))
-                                                .on_mouse_down(MouseButton::Left, move |_, _, cx| {
-                                                    cx.stop_propagation();
-                                                    picker_entity.update(cx, |this, cx| {
-                                                        this.open_time_picker(cx);
-                                                    });
-                                                })
-                                                .child(
-                                                    Icon::new(IconName::Clock)
-                                                        .size(px(13.0))
-                                                        .text_color(rgba(0xff9500ff)),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .text_size(px(13.0))
-                                                        .text_color(rgba(0xff9500ff))
-                                                        .child("添加时间"),
-                                                ),
-                                        )
-                                        .when(show_time_picker, |this| {
-                                            this.child(
-                                                div()
-                                                    .absolute()
-                                                    .top(px(36.0))
-                                                    .left(px(0.0))
-                                                    .w(px(220.0))
-                                                    .bg(rgba(0xffffffee))
-                                                    .rounded(px(12.0))
-                                                    .border(px(1.0))
-                                                    .border_color(rgba(0x00000012))
-                                                    .shadow(vec![BoxShadow {
-                                                        color: rgba(0x00000028).into(),
-                                                        offset: Point {
-                                                            x: px(0.0),
-                                                            y: px(6.0),
-                                                        },
-                                                        blur_radius: px(20.0),
-                                                        spread_radius: px(0.0),
-                                                        inset: false,
-                                                    }])
-                                                    .p(px(6.0))
-                                                    .child(
-                                                        v_flex()
-                                                            .child(
-                                                                div()
-                                                                    .px(px(8.0))
-                                                                    .py(px(4.0))
-                                                                    .text_size(px(11.0))
-                                                                    .font_weight(FontWeight(600.0))
-                                                                    .text_color(rgba(0x8e8e93ff))
-                                                                    .child("建议"),
-                                                            )
-                                                            .children(
-                                                                time_options.iter().map(
-                                                                    |(time_val, time_label, period)| {
-                                                                        let time_val_clone =
-                                                                            time_val.clone();
-                                                                        let select_entity =
-                                                                            entity.clone();
-                                                                        div()
-                                                                            .flex()
-                                                                            .items_center()
-                                                                            .gap(px(10.0))
-                                                                            .px(px(8.0))
-                                                                            .py(px(7.0))
-                                                                            .rounded(px(8.0))
-                                                                            .cursor_pointer()
-                                                                            .hover(|style| {
-                                                                                style.bg(rgba(
-                                                                                    0x00000008,
-                                                                                ))
-                                                                            })
-                                                                            .on_mouse_down(
-                                                                                MouseButton::Left,
-                                                                                move |_, _, cx| {
-                                                                                    cx.stop_propagation();
-                                                                                    select_entity.update(
-                                                                                        cx,
-                                                                                        |this, cx| {
-                                                                                            this.select_time(
-                                                                                                &time_val_clone,
-                                                                                                cx,
-                                                                                            );
-                                                                                        },
-                                                                                    );
-                                                                                },
-                                                                            )
-                                                                            .child(
-                                                                                Icon::new(
-                                                                                    IconName::Clock,
-                                                                                )
-                                                                                .size(px(16.0))
-                                                                                .text_color(
-                                                                                    rgba(
-                                                                                        0xff9500ff,
-                                                                                    ),
-                                                                                ),
-                                                                            )
-                                                                            .child(
-                                                                                v_flex()
-                                                                                    .child(
-                                                                                        div()
-                                                                                            .text_size(
-                                                                                                px(14.0),
-                                                                                            )
-                                                                                            .font_weight(
-                                                                                                FontWeight(
-                                                                                                    500.0,
-                                                                                                ),
-                                                                                            )
-                                                                                            .text_color(
-                                                                                                rgba(
-                                                                                                    0x000000ee,
-                                                                                                ),
-                                                                                            )
-                                                                                            .child(
-                                                                                                time_label
-                                                                                                    .clone(),
-                                                                                            ),
-                                                                                    )
-                                                                                    .child(
-                                                                                        div()
-                                                                                            .text_size(
-                                                                                                px(12.0),
-                                                                                            )
-                                                                                            .text_color(
-                                                                                                rgba(
-                                                                                                    0x8e8e93ff,
-                                                                                                ),
-                                                                                            )
-                                                                                            .child(
-                                                                                                period
-                                                                                                    .clone(),
-                                                                                            ),
-                                                                                    ),
-                                                                            )
-                                                                    },
-                                                                ),
-                                                            ),
-                                                    ),
-                                            )
-                                        }),
-                                )
-                            })
-                            .child(
-                                if editing_owner_id.is_some() {
-                                    let owner_label = owner_name.clone().unwrap();
-                                    let remove_entity = entity.clone();
-                                    let picker_entity = entity.clone();
-                                    div()
-                                        .relative()
-                                        .child(
-                                            div()
-                                                .flex()
-                                                .items_center()
-                                                .gap(px(6.0))
-                                                .px(px(10.0))
-                                                .py(px(5.0))
-                                                .bg(rgba(0x00000008))
-                                                .rounded(px(16.0))
-                                                .cursor_pointer()
-                                                .on_mouse_down(MouseButton::Left, move |_, _, cx| {
-                                                    cx.stop_propagation();
-                                                    picker_entity.update(cx, |this, cx| {
-                                                        this.toggle_owner_picker(cx);
-                                                    });
-                                                })
-                                                .child(
-                                                    Icon::new(IconName::User)
-                                                        .size(px(13.0))
-                                                        .text_color(rgba(0x5856D6ff)),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .px(px(4.0))
-                                                        .py(px(1.0))
-                                                        .rounded(px(4.0))
-                                                        .when(show_owner_picker, |this| {
-                                                            this.bg(rgba(0x5856D6ff))
-                                                        })
-                                                        .child(
-                                                            div()
-                                                                .text_size(px(13.0))
-                                                                .text_color(if show_owner_picker {
-                                                                    rgba(0xffffffff)
-                                                                } else {
-                                                                    rgba(0x000000cc)
-                                                                })
-                                                                .child(owner_label),
-                                                        ),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .w(px(16.0))
-                                                        .h(px(16.0))
-                                                        .rounded(px(8.0))
-                                                        .cursor_pointer()
-                                                        .flex()
-                                                        .items_center()
-                                                        .justify_center()
-                                                        .hover(|style| style.bg(rgba(0x00000011)))
-                                                        .on_mouse_down(
-                                                            MouseButton::Left,
-                                                            move |_, _, cx| {
-                                                                cx.stop_propagation();
-                                                                remove_entity.update(cx, |this, cx| {
-                                                                    this.remove_owner(cx);
-                                                                });
-                                                            },
-                                                        )
-                                                        .child(
-                                                            Icon::new(IconName::Close)
-                                                                .size(px(10.0))
-                                                                .text_color(rgba(0x8e8e93ff)),
-                                                        ),
-                                                ),
-                                        )
-                                        .when(show_owner_picker, |this| {
-                                            this.child(Self::render_owner_picker(
-                                                entity.clone(),
-                                                owners.clone(),
-                                                editing_owner_id,
-                                            ))
-                                        })
-                                        .into_any_element()
-                                } else {
-                                    let picker_entity = entity.clone();
-                                    div()
-                                        .relative()
-                                        .child(
-                                            div()
-                                                .flex()
-                                                .items_center()
-                                                .gap(px(6.0))
-                                                .px(px(10.0))
-                                                .py(px(5.0))
-                                                .rounded(px(16.0))
-                                                .cursor_pointer()
-                                                .hover(|style| style.bg(rgba(0x00000008)))
-                                                .on_mouse_down(MouseButton::Left, move |_, _, cx| {
-                                                    cx.stop_propagation();
-                                                    picker_entity.update(cx, |this, cx| {
-                                                        this.open_owner_picker(cx);
-                                                    });
-                                                })
-                                                .child(
-                                                    Icon::new(IconName::User)
-                                                        .size(px(13.0))
-                                                        .text_color(rgba(0x5856D6ff)),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .text_size(px(13.0))
-                                                        .text_color(rgba(0x5856D6ff))
-                                                        .child("设置负责人"),
-                                                ),
-                                        )
-                                        .when(show_owner_picker, |this| {
-                                            this.child(Self::render_owner_picker(
-                                                entity.clone(),
-                                                owners.clone(),
-                                                editing_owner_id,
-                                            ))
-                                        })
-                                        .into_any_element()
-                                },
-                            ),
-                    ),
+                    .gap(px(8.0))
+                    .flex_wrap()
+                    .child(date_chip)
+                    .child(time_chip)
+                    .child(location_chip),
             )
     }
 }
