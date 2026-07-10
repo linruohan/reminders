@@ -3,129 +3,66 @@ import { TitleBar } from './components/TitleBar';
 import { ReminderPage } from './pages/ReminderPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { AddReminderModal } from './components/AddReminderModal';
-import { useApi } from './hooks/useApi';
-import type { ReminderResponse, ListResponse, OwnerResponse } from './types/api';
+import { useReminderData } from './hooks/useReminderData';
 
 export function App() {
   const [currentView, setCurrentView] = useState<'reminder' | 'calendar'>('reminder');
-  const [activeFilter, setActiveFilter] = useState('today');
-  const [reminders, setReminders] = useState<ReminderResponse[]>([]);
-  const [lists, setLists] = useState<ListResponse[]>([]);
-  const [owners, setOwners] = useState<OwnerResponse[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   const {
-    getReminders,
-    getRemindersByList,
-    getLists,
-    getOwners,
-    createReminder,
-    updateReminder,
-    deleteReminder,
-    toggleReminderCompleted,
-    createList,
-  } = useApi();
-
-  const loadReminders = useCallback(async () => {
-    setLoading(true);
-    try {
-      if (activeFilter.startsWith('list:')) {
-        const listId = activeFilter.split(':')[1];
-        const data = await getRemindersByList(listId);
-        if (data) setReminders(data);
-      } else {
-        const data = await getReminders(activeFilter);
-        if (data) setReminders(data);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [activeFilter, getReminders, getRemindersByList]);
-
-  const loadLists = useCallback(async () => {
-    const data = await getLists();
-    if (data) setLists(data);
-  }, [getLists]);
-
-  const loadOwners = useCallback(async () => {
-    const data = await getOwners();
-    if (data) setOwners(data);
-  }, [getOwners]);
+    reminders,
+    lists,
+    owners,
+    activeFilter,
+    isLoading: isDataLoading,
+    handleFilterChange,
+    handleToggleCompleted,
+    handleUpdateReminder,
+    handleDeleteReminder,
+    handleCreateReminder,
+    handleAddList,
+    refreshData,
+    getFilterCounts,
+  } = useReminderData();
 
   useEffect(() => {
-    loadLists();
-    loadOwners();
-  }, [loadLists, loadOwners]);
+    setIsLoading(isDataLoading());
+  }, [isDataLoading]);
 
-  const loadAllReminders = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getReminders('all');
-      if (data) setReminders(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [getReminders]);
-
-  useEffect(() => {
-    if (currentView === 'reminder') {
-      loadReminders();
-    } else {
-      loadAllReminders();
-    }
-  }, [currentView, loadReminders, loadAllReminders]);
-
-  const handleToggleCompleted = useCallback(async (id: string) => {
-    const result = await toggleReminderCompleted(id);
-    if (result) {
-      setReminders((prev) => prev.map((r) => (r.id === id ? result : r)));
-    }
-  }, [toggleReminderCompleted]);
-
-  const handleUpdateReminder = useCallback(async (id: string, updates: Partial<ReminderResponse>) => {
-    const result = await updateReminder({ id, ...updates });
-    if (result) {
-      setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, ...updates } : r)));
-    }
-  }, [updateReminder]);
-
-  const handleDeleteReminder = useCallback(async (id: string) => {
-    const success = await deleteReminder(id);
-    if (success) {
-      setReminders((prev) => prev.filter((r) => r.id !== id));
-    }
-  }, [deleteReminder]);
-
-  const handleCreateReminder = useCallback(async (data: {
+  const handleCreateReminderCallback = useCallback(async (data: {
     title: string;
     description?: string | null;
     due_date?: string | null;
     due_time?: string | null;
     list_id?: string | null;
   }) => {
-    const result = await createReminder(data);
+    const result = await handleCreateReminder(data);
     if (result) {
-      setReminders((prev) => [result, ...prev]);
       setShowAddModal(false);
     }
-  }, [createReminder]);
+  }, [handleCreateReminder]);
 
-  const handleAddList = useCallback(async () => {
+  const handleAddListCallback = useCallback(async () => {
     const name = prompt('请输入列表名称:');
     if (name) {
-      const result = await createList({ name });
-      if (result) {
-        setLists((prev) => [...prev, result]);
-      }
+      await handleAddList(name);
     }
-  }, [createList]);
+  }, [handleAddList]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshData();
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [refreshData]);
 
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
       <TitleBar currentView={currentView} onViewChange={setCurrentView} />
       
-      {loading && currentView === 'reminder' ? (
+      {isLoading && currentView === 'reminder' ? (
         <div className="flex-1 flex items-center justify-center bg-white">
           <div className="w-8 h-8 border-2 border-apple-blue border-t-transparent rounded-full animate-spin" />
         </div>
@@ -135,12 +72,13 @@ export function App() {
           lists={lists}
           owners={owners}
           activeFilter={activeFilter}
-          onFilterChange={setActiveFilter}
+          filterCounts={getFilterCounts()}
+          onFilterChange={handleFilterChange}
           onToggleCompleted={handleToggleCompleted}
           onUpdateReminder={handleUpdateReminder}
           onDeleteReminder={handleDeleteReminder}
           onCreateReminder={() => setShowAddModal(true)}
-          onAddList={handleAddList}
+          onAddList={handleAddListCallback}
         />
       ) : (
         <CalendarPage reminders={reminders} lists={lists} />
@@ -150,7 +88,7 @@ export function App() {
         <AddReminderModal
           lists={lists}
           onClose={() => setShowAddModal(false)}
-          onSubmit={handleCreateReminder}
+          onSubmit={handleCreateReminderCallback}
         />
       )}
     </div>

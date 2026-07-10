@@ -72,6 +72,14 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
         "CREATE INDEX IF NOT EXISTS idx_reminders_is_completed ON reminders(is_completed)",
         [],
     )?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_reminders_due_date_completed ON reminders(due_date, is_completed)",
+        [],
+    )?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_reminders_list_completed ON reminders(list_id, is_completed)",
+        [],
+    )?;
 
     Ok(())
 }

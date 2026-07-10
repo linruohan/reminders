@@ -10,93 +10,153 @@ import type {
   CreateOwnerRequest,
 } from '@/types/api';
 
+type LoadingState = Record<string, boolean>;
+type ErrorState = Record<string, string | null>;
+
+function debounce<T>(fn: T, delay: number): T {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  return ((...args: unknown[]) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => (fn as unknown as (...args: unknown[]) => void)(...args), delay);
+  }) as T;
+}
+
 export function useApi() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<LoadingState>({});
+  const [error, setError] = useState<ErrorState>({});
 
   const handleRequest = useCallback(async <T>(
+    key: string,
     fn: () => Promise<T>,
   ): Promise<T | null> => {
-    setLoading(true);
-    setError(null);
+    setLoading(prev => ({ ...prev, [key]: true }));
+    setError(prev => ({ ...prev, [key]: null }));
+    
     try {
       const result = await fn();
+      setLoading(prev => ({ ...prev, [key]: false }));
       return result;
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error');
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      setLoading(prev => ({ ...prev, [key]: false }));
+      setError(prev => ({ ...prev, [key]: message }));
       return null;
-    } finally {
-      setLoading(false);
     }
   }, []);
 
   const getReminders = useCallback(async (filter?: string): Promise<ReminderResponse[] | null> => {
+    const key = filter ? `get_reminders_${filter}` : 'get_reminders_all';
     if (filter) {
-      return handleRequest(() => invoke<ReminderResponse[]>('get_reminders_by_filter', { filter }));
+      return handleRequest(key, () => invoke<ReminderResponse[]>('get_reminders_by_filter', { filter }));
     }
-    return handleRequest(() => invoke<ReminderResponse[]>('get_all_reminders'));
+    return handleRequest(key, () => invoke<ReminderResponse[]>('get_all_reminders'));
   }, [handleRequest]);
 
   const getRemindersByList = useCallback(async (listId: string): Promise<ReminderResponse[] | null> => {
-    return handleRequest(() => invoke<ReminderResponse[]>('get_reminders_by_list', { listId }));
+    return handleRequest(`get_reminders_list_${listId}`, () => 
+      invoke<ReminderResponse[]>('get_reminders_by_list', { listId })
+    );
   }, [handleRequest]);
 
   const getReminderById = useCallback(async (id: string): Promise<ReminderResponse | null> => {
-    const result = await handleRequest(() => invoke<ReminderResponse | null>('get_reminder_by_id', { id }));
+    const result = await handleRequest(`get_reminder_${id}`, () => 
+      invoke<ReminderResponse | null>('get_reminder_by_id', { id })
+    );
     return result ?? null;
   }, [handleRequest]);
 
   const createReminder = useCallback(async (request: CreateReminderRequest): Promise<ReminderResponse | null> => {
-    return handleRequest(() => invoke<ReminderResponse>('create_reminder', { request }));
+    return handleRequest('create_reminder', () => 
+      invoke<ReminderResponse>('create_reminder', { request })
+    );
   }, [handleRequest]);
 
   const updateReminder = useCallback(async (request: UpdateReminderRequest): Promise<ReminderResponse | null> => {
-    return handleRequest(() => invoke<ReminderResponse>('update_reminder', { request }));
+    return handleRequest(`update_reminder_${request.id}`, () => 
+      invoke<ReminderResponse>('update_reminder', { request })
+    );
   }, [handleRequest]);
 
   const deleteReminder = useCallback(async (id: string): Promise<boolean> => {
-    const result = await handleRequest(() => invoke<void>('delete_reminder', { id }));
+    const result = await handleRequest(`delete_reminder_${id}`, () => 
+      invoke<void>('delete_reminder', { id })
+    );
     return result !== null;
   }, [handleRequest]);
 
   const toggleReminderCompleted = useCallback(async (id: string): Promise<ReminderResponse | null> => {
-    return handleRequest(() => invoke<ReminderResponse>('toggle_reminder_completed', { id }));
+    return handleRequest(`toggle_reminder_${id}`, () => 
+      invoke<ReminderResponse>('toggle_reminder_completed', { id })
+    );
   }, [handleRequest]);
 
   const getLists = useCallback(async (): Promise<ListResponse[] | null> => {
-    return handleRequest(() => invoke<ListResponse[]>('get_all_lists'));
+    return handleRequest('get_lists', () => invoke<ListResponse[]>('get_all_lists'));
   }, [handleRequest]);
 
   const createList = useCallback(async (request: CreateListRequest): Promise<ListResponse | null> => {
-    return handleRequest(() => invoke<ListResponse>('create_list', { request }));
+    return handleRequest('create_list', () => 
+      invoke<ListResponse>('create_list', { request })
+    );
   }, [handleRequest]);
 
   const deleteList = useCallback(async (id: string): Promise<boolean> => {
-    const result = await handleRequest(() => invoke<void>('delete_list', { id }));
+    const result = await handleRequest(`delete_list_${id}`, () => 
+      invoke<void>('delete_list', { id })
+    );
     return result !== null;
   }, [handleRequest]);
 
   const getOwners = useCallback(async (): Promise<OwnerResponse[] | null> => {
-    return handleRequest(() => invoke<OwnerResponse[]>('get_all_owners'));
+    return handleRequest('get_owners', () => invoke<OwnerResponse[]>('get_all_owners'));
   }, [handleRequest]);
 
   const createOwner = useCallback(async (request: CreateOwnerRequest): Promise<OwnerResponse | null> => {
-    return handleRequest(() => invoke<OwnerResponse>('create_owner', { request }));
+    return handleRequest('create_owner', () => 
+      invoke<OwnerResponse>('create_owner', { request })
+    );
   }, [handleRequest]);
 
   const deleteOwner = useCallback(async (id: string): Promise<boolean> => {
-    const result = await handleRequest(() => invoke<void>('delete_owner', { id }));
+    const result = await handleRequest(`delete_owner_${id}`, () => 
+      invoke<void>('delete_owner', { id })
+    );
     return result !== null;
   }, [handleRequest]);
+
+  const isLoading = useCallback((key?: string) => {
+    if (!key) return Object.values(loading).some(Boolean);
+    return loading[key] === true;
+  }, [loading]);
+
+  const getError = useCallback((key?: string) => {
+    if (!key) return Object.values(error).find(Boolean);
+    return error[key] || null;
+  }, [error]);
+
+  const clearError = useCallback((key: string) => {
+    setError(prev => ({ ...prev, [key]: null }));
+  }, []);
+
+  const debouncedUpdateReminder = useCallback(
+    debounce(async (request: UpdateReminderRequest): Promise<ReminderResponse | null> => {
+      return updateReminder(request);
+    }, 300),
+    [updateReminder]
+  );
 
   return {
     loading,
     error,
+    isLoading,
+    getError,
+    clearError,
     getReminders,
     getRemindersByList,
     getReminderById,
     createReminder,
     updateReminder,
+    debouncedUpdateReminder,
     deleteReminder,
     toggleReminderCompleted,
     getLists,

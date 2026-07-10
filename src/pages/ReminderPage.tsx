@@ -2,11 +2,20 @@ import { Sidebar } from '../components/Sidebar';
 import { ReminderList } from '../components/ReminderList';
 import type { ReminderResponse, ListResponse, OwnerResponse } from '../types/api';
 
+interface FilterCounts {
+  all: number;
+  today: number;
+  planned: number;
+  completed: number;
+  lists: Array<{ id: string; count: number }>;
+}
+
 interface ReminderPageProps {
   reminders: ReminderResponse[];
   lists: ListResponse[];
   owners: OwnerResponse[];
   activeFilter: string;
+  filterCounts: FilterCounts;
   onFilterChange: (filter: string) => void;
   onToggleCompleted: (id: string) => void;
   onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
@@ -20,6 +29,7 @@ export function ReminderPage({
   lists,
   owners,
   activeFilter,
+  filterCounts,
   onFilterChange,
   onToggleCompleted,
   onUpdateReminder,
@@ -32,6 +42,7 @@ export function ReminderPage({
       <Sidebar
         lists={lists}
         activeFilter={activeFilter}
+        filterCounts={filterCounts}
         onFilterChange={onFilterChange}
         onAddList={onAddList}
       />

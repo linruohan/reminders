@@ -1,8 +1,17 @@
 import type { ListResponse } from '@/types/api';
 
+interface FilterCounts {
+  all: number;
+  today: number;
+  planned: number;
+  completed: number;
+  lists: Array<{ id: string; count: number }>;
+}
+
 interface SidebarProps {
   lists: ListResponse[];
   activeFilter: string;
+  filterCounts: FilterCounts;
   onFilterChange: (filter: string) => void;
   onAddList: () => void;
 }
@@ -108,9 +117,15 @@ function Icon({ name, size = 16, className = '' }: { name: string; size?: number
 export function Sidebar({
   lists,
   activeFilter,
+  filterCounts,
   onFilterChange,
   onAddList,
 }: SidebarProps) {
+  const getListCount = (listId: string) => {
+    const found = filterCounts.lists.find(l => l.id === listId);
+    return found?.count || 0;
+  };
+
   return (
     <aside className="w-60 h-full glass-effect-dark border-r border-apple-divider flex flex-col">
       <div className="px-3 pt-3">
@@ -131,7 +146,7 @@ export function Sidebar({
             filter={filter}
             active={activeFilter === filter.id}
             onClick={() => onFilterChange(filter.id)}
-            count={0}
+            count={filter.id === 'today' ? filterCounts.today : filterCounts.planned}
           />
         ))}
       </div>
@@ -140,7 +155,7 @@ export function Sidebar({
         <AllFilterItem
           active={activeFilter === 'all'}
           onClick={() => onFilterChange('all')}
-          count={0}
+          count={filterCounts.all}
         />
       </div>
 
@@ -155,7 +170,7 @@ export function Sidebar({
             list={list}
             active={activeFilter === `list:${list.id}`}
             onClick={() => onFilterChange(`list:${list.id}`)}
-            count={0}
+            count={getListCount(list.id)}
           />
         ))}
       </div>

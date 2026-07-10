@@ -14,6 +14,8 @@ fn get_conn(db: State<'_, Database>) -> Arc<Mutex<Connection>> {
     db.conn()
 }
 
+const REMINDER_FIELDS: &str = "id, title, description, due_date, due_time, is_completed, priority, list_id, created_at, updated_at, url, is_all_day, completion_date, alarm_at, recurrence_frequency, recurrence_interval, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id";
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReminderResponse {
     pub id: String,
@@ -134,21 +136,24 @@ impl ReminderRepository {
 
     fn get_all(&self) -> Result<Vec<Reminder>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, title, description, due_date, due_time, is_completed, priority, list_id, created_at, updated_at, url, is_all_day, completion_date, alarm_at, recurrence_frequency, recurrence_interval, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id FROM reminders ORDER BY created_at DESC")?;
+        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders ORDER BY created_at DESC");
+        let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([], Self::row_to_reminder)?;
         rows.collect()
     }
 
     fn get_by_id(&self, id: &Uuid) -> Result<Option<Reminder>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, title, description, due_date, due_time, is_completed, priority, list_id, created_at, updated_at, url, is_all_day, completion_date, alarm_at, recurrence_frequency, recurrence_interval, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id FROM reminders WHERE id = ?")?;
+        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE id = ?");
+        let mut stmt = conn.prepare(&query)?;
         stmt.query_row([id.to_string()], Self::row_to_reminder)
             .optional()
     }
 
     fn get_by_list_id(&self, list_id: &Uuid) -> Result<Vec<Reminder>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, title, description, due_date, due_time, is_completed, priority, list_id, created_at, updated_at, url, is_all_day, completion_date, alarm_at, recurrence_frequency, recurrence_interval, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id FROM reminders WHERE list_id = ? ORDER BY created_at DESC")?;
+        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE list_id = ? ORDER BY created_at DESC");
+        let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([list_id.to_string()], Self::row_to_reminder)?;
         rows.collect()
     }
@@ -157,28 +162,32 @@ impl ReminderRepository {
         let today = Local::now().date_naive();
         let conn = self.conn.lock().unwrap();
         let date_str = today.format("%Y-%m-%d").to_string();
-        let mut stmt = conn.prepare("SELECT id, title, description, due_date, due_time, is_completed, priority, list_id, created_at, updated_at, url, is_all_day, completion_date, alarm_at, recurrence_frequency, recurrence_interval, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id FROM reminders WHERE due_date = ? AND is_completed = 0 ORDER BY created_at DESC")?;
+        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE due_date = ? AND is_completed = 0 ORDER BY created_at DESC");
+        let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([date_str], Self::row_to_reminder)?;
         rows.collect()
     }
 
     fn get_planned(&self) -> Result<Vec<Reminder>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, title, description, due_date, due_time, is_completed, priority, list_id, created_at, updated_at, url, is_all_day, completion_date, alarm_at, recurrence_frequency, recurrence_interval, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id FROM reminders WHERE due_date IS NOT NULL AND is_completed = 0 ORDER BY created_at DESC")?;
+        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE due_date IS NOT NULL AND is_completed = 0 ORDER BY created_at DESC");
+        let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([], Self::row_to_reminder)?;
         rows.collect()
     }
 
     fn get_active(&self) -> Result<Vec<Reminder>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, title, description, due_date, due_time, is_completed, priority, list_id, created_at, updated_at, url, is_all_day, completion_date, alarm_at, recurrence_frequency, recurrence_interval, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id FROM reminders WHERE is_completed = 0 ORDER BY created_at DESC")?;
+        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE is_completed = 0 ORDER BY created_at DESC");
+        let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([], Self::row_to_reminder)?;
         rows.collect()
     }
 
     fn get_completed(&self) -> Result<Vec<Reminder>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, title, description, due_date, due_time, is_completed, priority, list_id, created_at, updated_at, url, is_all_day, completion_date, alarm_at, recurrence_frequency, recurrence_interval, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id FROM reminders WHERE is_completed = 1 ORDER BY created_at DESC")?;
+        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE is_completed = 1 ORDER BY created_at DESC");
+        let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([], Self::row_to_reminder)?;
         rows.collect()
     }
@@ -187,7 +196,8 @@ impl ReminderRepository {
         let today = Local::now().date_naive();
         let conn = self.conn.lock().unwrap();
         let date_str = today.format("%Y-%m-%d").to_string();
-        let mut stmt = conn.prepare("SELECT id, title, description, due_date, due_time, is_completed, priority, list_id, created_at, updated_at, url, is_all_day, completion_date, alarm_at, recurrence_frequency, recurrence_interval, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id FROM reminders WHERE due_date < ? AND is_completed = 0 ORDER BY created_at DESC")?;
+        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE due_date < ? AND is_completed = 0 ORDER BY created_at DESC");
+        let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([date_str], Self::row_to_reminder)?;
         rows.collect()
     }
