@@ -26,6 +26,7 @@ interface ReminderItemProps {
   onStartEditing: () => void;
   onSaveAndStopEditing: (updates: Partial<ReminderResponse>) => void;
   onCancelEditing: () => void;
+  onChange: (updates: Partial<ReminderResponse>) => void;
 }
 
 function ReminderItemViewMode({ 
@@ -125,12 +126,14 @@ function ReminderItemEditMode({
   reminder, 
   onToggleCompleted,
   onSaveAndStopEditing,
-  onCancelEditing
+  onCancelEditing,
+  onChange
 }: {
   reminder: ReminderResponse;
   onToggleCompleted: () => void;
   onSaveAndStopEditing: (updates: Partial<ReminderResponse>) => void;
   onCancelEditing: () => void;
+  onChange: (updates: Partial<ReminderResponse>) => void;
 }) {
   const [editTitle, setEditTitle] = useState(reminder.title);
   const [editNotes, setEditNotes] = useState(reminder.description || '');
@@ -138,6 +141,15 @@ function ReminderItemEditMode({
   const [editTime, setEditTime] = useState(reminder.due_time || '');
   const [showDetail, setShowDetail] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    onChange({
+      title: editTitle,
+      description: editNotes || null,
+      due_date: editDate || null,
+      due_time: editTime || null,
+    });
+  }, [editTitle, editNotes, editDate, editTime, onChange]);
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -324,7 +336,8 @@ function ReminderItem({
   onDelete, 
   onStartEditing, 
   onSaveAndStopEditing, 
-  onCancelEditing 
+  onCancelEditing,
+  onChange
 }: ReminderItemProps) {
   const [showDetail, setShowDetail] = useState(false);
 
@@ -335,6 +348,7 @@ function ReminderItem({
         onToggleCompleted={onToggleCompleted}
         onSaveAndStopEditing={(updates) => onSaveAndStopEditing(updates)}
         onCancelEditing={onCancelEditing}
+        onChange={onChange}
       />
     );
   }
@@ -373,6 +387,7 @@ export function ReminderList({
   onCreateReminder,
 }: ReminderListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingValues, setEditingValues] = useState<Partial<ReminderResponse>>({});
   
   const getTitle = () => {
     if (activeFilter.startsWith('list:')) {
@@ -393,15 +408,22 @@ export function ReminderList({
   
   const handleStartEditing = useCallback((id: string) => {
     setEditingId(id);
+    setEditingValues({});
+  }, []);
+  
+  const handleChangeEditing = useCallback((updates: Partial<ReminderResponse>) => {
+    setEditingValues(updates);
   }, []);
   
   const handleSaveAndStopEditing = useCallback((id: string, updates: Partial<ReminderResponse>) => {
     onUpdateReminder(id, updates);
     setEditingId(null);
+    setEditingValues({});
   }, [onUpdateReminder]);
   
   const handleCancelEditing = useCallback(() => {
     setEditingId(null);
+    setEditingValues({});
   }, []);
   
   useEffect(() => {
@@ -411,7 +433,29 @@ export function ReminderList({
       const isInsideDatePicker = target.closest('.date-picker-chip');
       const isInsideTimePicker = target.closest('.time-picker-chip');
       if (!isInsideReminderItem && !isInsideDatePicker && !isInsideTimePicker) {
+        if (editingId) {
+          const reminder = reminders.find(r => r.id === editingId);
+          if (reminder) {
+            const updates: Partial<ReminderResponse> = {};
+            if (editingValues.title !== undefined && editingValues.title !== reminder.title) {
+              updates.title = editingValues.title;
+            }
+            if (editingValues.description !== reminder.description) {
+              updates.description = editingValues.description;
+            }
+            if (editingValues.due_date !== reminder.due_date) {
+              updates.due_date = editingValues.due_date;
+            }
+            if (editingValues.due_time !== reminder.due_time) {
+              updates.due_time = editingValues.due_time;
+            }
+            if (Object.keys(updates).length > 0) {
+              onUpdateReminder(editingId, updates);
+            }
+          }
+        }
         setEditingId(null);
+        setEditingValues({});
       }
     };
     
@@ -430,7 +474,7 @@ export function ReminderList({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [editingId, handleCancelEditing]);
+  }, [editingId, editingValues, reminders, onUpdateReminder, handleCancelEditing]);
   
   return (
     <main className="flex-1 h-full flex flex-col bg-white">
@@ -479,6 +523,7 @@ export function ReminderList({
               onStartEditing={() => handleStartEditing(reminder.id)}
               onSaveAndStopEditing={(updates) => handleSaveAndStopEditing(reminder.id, updates)}
               onCancelEditing={handleCancelEditing}
+              onChange={handleChangeEditing}
             />
           ))
         )}
