@@ -58,11 +58,23 @@ export function App() {
     loadOwners();
   }, [loadLists, loadOwners]);
 
+  const loadAllReminders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getReminders('all');
+      if (data) setReminders(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [getReminders]);
+
   useEffect(() => {
     if (currentView === 'reminder') {
       loadReminders();
+    } else {
+      loadAllReminders();
     }
-  }, [currentView, loadReminders]);
+  }, [currentView, loadReminders, loadAllReminders]);
 
   const handleToggleCompleted = useCallback(async (id: string) => {
     const result = await toggleReminderCompleted(id);
@@ -74,7 +86,7 @@ export function App() {
   const handleUpdateReminder = useCallback(async (id: string, updates: Partial<ReminderResponse>) => {
     const result = await updateReminder({ id, ...updates });
     if (result) {
-      setReminders((prev) => prev.map((r) => (r.id === id ? result : r)));
+      setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, ...updates } : r)));
     }
   }, [updateReminder]);
 

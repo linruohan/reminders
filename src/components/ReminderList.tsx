@@ -60,12 +60,33 @@ function getDateColor(dateStr: string | null): string {
 }
 
 const suggestedTimes = [
-  { value: '09:00', label: '上午 9:00', period: '上午' },
-  { value: '12:00', label: '下午 12:00', period: '中午' },
-  { value: '15:00', label: '下午 3:00', period: '下午' },
-  { value: '18:00', label: '下午 6:00', period: '晚上' },
-  { value: '21:00', label: '下午 9:00', period: '夜间' },
+  { value: '07:00', label: '7:00', period: '上午' },
+  { value: '08:00', label: '8:00', period: '上午' },
+  { value: '09:00', label: '9:00', period: '上午' },
+  { value: '10:00', label: '10:00', period: '上午' },
+  { value: '11:00', label: '11:00', period: '上午' },
+  { value: '12:00', label: '12:00', period: '中午' },
+  { value: '13:00', label: '13:00', period: '下午' },
+  { value: '14:00', label: '14:00', period: '下午' },
+  { value: '15:00', label: '15:00', period: '下午' },
+  { value: '16:00', label: '16:00', period: '下午' },
+  { value: '17:00', label: '17:00', period: '下午' },
+  { value: '18:00', label: '18:00', period: '晚上' },
+  { value: '19:00', label: '19:00', period: '晚上' },
+  { value: '20:00', label: '20:00', period: '晚上' },
+  { value: '21:00', label: '21:00', period: '晚上' },
+  { value: '22:00', label: '22:00', period: '夜间' },
+  { value: '23:00', label: '23:00', period: '夜间' },
+  { value: '00:00', label: '00:00', period: '夜间' },
 ];
+
+const groupedTimes = {
+  上午: suggestedTimes.filter(t => t.period === '上午'),
+  中午: suggestedTimes.filter(t => t.period === '中午'),
+  下午: suggestedTimes.filter(t => t.period === '下午'),
+  晚上: suggestedTimes.filter(t => t.period === '晚上'),
+  夜间: suggestedTimes.filter(t => t.period === '夜间'),
+};
 
 interface ReminderItemProps {
   reminder: ReminderResponse;
@@ -73,13 +94,13 @@ interface ReminderItemProps {
   owners: OwnerResponse[];
   isEditing: boolean;
   onToggleCompleted: () => void;
-  onUpdate: (updates: Partial<ReminderResponse>) => void;
   onDelete: () => void;
   onStartEditing: () => void;
-  onStopEditing: () => void;
+  onSaveAndStopEditing: (updates: Partial<ReminderResponse>) => void;
+  onCancelEditing: () => void;
 }
 
-function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, onUpdate, onDelete, onStartEditing, onStopEditing }: ReminderItemProps) {
+function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, onDelete, onStartEditing, onSaveAndStopEditing, onCancelEditing }: ReminderItemProps) {
   const [editTitle, setEditTitle] = useState(reminder.title);
   const [editNotes, setEditNotes] = useState(reminder.description || '');
   const [editDate, setEditDate] = useState(reminder.due_date || '');
@@ -91,10 +112,29 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
   const titleInputRef = useRef<HTMLInputElement>(null);
   const timeInputRef = useRef<HTMLInputElement>(null);
   const itemRef = useRef<HTMLDivElement>(null);
+  const prevIsEditingRef = useRef(isEditing);
+  const isCancelingRef = useRef(false);
+  
+  useEffect(() => {
+    if (prevIsEditingRef.current && !isEditing && !isCancelingRef.current) {
+      onSaveAndStopEditing({
+        title: editTitle,
+        description: editNotes || null,
+        due_date: editDate || null,
+        due_time: editTime || null,
+      });
+    }
+    isCancelingRef.current = false;
+    prevIsEditingRef.current = isEditing;
+  }, [isEditing, onSaveAndStopEditing, editTitle, editNotes, editDate, editTime]);
   
   useEffect(() => {
     if (isEditing && titleInputRef.current) {
-      titleInputRef.current.focus();
+      const timer = setTimeout(() => {
+        titleInputRef.current?.focus();
+        titleInputRef.current?.select();
+      }, 50);
+      return () => clearTimeout(timer);
     }
     if (!isEditing) {
       setShowDatePicker(false);
@@ -103,11 +143,12 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
   }, [isEditing]);
   
   useEffect(() => {
+    if (isEditing) return;
     setEditTitle(reminder.title);
     setEditNotes(reminder.description || '');
     setEditDate(reminder.due_date || '');
     setEditTime(reminder.due_time || '');
-  }, [reminder]);
+  }, [reminder, isEditing]);
 
   useEffect(() => {
     if (showTimePicker && timeInputRef.current) {
@@ -125,7 +166,7 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
     : null;
   
   const handleSave = useCallback(() => {
-    onUpdate({ 
+    onSaveAndStopEditing({ 
       title: editTitle, 
       description: editNotes || null,
       due_date: editDate || null,
@@ -133,38 +174,33 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
     });
     setShowDatePicker(false);
     setShowTimePicker(false);
-    onStopEditing();
-  }, [onUpdate, onStopEditing, editTitle, editNotes, editDate, editTime]);
+  }, [onSaveAndStopEditing, editTitle, editNotes, editDate, editTime]);
   
   const handleCancel = useCallback(() => {
+    isCancelingRef.current = true;
     setEditTitle(reminder.title);
     setEditNotes(reminder.description || '');
     setEditDate(reminder.due_date || '');
     setEditTime(reminder.due_time || '');
     setShowDatePicker(false);
     setShowTimePicker(false);
-    onStopEditing();
-  }, [reminder, onStopEditing]);
+    onCancelEditing();
+  }, [reminder, onCancelEditing]);
   
   const handleTitleChange = useCallback((value: string) => {
     setEditTitle(value);
-    onUpdate({ title: value });
-  }, [onUpdate]);
+  }, []);
   
   const handleNotesChange = useCallback((value: string) => {
     setEditNotes(value);
-    onUpdate({ description: value || null });
-  }, [onUpdate]);
+  }, []);
   
   const handleDateChange = useCallback((value: string) => {
     setEditDate(value);
     if (!value) {
       setEditTime('');
-      onUpdate({ due_date: null, due_time: null });
-    } else {
-      onUpdate({ due_date: value });
     }
-  }, [onUpdate]);
+  }, []);
   
   const handleClearDate = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -172,21 +208,18 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
     setEditTime('');
     setShowDatePicker(false);
     setShowTimePicker(false);
-    onUpdate({ due_date: null, due_time: null });
-  }, [onUpdate]);
+  }, []);
   
   const handleClearTime = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setEditTime('');
     setShowTimePicker(false);
-    onUpdate({ due_time: null });
-  }, [onUpdate]);
+  }, []);
   
   const handleTimeChange = useCallback((value: string) => {
     setEditTime(value);
     setShowTimePicker(false);
-    onUpdate({ due_time: value || null });
-  }, [onUpdate]);
+  }, []);
 
   const openTimePicker = useCallback(() => {
     setShowDatePicker(false);
@@ -197,9 +230,8 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
       today.setHours(0, 0, 0, 0);
       const todayStr = today.toISOString().split('T')[0];
       setEditDate(todayStr);
-      onUpdate({ due_date: todayStr });
     }
-  }, [editTime, editDate, onUpdate]);
+  }, [editTime, editDate]);
 
   const openDatePicker = useCallback(() => {
     setShowTimePicker(false);
@@ -247,8 +279,8 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
       <>
       <div 
         ref={itemRef}
-        className={`px-6 py-3 border-b border-apple-divider transition-colors ${
-          reminder.is_completed ? 'bg-gray-50/30' : 'bg-white'
+        className={`reminder-item px-6 py-3 border-b border-apple-divider transition-all duration-200 animate-slide-down ${
+          reminder.is_completed ? 'bg-gray-50/30' : 'bg-blue-50/60'
         }`}
         onClick={handleSave}
       >
@@ -449,51 +481,34 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
                 {showTimePicker && (
                   <div
                     onClick={stopPropagation}
-                    className="absolute top-full left-0 mt-1.5 bg-white rounded-[12px] shadow-apple-lg border border-apple-divider z-30 min-w-[180px] animate-scale-in overflow-hidden"
+                    className="absolute top-full left-0 mt-1.5 bg-white rounded-[12px] shadow-apple-lg border border-apple-divider z-30 min-w-[220px] animate-scale-in overflow-hidden"
                   >
-                    <div className="px-3.5 pt-2.5 pb-1 text-[12px] font-medium text-apple-gray">
-                      建议
-                    </div>
-                    <div className="p-1 pt-0">
-                      {suggestedTimes.map((time) => (
-                        <button
-                          key={time.value}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleTimeChange(time.value);
-                          }}
-                          className={`group w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-[8px] text-left transition-colors ${
-                            editTime === time.value
-                              ? 'bg-apple-blue text-white'
-                              : 'text-gray-900 hover:bg-apple-blue hover:text-white'
-                          }`}
-                        >
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            className="flex-shrink-0 opacity-80"
-                          >
-                            <circle cx="12" cy="12" r="10"/>
-                            <polyline points="12 6 12 12 16 14"/>
-                          </svg>
-                          <div className="flex flex-col leading-tight">
-                            <span className="text-[13px] font-medium">{time.label}</span>
-                            <span className={`text-[11px] ${
-                              editTime === time.value
-                                ? 'text-white/75'
-                                : 'text-apple-gray group-hover:text-white/75'
-                            }`}>
-                              {time.period}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                    {Object.entries(groupedTimes).map(([period, times]) => (
+                      <div key={period}>
+                        <div className="px-3 pt-2.5 pb-1 text-[11px] font-semibold text-apple-gray">
+                          {period}
+                        </div>
+                        <div className="grid grid-cols-5 gap-1 px-2 pb-1.5">
+                          {times.map((time) => (
+                            <button
+                              key={time.value}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTimeChange(time.value);
+                              }}
+                              className={`h-8 text-xs font-medium rounded-[6px] transition-all ${
+                                editTime === time.value
+                                  ? 'bg-apple-blue text-white shadow-sm'
+                                  : 'text-gray-700 hover:bg-gray-100'
+                              }`}
+                            >
+                              {time.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -590,7 +605,7 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
   return (
     <>
       <div
-        className={`px-6 py-2.5 border-b border-apple-divider hover:bg-gray-50/50 transition-colors cursor-pointer group ${
+        className={`reminder-item px-6 py-2.5 border-b border-apple-divider hover:bg-gray-50/50 transition-colors cursor-pointer group ${
           reminder.is_completed ? 'bg-gray-50/30' : 'bg-white'
         }`}
         onClick={onStartEditing}
@@ -782,25 +797,40 @@ export function ReminderList({
     setEditingId(id);
   }, []);
   
-  const handleStopEditing = useCallback(() => {
+  const handleSaveAndStopEditing = useCallback((id: string, updates: Partial<ReminderResponse>) => {
+    onUpdateReminder(id, updates);
+    setEditingId(null);
+  }, [onUpdateReminder]);
+  
+  const handleCancelEditing = useCallback(() => {
     setEditingId(null);
   }, []);
   
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (listRef.current && !listRef.current.contains(e.target as Node)) {
+      const target = e.target as HTMLElement;
+      const isInsideReminderItem = target.closest('.reminder-item');
+      if (!isInsideReminderItem) {
         setEditingId(null);
+      }
+    };
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleCancelEditing();
       }
     };
     
     if (editingId) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
     }
     
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [editingId]);
+  }, [editingId, handleCancelEditing]);
   
   return (
     <main className="flex-1 h-full flex flex-col bg-white">
@@ -845,10 +875,10 @@ export function ReminderList({
               owners={owners}
               isEditing={editingId === reminder.id}
               onToggleCompleted={() => onToggleCompleted(reminder.id)}
-              onUpdate={(updates) => onUpdateReminder(reminder.id, updates)}
               onDelete={() => onDeleteReminder(reminder.id)}
               onStartEditing={() => handleStartEditing(reminder.id)}
-              onStopEditing={handleStopEditing}
+              onSaveAndStopEditing={(updates) => handleSaveAndStopEditing(reminder.id, updates)}
+              onCancelEditing={handleCancelEditing}
             />
           ))
         )}

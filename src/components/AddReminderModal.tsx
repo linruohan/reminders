@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { ListResponse } from '@/types/api';
+import { DatePicker } from './DatePicker';
 
 interface AddReminderModalProps {
   lists: ListResponse[];
@@ -20,6 +21,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
   const [dueTime, setDueTime] = useState('');
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -189,28 +191,30 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                   </svg>
                   明天
                 </button>
-                <button
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'date';
-                    input.onchange = (e) => {
-                      const target = e.target as HTMLInputElement;
-                      if (target.value) {
-                        setDueDate(target.value);
-                      }
-                    };
-                    input.click();
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6"/>
-                    <line x1="8" y1="2" x2="8" y2="6"/>
-                    <line x1="3" y1="10" x2="21" y2="10"/>
-                  </svg>
-                  选择日期
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowDatePicker(!showDatePicker)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                      <line x1="16" y1="2" x2="16" y2="6"/>
+                      <line x1="8" y1="2" x2="8" y2="6"/>
+                      <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    选择日期
+                  </button>
+                  
+                  {showDatePicker && (
+                    <div className="absolute top-full left-0 mt-2 z-20 animate-scale-in">
+                      <DatePicker
+                        onSelect={setDueDate}
+                        onClose={() => setShowDatePicker(false)}
+                        initialDate={dueDate}
+                      />
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
