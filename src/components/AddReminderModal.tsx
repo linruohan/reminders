@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import type { ListResponse } from '@/types/api';
-import { DatePicker } from './DatePicker';
 
 interface AddReminderModalProps {
   lists: ListResponse[];
@@ -85,13 +84,13 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
   return (
     <div className="fixed inset-0 bg-black/20 flex items-end justify-center z-50" onClick={onClose}>
       <div
-        className="bg-white rounded-t-3xl w-full max-w-lg shadow-apple-lg overflow-hidden animate-slide-up"
+        className="glass-effect-light rounded-t-3xl w-full max-w-lg shadow-[0_16px_48px_rgba(0,0,0,0.16)] overflow-hidden animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-apple-divider">
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100/80 transition-all"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18"/>
@@ -132,7 +131,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
 
           <div className="flex items-center flex-wrap gap-2">
             {dueDate && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-apple-md text-sm font-medium text-gray-700">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-gray-700">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <circle cx="12" cy="12" r="10"/>
                   <polyline points="12 6 12 12 16 14"/>
@@ -140,7 +139,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                 {dueDate === todayStr ? '今天' : dueDate === tomorrowStr ? '明天' : dueDate}
                 <button
                   onClick={() => setDueDate('')}
-                  className="ml-1 w-4 h-4 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  className="ml-1 w-4 h-4 rounded-full flex items-center justify-center hover:bg-gray-200/80 transition-colors"
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <line x1="18" y1="6" x2="6" y2="18"/>
@@ -151,7 +150,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
             )}
 
             {dueDate && dueTime && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-apple-md text-sm font-medium text-apple-orange">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-apple-orange">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <circle cx="12" cy="12" r="10"/>
                   <polyline points="12 6 12 12 16 14"/>
@@ -159,7 +158,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                 {formatDisplayTime(dueTime)}
                 <button
                   onClick={() => setDueTime('')}
-                  className="ml-1 w-4 h-4 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  className="ml-1 w-4 h-4 rounded-full flex items-center justify-center hover:bg-gray-200/80 transition-colors"
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <line x1="18" y1="6" x2="6" y2="18"/>
@@ -173,7 +172,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
               <>
                 <button
                   onClick={() => setDueDate(todayStr)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <circle cx="12" cy="12" r="10"/>
@@ -183,7 +182,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                 </button>
                 <button
                   onClick={() => setDueDate(tomorrowStr)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <circle cx="12" cy="12" r="10"/>
@@ -194,7 +193,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                 <div className="relative">
                   <button
                     onClick={() => setShowDatePicker(!showDatePicker)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -206,12 +205,46 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                   </button>
                   
                   {showDatePicker && (
-                    <div className="absolute top-full left-0 mt-2 z-20 animate-scale-in">
-                      <DatePicker
-                        onSelect={setDueDate}
-                        onClose={() => setShowDatePicker(false)}
-                        initialDate={dueDate}
-                      />
+                    <div className="absolute bottom-full left-0 mb-2 z-20 animate-scale-in">
+                      <div className="bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider min-w-[200px] overflow-hidden">
+                        <div className="p-2">
+                          {[
+                            { value: todayStr, label: '今天' },
+                            { value: tomorrowStr, label: '明天' },
+                          ].map((opt) => (
+                            <button
+                              key={opt.value}
+                              onClick={() => {
+                                setDueDate(opt.value);
+                                setShowDatePicker(false);
+                              }}
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[8px] text-[13px] font-medium transition-colors ${
+                                dueDate === opt.value
+                                  ? 'bg-apple-blue text-white'
+                                  : 'text-gray-900 hover:bg-gray-100'
+                              }`}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="3" y1="10" x2="21" y2="10"/>
+                              </svg>
+                              {opt.label}
+                            </button>
+                          ))}
+                          <div className="border-t border-apple-divider my-1" />
+                          <div className="px-3 py-2">
+                            <input
+                              type="date"
+                              value={dueDate}
+                              onChange={(e) => {
+                                setDueDate(e.target.value);
+                                setShowDatePicker(false);
+                              }}
+                              className="w-full px-2.5 py-1.5 bg-[#F2F2F7] rounded-[8px] text-[13px] text-gray-900 outline-none focus:ring-2 focus:ring-apple-blue/40"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -222,7 +255,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
               <div className="relative">
                 <button
                   onClick={() => setShowTimePicker(!showTimePicker)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <circle cx="12" cy="12" r="10"/>
@@ -232,7 +265,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                 </button>
                 
                 {showTimePicker && (
-                  <div className="absolute top-full left-0 mt-2 bg-white rounded-apple-lg shadow-apple-lg border border-apple-divider z-10 min-w-[200px]">
+                  <div className="absolute bottom-full left-0 mb-2 bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider z-10 min-w-[200px] animate-scale-in">
                     <div className="p-1">
                       <div className="px-3 py-2 text-xs font-semibold text-apple-gray uppercase tracking-wide">建议</div>
                       {suggestedTimes.map((time) => (
@@ -245,7 +278,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                           className={`w-full flex items-center justify-between px-3 py-2.5 rounded-apple-md text-sm font-medium transition-all ${
                             dueTime === time.value
                               ? 'bg-apple-blue text-white'
-                              : 'text-gray-700 hover:bg-gray-50'
+                              : 'text-gray-700 hover:bg-gray-100'
                           }`}
                         >
                           <div className="flex items-center gap-3">
@@ -269,7 +302,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
             )}
 
             <button
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors opacity-60 cursor-not-allowed"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
@@ -296,32 +329,16 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-apple-md text-sm font-medium transition-colors ${
                     selectedListId === list.id
                       ? 'bg-blue-50 text-apple-blue'
-                      : 'text-gray-700 hover:bg-gray-50'
+                      : 'text-gray-700 hover:bg-gray-100/80'
                   }`}
                 >
-                  <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: list.color }} />
+                  <span className="inline-block w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: list.color }} />
                   {list.name}
                 </button>
               ))}
             </div>
           </div>
         </div>
-
-        <style>{`
-          @keyframes slide-up {
-            from {
-              transform: translateY(100%);
-              opacity: 0;
-            }
-            to {
-              transform: translateY(0);
-              opacity: 1;
-            }
-          }
-          .animate-slide-up {
-            animation: slide-up 0.3s ease-out;
-          }
-        `}</style>
       </div>
     </div>
   );

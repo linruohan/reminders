@@ -18,8 +18,8 @@ function QuickFilterItem({ filter, active, onClick, count }: { filter: typeof qu
       onClick={onClick}
       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-apple-md transition-all duration-150 ${
         active
-          ? 'bg-apple-blue text-white'
-          : 'bg-gray-50/80 text-gray-700 hover:bg-gray-100'
+          ? 'bg-apple-blue text-white shadow-[0_2px_8px_rgba(0,122,255,0.3)]'
+          : 'bg-white/60 text-gray-700 hover:bg-white/80'
       }`}
     >
       <div className="flex items-center gap-2.5">
@@ -27,7 +27,7 @@ function QuickFilterItem({ filter, active, onClick, count }: { filter: typeof qu
         <span className="text-sm font-semibold">{filter.label}</span>
       </div>
       <span className={`text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full ${
-        active ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'
+        active ? 'bg-white/20 text-white' : 'bg-gray-200/50 text-gray-600'
       }`}>
         {count}
       </span>
@@ -42,7 +42,7 @@ function AllFilterItem({ active, onClick, count }: { active: boolean; onClick: (
       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-apple-md transition-all duration-150 ${
         active
           ? 'bg-blue-50 text-apple-blue'
-          : 'text-gray-700 hover:bg-gray-50'
+          : 'text-gray-700 hover:bg-gray-50/60'
       }`}
     >
       <div className="flex items-center gap-2.5">
@@ -50,7 +50,7 @@ function AllFilterItem({ active, onClick, count }: { active: boolean; onClick: (
         <span className="text-sm font-semibold">全部</span>
       </div>
       <span className={`text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full ${
-        active ? 'bg-apple-blue text-white' : 'bg-gray-200 text-gray-600'
+        active ? 'bg-apple-blue text-white' : 'bg-gray-200/50 text-gray-600'
       }`}>
         {count}
       </span>
@@ -65,12 +65,12 @@ function ListItem({ list, active, onClick, count }: { list: ListResponse; active
       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-apple-md transition-all duration-150 ${
         active
           ? 'bg-blue-50 text-apple-blue'
-          : 'text-gray-700 hover:bg-gray-50'
+          : 'text-gray-700 hover:bg-gray-50/60'
       }`}
     >
       <div className="flex items-center gap-2.5">
         <div
-          className="w-5 h-5 rounded-sm flex items-center justify-center"
+          className="w-5 h-5 rounded-sm flex items-center justify-center shadow-sm"
           style={{ backgroundColor: list.color }}
         >
           <Icon name="list" size={10} className="text-white" />
@@ -78,7 +78,7 @@ function ListItem({ list, active, onClick, count }: { list: ListResponse; active
         <span className="text-sm font-semibold">{list.name}</span>
       </div>
       <span className={`text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full ${
-        active ? 'bg-apple-blue text-white' : 'bg-gray-200 text-gray-600'
+        active ? 'bg-apple-blue text-white' : 'bg-gray-200/50 text-gray-600'
       }`}>
         {count}
       </span>
@@ -95,6 +95,7 @@ function Icon({ name, size = 16, className = '' }: { name: string; size?: number
     check: '<polyline points="20 6 9 17 4 12"/>',
     plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
     close: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+    search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
   };
 
   return (
@@ -111,13 +112,16 @@ export function Sidebar({
   onAddList,
 }: SidebarProps) {
   return (
-    <aside className="w-60 h-full bg-gradient-to-b from-pink-50/50 via-purple-50/30 to-blue-50/30 border-r border-apple-divider flex flex-col">
+    <aside className="w-60 h-full glass-effect-dark border-r border-apple-divider flex flex-col">
       <div className="px-3 pt-3">
-        <input
-          type="text"
-          placeholder="搜索"
-          className="w-full h-8 px-3.5 bg-white/80 rounded-apple-md text-sm text-gray-900 placeholder-apple-gray focus:ring-2 focus:ring-apple-blue/30 outline-none border border-gray-100 shadow-sm"
-        />
+        <div className="relative">
+          <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-apple-gray" />
+          <input
+            type="text"
+            placeholder="搜索"
+            className="w-full h-8 pl-9 pr-3.5 bg-white/60 rounded-apple-md text-sm text-gray-900 placeholder-apple-gray focus:ring-2 focus:ring-apple-blue/30 outline-none border border-gray-100/50 shadow-sm"
+          />
+        </div>
       </div>
 
       <div className="px-3 py-3">
@@ -159,7 +163,7 @@ export function Sidebar({
       <div className="px-3 py-3">
         <button
           onClick={onAddList}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-apple-md text-apple-blue hover:bg-blue-50 transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-apple-md text-apple-blue hover:bg-blue-50/60 transition-all duration-150"
         >
           <Icon name="plus" size={14} />
           <span className="text-sm font-medium">添加列表</span>

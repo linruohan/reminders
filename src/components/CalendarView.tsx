@@ -8,9 +8,6 @@ interface CalendarViewProps {
 
 const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
-/**
- * 获取指定月份的所有日期，包括前后月份的补全日期
- */
 function getDaysInMonth(year: number, month: number): Date[] {
   const days: Date[] = [];
   const firstDay = new Date(year, month, 1);
@@ -33,26 +30,17 @@ function getDaysInMonth(year: number, month: number): Date[] {
   return days;
 }
 
-/**
- * 格式化月份年份显示
- */
 function formatMonthYear(date: Date): string {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
   return `${year}年${month}月`;
 }
 
-/**
- * 获取指定日期的提醒事项
- */
 function getRemindersForDate(reminders: ReminderResponse[], date: Date): ReminderResponse[] {
   const targetDate = date.toISOString().split('T')[0];
   return reminders.filter((r) => r.due_date === targetDate);
 }
 
-/**
- * 日历视图组件 - mac风格设计
- */
 export function CalendarView({ reminders, lists }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -66,23 +54,14 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
 
   const selectedReminders = getRemindersForDate(reminders, selectedDate);
 
-  /**
-   * 切换到上个月
-   */
   const prevMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
   };
 
-  /**
-   * 切换到下个月
-   */
   const nextMonth = () => {
     setCurrentDate(new Date(year, month + 1, 1));
   };
 
-  /**
-   * 回到今天
-   */
   const goToToday = () => {
     setCurrentDate(new Date());
     setSelectedDate(new Date());
@@ -94,7 +73,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
         <div className="flex items-center gap-5">
           <button
             onClick={prevMonth}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all duration-200"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100/80 transition-all duration-200"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6"/>
@@ -103,7 +82,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
           <span className="text-xl font-bold text-gray-900 tracking-tight">{formatMonthYear(currentDate)}</span>
           <button
             onClick={nextMonth}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all duration-200"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100/80 transition-all duration-200"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="9 18 15 12 9 6"/>
@@ -112,7 +91,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
         </div>
         <button
           onClick={goToToday}
-          className="px-4 py-2 text-sm font-medium text-apple-blue hover:bg-blue-50 rounded-apple-md transition-all duration-200"
+          className="px-4 py-2 text-sm font-medium text-apple-blue hover:bg-blue-50/80 rounded-apple-md transition-all duration-200"
         >
           今天
         </button>
@@ -143,7 +122,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
               className={`
                 min-h-[88px] p-2 cursor-pointer relative
                 transition-all duration-200 rounded-apple-md
-                ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}
+                ${isSelected ? 'bg-blue-50/60' : 'hover:bg-gray-50/60'}
               `}
             >
               <div
@@ -167,7 +146,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
                     return (
                       <div
                         key={i}
-                        className="text-xs truncate px-2 py-1 rounded-apple-sm bg-gray-100/80 hover:bg-gray-200/80 transition-colors"
+                        className="text-xs truncate px-2 py-1 rounded-apple-sm bg-gray-100/60 hover:bg-gray-200/60 transition-colors"
                       >
                         <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5" style={{ backgroundColor: rListColor }} />
                         <span className={reminder.is_completed ? 'text-gray-500 line-through' : 'text-gray-700'}>
@@ -187,7 +166,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
       </div>
 
       {selectedReminders.length > 0 && (
-        <div className="border-t border-apple-divider px-6 py-4 bg-gray-50/50">
+        <div className="border-t border-apple-divider px-6 py-4 glass-effect-dark">
           <div className="text-sm font-medium text-gray-700 mb-3">
             {selectedDate.getMonth() + 1}月{selectedDate.getDate()}日 ({weekDays[selectedDate.getDay()]})
           </div>
@@ -199,9 +178,9 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
               return (
                 <div
                   key={reminder.id}
-                  className="flex items-center gap-3 px-4 py-2.5 rounded-apple-md bg-white hover:bg-gray-50 transition-all duration-200"
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-apple-md bg-white/60 hover:bg-white/80 transition-all duration-200"
                 >
-                  <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: rListColor }} />
+                  <span className="inline-block w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: rListColor }} />
                   <span className={`text-sm flex-1 ${reminder.is_completed ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
                     {reminder.title}
                   </span>

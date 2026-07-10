@@ -111,7 +111,6 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
   const [showDetail, setShowDetail] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const timeInputRef = useRef<HTMLInputElement>(null);
-  const itemRef = useRef<HTMLDivElement>(null);
   const prevIsEditingRef = useRef(isEditing);
   const isCancelingRef = useRef(false);
   
@@ -272,15 +271,14 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
   };
 
   const chipBase =
-    'inline-flex items-center gap-1.5 h-8 pl-2.5 pr-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-900 hover:bg-[#E5E5EA] transition-colors';
+    'inline-flex items-center gap-1.5 h-8 pl-2.5 pr-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-900 hover:bg-[#E5E5EA] transition-colors cursor-pointer';
   
   if (isEditing) {
     return (
       <>
       <div 
-        ref={itemRef}
         className={`reminder-item px-6 py-3 border-b border-apple-divider transition-all duration-200 animate-slide-down ${
-          reminder.is_completed ? 'bg-gray-50/30' : 'bg-blue-50/60'
+          reminder.is_completed ? 'bg-gray-50/40' : 'bg-blue-50/60'
         }`}
         onClick={handleSave}
       >
@@ -292,7 +290,7 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
             }}
             className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${
               reminder.is_completed
-                ? 'bg-apple-blue border-apple-blue'
+                ? 'bg-apple-blue border-apple-blue shadow-[0_1px_3px_rgba(0,122,255,0.3)]'
                 : 'border-apple-gray-dark hover:border-apple-blue'
             }`}
           >
@@ -337,7 +335,7 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
                   e.stopPropagation();
                   setShowDetail(true);
                 }}
-                className="w-[22px] h-[22px] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-apple-blue text-white hover:bg-blue-600 transition-colors"
+                className="w-[22px] h-[22px] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-apple-blue text-white hover:bg-blue-600 transition-colors shadow-sm"
                 aria-label="详情"
               >
                 <span className="text-[12px] font-bold leading-none italic" style={{ fontFamily: 'Georgia, serif' }}>i</span>
@@ -347,10 +345,9 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
             <div className="border-t border-apple-divider mt-2.5 mb-2.5" />
             
             <div className="flex items-center gap-2 flex-wrap" onClick={stopPropagation}>
-              {/* 日期 chip */}
               <div className="relative">
                 <div
-                  className={`${chipBase} cursor-pointer ${showDatePicker ? 'ring-2 ring-apple-blue/30' : ''}`}
+                  className={`${chipBase} ${showDatePicker ? 'ring-2 ring-apple-blue/30 bg-blue-50' : ''}`}
                   onClick={openDatePicker}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-700 flex-shrink-0">
@@ -380,7 +377,7 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
                 {showDatePicker && (
                   <div
                     onClick={stopPropagation}
-                    className="absolute top-full left-0 mt-1.5 bg-white rounded-[12px] shadow-apple-lg border border-apple-divider z-30 min-w-[200px] animate-scale-in overflow-hidden"
+                    className="absolute top-full left-0 mt-1.5 bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider z-30 min-w-[200px] animate-scale-in overflow-hidden"
                   >
                     <div className="p-1">
                       {[
@@ -428,10 +425,9 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
                 )}
               </div>
               
-              {/* 时间 chip */}
               <div className="relative">
                 <div
-                  className={`${chipBase} cursor-pointer ${showTimePicker ? 'ring-2 ring-apple-blue/30' : ''}`}
+                  className={`${chipBase} ${showTimePicker ? 'ring-2 ring-apple-blue/30 bg-blue-50' : ''}`}
                   onClick={openTimePicker}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-700 flex-shrink-0">
@@ -481,7 +477,7 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
                 {showTimePicker && (
                   <div
                     onClick={stopPropagation}
-                    className="absolute top-full left-0 mt-1.5 bg-white rounded-[12px] shadow-apple-lg border border-apple-divider z-30 min-w-[220px] animate-scale-in overflow-hidden"
+                    className="absolute top-full left-0 mt-1.5 bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider z-30 min-w-[220px] animate-scale-in overflow-hidden"
                   >
                     {Object.entries(groupedTimes).map(([period, times]) => (
                       <div key={period}>
@@ -513,8 +509,7 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
                 )}
               </div>
               
-              {/* 位置 chip */}
-              <div className={`${chipBase} cursor-default`}>
+              <div className={`${chipBase} cursor-default opacity-60`}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-700 flex-shrink-0">
                   <polygon points="3 11 22 2 13 21 11 13 3 11"/>
                 </svg>
@@ -528,7 +523,7 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
       {showDetail && (
         <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50" onClick={() => setShowDetail(false)}>
           <div
-            className="bg-white rounded-apple-lg shadow-apple-lg w-[320px] overflow-hidden"
+            className="bg-white rounded-apple-lg shadow-[0_16px_48px_rgba(0,0,0,0.16)] w-[320px] overflow-hidden animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-4 py-3 border-b border-apple-divider flex items-center gap-2">
@@ -605,7 +600,7 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
   return (
     <>
       <div
-        className={`reminder-item px-6 py-2.5 border-b border-apple-divider hover:bg-gray-50/50 transition-colors cursor-pointer group ${
+        className={`reminder-item px-6 py-2.5 border-b border-apple-divider hover:bg-gray-50/60 transition-colors cursor-pointer group ${
           reminder.is_completed ? 'bg-gray-50/30' : 'bg-white'
         }`}
         onClick={onStartEditing}
@@ -618,7 +613,7 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
             }}
             className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
               reminder.is_completed
-                ? 'bg-apple-blue border-apple-blue'
+                ? 'bg-apple-blue border-apple-blue shadow-[0_1px_3px_rgba(0,122,255,0.3)]'
                 : 'border-apple-gray-dark hover:border-apple-blue'
             }`}
           >
@@ -686,7 +681,7 @@ function ReminderItem({ reminder, lists, owners, isEditing, onToggleCompleted, o
       {showDetail && (
         <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50" onClick={() => setShowDetail(false)}>
           <div
-            className="bg-white rounded-apple-lg shadow-apple-lg w-[320px] overflow-hidden"
+            className="bg-white rounded-apple-lg shadow-[0_16px_48px_rgba(0,0,0,0.16)] w-[320px] overflow-hidden animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-4 py-3 border-b border-apple-divider flex items-center gap-2">
@@ -836,17 +831,17 @@ export function ReminderList({
     <main className="flex-1 h-full flex flex-col bg-white">
       <div className="flex items-start justify-between px-6 pt-6 pb-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{getTitle()}</h1>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{getTitle()}</h1>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-sm text-apple-gray">{completedCount}项已完成</span>
-            <span className="text-sm text-apple-orange font-medium">显示</span>
+            <span className="text-sm text-apple-orange font-medium cursor-pointer hover:text-orange-600 transition-colors">显示</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold text-apple-orange">{reminders.length}</span>
+          <span className="text-2xl font-bold text-apple-orange tracking-tight">{reminders.length}</span>
           <button
             onClick={onCreateReminder}
-            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100/80 transition-all duration-200 shadow-sm hover:shadow-md"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2">
               <line x1="12" y1="5" x2="12" y2="19"/>

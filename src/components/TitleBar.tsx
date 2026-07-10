@@ -22,36 +22,36 @@ export function TitleBar({ currentView, onViewChange }: TitleBarProps) {
   };
 
   return (
-    <header className="flex items-center justify-between px-3 h-10 bg-gray-50 border-b border-apple-divider select-none">
+    <header className="flex items-center justify-between px-4 h-10 glass-effect border-b border-apple-divider select-none">
       <div className="flex items-center gap-8">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={handleClose}
-            className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors"
+            className="w-3 h-3 rounded-full bg-[#FF5F56] hover:bg-[#FF3B30] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_1px_0_rgba(0,0,0,0.1)] transition-all duration-150"
             title="关闭"
           />
           <button
             onClick={handleMinimize}
-            className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-600 transition-colors"
+            className="w-3 h-3 rounded-full bg-[#FFBD2E] hover:bg-[#FFCC00] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_1px_0_rgba(0,0,0,0.1)] transition-all duration-150"
             title="最小化"
           />
           <button
             onClick={handleMaximize}
-            className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-600 transition-colors"
+            className="w-3 h-3 rounded-full bg-[#27C93F] hover:bg-[#4CD964] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_1px_0_rgba(0,0,0,0.1)] transition-all duration-150"
             title="最大化"
           />
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => onViewChange('reminder')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-apple-sm transition-all duration-200 text-sm font-medium ${
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-apple-md transition-all duration-200 text-sm font-medium ${
               currentView === 'reminder'
-                ? 'bg-white shadow-apple-sm text-apple-blue'
-                : 'text-apple-gray hover:text-gray-900'
+                ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.1)] text-apple-blue'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50'
             }`}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
               <line x1="9" y1="3" x2="9" y2="21"/>
               <line x1="15" y1="3" x2="15" y2="21"/>
@@ -60,13 +60,13 @@ export function TitleBar({ currentView, onViewChange }: TitleBarProps) {
           </button>
           <button
             onClick={() => onViewChange('calendar')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-apple-sm transition-all duration-200 text-sm font-medium ${
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-apple-md transition-all duration-200 text-sm font-medium ${
               currentView === 'calendar'
-                ? 'bg-white shadow-apple-sm text-apple-blue'
-                : 'text-apple-gray hover:text-gray-900'
+                ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.1)] text-apple-blue'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50'
             }`}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
               <line x1="16" y1="2" x2="16" y2="6"/>
               <line x1="8" y1="2" x2="8" y2="6"/>
