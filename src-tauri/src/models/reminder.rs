@@ -1,0 +1,194 @@
+use chrono::{DateTime, Local, NaiveDate, NaiveTime};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum Priority {
+    None,
+    #[default]
+    Medium,
+    Low,
+    High,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum RecurrenceFrequency {
+    Daily,
+    Weekly,
+    Monthly,
+    Yearly,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RecurrenceRule {
+    pub frequency: RecurrenceFrequency,
+    pub interval: u32,
+}
+
+impl RecurrenceRule {
+    pub fn display_string(&self) -> String {
+        if self.interval == 1 {
+            match self.frequency {
+                RecurrenceFrequency::Daily => "daily".to_string(),
+                RecurrenceFrequency::Weekly => "weekly".to_string(),
+                RecurrenceFrequency::Monthly => "monthly".to_string(),
+                RecurrenceFrequency::Yearly => "yearly".to_string(),
+            }
+        } else {
+            let unit = match self.frequency {
+                RecurrenceFrequency::Daily => "days",
+                RecurrenceFrequency::Weekly => "weeks",
+                RecurrenceFrequency::Monthly => "months",
+                RecurrenceFrequency::Yearly => "years",
+            };
+            format!("every {} {}", self.interval, unit)
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum LocationProximity {
+    Arriving,
+    Leaving,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LocationTrigger {
+    pub address: String,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+    pub radius: f64,
+    pub proximity: LocationProximity,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Reminder {
+    pub id: Uuid,
+    pub title: String,
+    pub description: Option<String>,
+    pub url: Option<String>,
+    pub due_date: Option<NaiveDate>,
+    pub due_time: Option<NaiveTime>,
+    pub is_all_day: bool,
+    pub is_completed: bool,
+    pub completion_date: Option<DateTime<Local>>,
+    pub priority: Priority,
+    pub alarm_at: Option<DateTime<Local>>,
+    pub recurrence: Option<RecurrenceRule>,
+    pub location: Option<LocationTrigger>,
+    pub owner_id: Option<Uuid>,
+    pub list_id: Option<Uuid>,
+    pub created_at: DateTime<Local>,
+    pub updated_at: DateTime<Local>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ReminderList {
+    pub id: Uuid,
+    pub name: String,
+    pub color: String,
+    pub icon: String,
+}
+
+impl Reminder {
+    pub fn new(title: String) -> Self {
+        let now = Local::now();
+        Self {
+            id: Uuid::new_v4(),
+            title,
+            description: None,
+            url: None,
+            due_date: None,
+            due_time: None,
+            is_all_day: false,
+            is_completed: false,
+            completion_date: None,
+            priority: Priority::None,
+            alarm_at: None,
+            recurrence: None,
+            location: None,
+            owner_id: None,
+            list_id: None,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    pub fn with_list_id(mut self, list_id: Uuid) -> Self {
+        self.list_id = Some(list_id);
+        self
+    }
+
+    pub fn with_due_date(mut self, due_date: NaiveDate) -> Self {
+        self.due_date = Some(due_date);
+        self.is_all_day = true;
+        self
+    }
+
+    pub fn with_due_time(mut self, due_time: NaiveTime) -> Self {
+        self.due_time = Some(due_time);
+        self.is_all_day = false;
+        self
+    }
+
+    pub fn with_description(mut self, description: String) -> Self {
+        self.description = Some(description);
+        self
+    }
+
+    pub fn with_priority(mut self, priority: Priority) -> Self {
+        self.priority = priority;
+        self
+    }
+
+    pub fn mark_completed(mut self) -> Self {
+        self.is_completed = true;
+        self.completion_date = Some(Local::now());
+        self.updated_at = Local::now();
+        self
+    }
+
+    pub fn mark_incomplete(mut self) -> Self {
+        self.is_completed = false;
+        self.completion_date = None;
+        self.updated_at = Local::now();
+        self
+    }
+
+    pub fn matches_search(&self, query: &str) -> bool {
+        let trimmed = query.trim();
+        if trimmed.is_empty() {
+            return false;
+        }
+        let query_lower = trimmed.to_lowercase();
+        let haystack = [
+            self.title.as_str(),
+            self.description.as_deref().unwrap_or(""),
+            self.url.as_deref().unwrap_or(""),
+        ]
+        .join("\n")
+        .to_lowercase();
+        haystack.contains(&query_lower)
+    }
+}
+
+impl ReminderList {
+    pub fn new(name: String) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            name,
+            color: "#007AFF".to_string(),
+            icon: "list".to_string(),
+        }
+    }
+
+    pub fn with_color(mut self, color: String) -> Self {
+        self.color = color;
+        self
+    }
+
+    pub fn with_icon(mut self, icon: String) -> Self {
+        self.icon = icon;
+        self
+    }
+}

@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #ffffff;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+input:focus {
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus {
+  outline: none;
+}
+
+@layer components {
+  .apple-btn {
+    @apply px-4 py-2 rounded-apple-sm text-sm font-medium transition-all duration-150;
+  }
+  
+  .apple-btn-primary {
+    @apply apple-btn bg-apple-blue text-white hover:bg-blue-600 active:bg-blue-700;
+  }
+  
+  .apple-btn-secondary {
+    @apply apple-btn border border-apple-gray-dark text-gray-700 hover:bg-gray-50 active:bg-gray-100;
+  }
+  
+  .apple-input {
+    @apply w-full px-4 py-2 bg-apple-gray-light rounded-apple-sm border-none text-gray-900 placeholder-apple-gray focus:ring-2 focus:ring-apple-blue/30;
+  }
+  
+  .apple-card {
+    @apply bg-white rounded-apple shadow-apple-sm border border-apple-divider;
+  }
+  
+  .apple-text-field {
+    @apply w-full px-4 py-3 bg-transparent border-b border-apple-divider text-base text-gray-900 placeholder-apple-gray focus:border-apple-blue focus:outline-none transition-colors;
+  }
+  
+  .apple-tag {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 rounded-apple-sm text-xs font-medium text-gray-700;
+  }
+  
+  .apple-glow {
+    box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.animate-slide-down {
+  animation: slide-down 0.2s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out;
+}
