@@ -150,17 +150,17 @@ export function ReminderList({
   }, [editingId, handleCancelEditing]);
   
   return (
-    <main className="flex-1 h-full flex flex-col bg-white">
+    <main className="flex-1 h-full flex flex-col">
       <div className="flex items-start justify-between px-6 pt-6 pb-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{getTitle()}</h1>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight text-title">{getTitle()}</h1>
           {completedCount > 0 && (
             <div className="flex items-center gap-2 mt-1">
               <span className="text-sm text-apple-gray">{completedCount}项已完成</span>
               <button
                 onClick={() => setShowCompleted(!showCompleted)}
-                className={`text-sm font-medium cursor-pointer transition-colors ${
-                  showCompleted ? 'text-apple-blue hover:text-blue-600' : 'text-apple-orange hover:text-orange-600'
+                className={`text-sm font-medium cursor-pointer transition-colors spring-transition ${
+                  showCompleted ? 'text-apple-blue hover:text-[#0066CC]' : 'text-apple-orange hover:text-orange-600'
                 }`}
               >
                 {showCompleted ? '隐藏' : '显示'}
@@ -168,13 +168,13 @@ export function ReminderList({
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span className="text-2xl font-bold text-apple-orange tracking-tight">{reminders.length}</span>
           <button
             onClick={onCreateReminder}
-            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100/80 transition-all duration-200 shadow-sm hover:shadow-md"
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-apple-blue text-white hover:bg-[#0066CC] hover:brightness-105 transition-all duration-200 spring-transition shadow-[0_2px_8px_rgba(0,122,255,0.3)] hover-scale"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
               <line x1="12" y1="5" x2="12" y2="19"/>
               <line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
@@ -182,40 +182,44 @@ export function ReminderList({
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto">
-        {reminders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-apple-gray">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <line x1="9" y1="3" x2="9" y2="21"/>
-              <line x1="15" y1="3" x2="15" y2="21"/>
-            </svg>
-            <span className="mt-4 text-base">没有提醒事项</span>
-          </div>
-        ) : (
-          reminders
-            .filter(r => showCompleted || !r.is_completed)
-            .map((reminder) => (
-            <ReminderItem
-              key={reminder.id}
-              reminder={reminder}
-              lists={lists}
-              owners={owners}
-              isEditing={editingId === reminder.id}
-              onToggleCompleted={onToggleCompleted}
-              onDelete={onDeleteReminder}
-              onStartEditing={handleStartEditing}
-              onSaveAndStopEditing={handleSaveAndStopEditing}
-              onCancelEditing={handleCancelEditing}
-              onChange={handleChangeEditing}
-              onUpdateReminder={onUpdateReminder}
-              onCut={onCut}
-              onCopy={onCopy}
-              onPaste={onPaste}
-              canPaste={canPaste}
-            />
-          ))
-        )}
+      <div className="flex-1 overflow-y-auto px-6 pb-6">
+        <div className="space-y-1">
+          {reminders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-apple-gray py-20">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <line x1="9" y1="3" x2="9" y2="21"/>
+                <line x1="15" y1="3" x2="15" y2="21"/>
+              </svg>
+              <span className="mt-4 text-base font-medium">没有提醒事项</span>
+            </div>
+          ) : (
+            reminders
+              .filter(r => showCompleted || !r.is_completed)
+              .map((reminder, index) => (
+              <div key={reminder.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 30}ms` }}>
+                <ReminderItem
+                  key={reminder.id}
+                  reminder={reminder}
+                  lists={lists}
+                  owners={owners}
+                  isEditing={editingId === reminder.id}
+                  onToggleCompleted={onToggleCompleted}
+                  onDelete={onDeleteReminder}
+                  onStartEditing={handleStartEditing}
+                  onSaveAndStopEditing={handleSaveAndStopEditing}
+                  onCancelEditing={handleCancelEditing}
+                  onChange={handleChangeEditing}
+                  onUpdateReminder={onUpdateReminder}
+                  onCut={onCut}
+                  onCopy={onCopy}
+                  onPaste={onPaste}
+                  canPaste={canPaste}
+                />
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </main>
   );

@@ -44,15 +44,15 @@ function CalendarDay({
     <div
       onClick={() => onSelect(new Date(day))}
       className={`
-        min-h-[88px] p-2 cursor-pointer relative
-        transition-all duration-150 rounded-apple-md
-        ${isSelected ? 'bg-blue-50/80' : 'hover:bg-gray-50/70'}
+        min-h-[96px] p-2.5 cursor-pointer relative
+        transition-all duration-200 spring-transition rounded-[12px]
+        ${isSelected ? 'bg-blue-50/90' : 'hover:bg-white/80'}
       `}
     >
       <div
         className={`
           w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold mx-auto
-          transition-all duration-150
+          transition-all duration-200 spring-transition
           ${isToday && isCurrentMonth ? 'bg-apple-red text-white shadow-md shadow-red-500/30' : ''}
           ${isSelected && !isToday ? 'bg-apple-blue text-white' : ''}
           ${!isSelected && !isToday ? (isCurrentMonth ? 'text-gray-900' : 'text-gray-400') : ''}
@@ -70,7 +70,7 @@ function CalendarDay({
             return (
               <div
                 key={i}
-                className="text-xs truncate px-2 py-1 rounded-apple-sm bg-gray-100/60 hover:bg-gray-200/60 transition-colors"
+                className="text-xs truncate px-2 py-1 rounded-[8px] bg-white/80 hover:bg-white transition-colors spring-transition"
               >
                 <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5" style={{ backgroundColor: rListColor }} />
                 <span className={reminder.is_completed ? 'text-gray-500 line-through' : 'text-gray-700'}>
@@ -160,7 +160,7 @@ function DayView({
                   return (
                     <div
                       key={i}
-                      className="absolute left-16 right-0 px-4 py-2 rounded-apple-sm bg-white border-l-4 shadow-sm hover:shadow-md transition-shadow"
+                      className="absolute left-16 right-0 px-4 py-2 rounded-[10px] bg-white border-l-4 shadow-sm hover:shadow-md transition-shadow spring-transition"
                       style={{ 
                         top: `${top}px`,
                         borderLeftColor: rListColor,
@@ -256,7 +256,7 @@ function WeekView({
                     return (
                       <div
                         key={i}
-                        className="absolute left-2 right-2 py-1.5 px-2 rounded-apple-sm bg-white border-l-3 shadow-sm hover:shadow-md transition-shadow"
+                        className="absolute left-2 right-2 py-1.5 px-2 rounded-[10px] bg-white border-l-3 shadow-sm hover:shadow-md transition-shadow spring-transition"
                         style={{ 
                           top: `${top}px`,
                           borderLeftColor: rListColor,
@@ -361,12 +361,12 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
   };
 
   return (
-    <main className="flex-1 h-full flex flex-col bg-white">
+    <main className="flex-1 h-full flex flex-col">
       <div className="flex items-center justify-between px-6 py-5">
         <div className="flex items-center gap-4">
           <button
             onClick={prevPeriod}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100/80 transition-all duration-150 active:scale-95"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-white/80 transition-all duration-200 spring-transition active:scale-95"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6"/>
@@ -376,9 +376,9 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
           <div className="relative">
             <button
               onClick={() => setShowYearPicker(!showYearPicker)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-apple-md hover:bg-gray-100/60 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] hover:bg-white/80 transition-colors spring-transition"
             >
-              <span className="text-xl font-semibold text-gray-900 tracking-tight">
+              <span className="text-xl font-semibold text-gray-900 tracking-tight text-title">
                 {getTitle()}
               </span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
@@ -387,11 +387,11 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
             </button>
 
             {showYearPicker && (
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-apple-lg shadow-apple-lg border border-apple-divider p-3 min-w-[280px] z-50 animate-slide-down">
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-[14px] shadow-apple-lg border border-apple-divider p-3 min-w-[280px] z-50 animate-slide-down">
                 <div className="flex items-center justify-between mb-3">
                   <button
                     onClick={() => selectYear(year - 12)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all spring-transition"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <polyline points="15 18 9 12 15 6"/>
@@ -400,7 +400,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
                   <span className="text-sm font-semibold text-gray-700">{year - 5} - {year + 6}</span>
                   <button
                     onClick={() => selectYear(year + 12)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all spring-transition"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <polyline points="9 18 15 12 9 6"/>
@@ -414,7 +414,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
                       key={m}
                       onClick={() => selectMonth(i)}
                       className={`
-                        py-1.5 text-sm font-medium rounded-apple-sm transition-all
+                        py-1.5 text-sm font-medium rounded-[8px] transition-all spring-transition
                         ${i === month ? 'bg-apple-blue text-white' : 'text-gray-700 hover:bg-gray-100'}
                       `}
                     >
@@ -429,7 +429,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
                       key={y}
                       onClick={() => selectYear(y)}
                       className={`
-                        py-1.5 text-sm font-medium rounded-apple-sm transition-all
+                        py-1.5 text-sm font-medium rounded-[8px] transition-all spring-transition
                         ${y === year ? 'bg-apple-blue text-white' : 'text-gray-700 hover:bg-gray-100'}
                       `}
                     >
@@ -443,7 +443,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
 
           <button
             onClick={nextPeriod}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100/80 transition-all duration-150 active:scale-95"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-white/80 transition-all duration-200 spring-transition active:scale-95"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="9 18 15 12 9 6"/>
@@ -452,11 +452,11 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-gray-100/80 rounded-apple-md p-1">
+          <div className="flex items-center bg-gray-100/80 rounded-[10px] p-1">
             <button
               onClick={() => setViewMode('day')}
               className={`
-                px-3 py-1.5 text-sm font-medium rounded-apple-sm transition-all
+                px-3 py-1.5 text-sm font-medium rounded-[8px] transition-all spring-transition
                 ${viewMode === 'day' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}
               `}
             >
@@ -465,7 +465,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
             <button
               onClick={() => setViewMode('week')}
               className={`
-                px-3 py-1.5 text-sm font-medium rounded-apple-sm transition-all
+                px-3 py-1.5 text-sm font-medium rounded-[8px] transition-all spring-transition
                 ${viewMode === 'week' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}
               `}
             >
@@ -474,7 +474,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
             <button
               onClick={() => setViewMode('month')}
               className={`
-                px-3 py-1.5 text-sm font-medium rounded-apple-sm transition-all
+                px-3 py-1.5 text-sm font-medium rounded-[8px] transition-all spring-transition
                 ${viewMode === 'month' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}
               `}
             >
@@ -484,7 +484,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
 
           <button
             onClick={goToToday}
-            className="px-4 py-2 text-sm font-medium text-apple-blue hover:bg-blue-50/80 rounded-apple-md transition-all duration-150 active:scale-95"
+            className="px-4 py-2 text-sm font-medium text-apple-blue hover:bg-blue-50/80 rounded-[10px] transition-all duration-200 spring-transition active:scale-95"
           >
             今天
           </button>
@@ -534,7 +534,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
       )}
 
       {selectedReminders.length > 0 && viewMode === 'month' && (
-        <div className="border-t border-apple-divider px-6 py-4 glass-effect-dark">
+        <div className="border-t border-apple-divider px-6 py-4">
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-semibold text-gray-700">
               {selectedDate.getMonth() + 1}月{selectedDate.getDate()}日 ({weekDays[selectedDate.getDay()]})
@@ -549,7 +549,7 @@ export function CalendarView({ reminders, lists }: CalendarViewProps) {
               return (
                 <div
                   key={reminder.id}
-                  className="flex items-center gap-3 px-4 py-2.5 rounded-apple-md bg-white/60 hover:bg-white/80 transition-all duration-150"
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-[12px] bg-white/80 hover:bg-white transition-all duration-200 spring-transition"
                 >
                   <span className="inline-block w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: rListColor }} />
                   <span className={`text-sm flex-1 ${reminder.is_completed ? 'text-gray-500 line-through' : 'text-gray-900'}`}>

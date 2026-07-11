@@ -8,12 +8,16 @@
   box-sizing: border-box;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+html {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'PingFang SC', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #ffffff;
-  color: #1d1d1f;
+}
+
+body {
+  background-color: #F5F5F7;
+  color: #1D1D1F;
+  overflow: hidden;
 }
 
 ::-webkit-scrollbar {
@@ -34,7 +38,7 @@ body {
   background: rgba(0, 0, 0, 0.2);
 }
 
-input:focus {
+input:focus, textarea:focus {
   outline: none;
 }
 
@@ -48,85 +52,56 @@ button:focus {
 
 ::selection {
   background-color: rgba(0, 122, 255, 0.2);
-  color: #1d1d1f;
+  color: #1D1D1F;
 }
 
-@layer components {
-  .glass-effect {
-    background: rgba(255, 255, 255, 0.72);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+@keyframes float-slow {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
   }
-  
-  .glass-effect-dark {
-    background: rgba(245, 245, 247, 0.72);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+  33% {
+    transform: translate(2%, -2%) scale(1.02);
   }
-  
-  .glass-effect-light {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-  }
-  
-  .apple-btn {
-    @apply px-4 py-2 rounded-apple-sm text-sm font-medium transition-all duration-150;
-  }
-  
-  .apple-btn-primary {
-    @apply apple-btn bg-apple-blue text-white hover:bg-blue-600 active:bg-blue-700;
-  }
-  
-  .apple-btn-secondary {
-    @apply apple-btn border border-apple-gray-dark text-gray-700 hover:bg-gray-50 active:bg-gray-100;
-  }
-  
-  .apple-input {
-    @apply w-full px-4 py-2 bg-apple-gray-light rounded-apple-sm border-none text-gray-900 placeholder-apple-gray focus:ring-2 focus:ring-apple-blue/30;
-  }
-  
-  .apple-card {
-    @apply bg-white rounded-apple shadow-apple-sm border border-apple-divider;
-  }
-  
-  .apple-text-field {
-    @apply w-full px-4 py-3 bg-transparent border-b border-apple-divider text-base text-gray-900 placeholder-apple-gray focus:border-apple-blue focus:outline-none transition-colors;
-  }
-  
-  .apple-tag {
-    @apply inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 rounded-apple-sm text-xs font-medium text-gray-700;
-  }
-  
-  .apple-glow {
-    box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15);
-  }
-  
-  .traffic-light-close {
-    @apply w-3 h-3 rounded-full bg-[#FF5F56] hover:bg-[#FF3B30] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_1px_0_rgba(0,0,0,0.1)] transition-all;
-  }
-  
-  .traffic-light-minimize {
-    @apply w-3 h-3 rounded-full bg-[#FFBD2E] hover:bg-[#FFCC00] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_1px_0_rgba(0,0,0,0.1)] transition-all;
-  }
-  
-  .traffic-light-maximize {
-    @apply w-3 h-3 rounded-full bg-[#27C93F] hover:bg-[#4CD964] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_1px_0_rgba(0,0,0,0.1)] transition-all;
+  66% {
+    transform: translate(-2%, 2%) scale(0.98);
   }
 }
 
-@keyframes fade-in {
+@keyframes float-medium {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(-1.5%, 1.5%) scale(1.01);
+  }
+  66% {
+    transform: translate(1.5%, -1.5%) scale(0.99);
+  }
+}
+
+@keyframes float-fast {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(1%, 1%);
+  }
+}
+
+@keyframes fade-in-up {
   from {
     opacity: 0;
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@keyframes slide-down {
+@keyframes slide-up {
   from {
-    transform: translateY(-10px);
+    transform: translateY(100%);
     opacity: 0;
   }
   to {
@@ -146,20 +121,9 @@ button:focus {
   }
 }
 
-@keyframes slide-up {
+@keyframes slide-in-right {
   from {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slide-left {
-  from {
-    transform: translateX(10px);
+    transform: translateX(100%);
     opacity: 0;
   }
   to {
@@ -168,19 +132,54 @@ button:focus {
   }
 }
 
-@keyframes pulse-soft {
-  0%, 100% {
+@keyframes slide-down {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
     opacity: 1;
   }
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-left {
+  from {
+    transform: translateX(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
   50% {
-    opacity: 0.7;
+    opacity: 0.8;
+    transform: scale(1.05);
   }
 }
 
 @keyframes ripple {
   0% {
-    transform: scale(1);
-    opacity: 0.5;
+    transform: scale(0.8);
+    opacity: 0.4;
   }
   100% {
     transform: scale(2);
@@ -188,26 +187,193 @@ button:focus {
   }
 }
 
-.animate-fade-in {
-  animation: fade-in 0.2s ease-out;
+.aurora-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
 }
 
-.animate-slide-down {
-  animation: slide-down 0.2s ease-out;
+.aurora-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  -webkit-filter: blur(120px);
+  opacity: 0.4;
 }
 
-.animate-scale-in {
-  animation: scale-in 0.2s ease-out;
+.aurora-orb-1 {
+  width: 60vw;
+  height: 60vw;
+  background: radial-gradient(circle, rgba(162, 210, 255, 0.6) 0%, rgba(162, 210, 255, 0) 70%);
+  top: -20%;
+  left: -10%;
+  animation: float-slow 16s ease-in-out infinite;
+}
+
+.aurora-orb-2 {
+  width: 55vw;
+  height: 55vw;
+  background: radial-gradient(circle, rgba(200, 180, 255, 0.5) 0%, rgba(200, 180, 255, 0) 70%);
+  top: 20%;
+  right: -15%;
+  animation: float-medium 20s ease-in-out infinite reverse;
+}
+
+.aurora-orb-3 {
+  width: 50vw;
+  height: 50vw;
+  background: radial-gradient(circle, rgba(255, 180, 200, 0.3) 0%, rgba(255, 180, 200, 0) 70%);
+  bottom: -15%;
+  left: 20%;
+  animation: float-fast 14s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 .animate-slide-up {
-  animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slide-up 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.animate-slide-down {
+  animation: slide-down 0.25s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.animate-ripple {
+  animation: ripple 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 .animate-slide-left {
-  animation: slide-left 0.15s ease-out;
+  animation: slide-left 0.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
-.animate-pulse-soft {
-  animation: pulse-soft 2s ease-in-out infinite;
+@layer components {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+  }
+
+  .glass-card-dark {
+    background: rgba(245, 245, 247, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 0, 0, 0.03);
+  }
+
+  .glass-card-light {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .apple-btn {
+    @apply px-4 py-2 rounded-[9999px] text-sm font-medium transition-all duration-200;
+    transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  .apple-btn-primary {
+    @apply apple-btn bg-apple-blue text-white hover:bg-[#0066CC] hover:brightness-105 active:scale-[0.98] shadow-[0_2px_8px_rgba(0,122,255,0.3)];
+  }
+
+  .apple-btn-secondary {
+    @apply apple-btn bg-[#F2F2F7] text-gray-700 hover:bg-[#E5E5EA] active:scale-[0.98];
+  }
+
+  .apple-btn-ghost {
+    @apply apple-btn text-apple-blue hover:bg-blue-50/80 active:scale-[0.98];
+  }
+
+  .apple-input {
+    @apply w-full px-4 py-2.5 bg-[#F2F2F7] rounded-[10px] border-none text-gray-900 placeholder-apple-gray focus:ring-2 focus:ring-apple-blue/30 focus:bg-white transition-all duration-200;
+    transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  .apple-text-field {
+    @apply w-full px-4 py-3 bg-transparent border-b border-apple-divider text-base text-gray-900 placeholder-apple-gray focus:border-apple-blue focus:outline-none transition-colors;
+  }
+
+  .apple-tag {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 rounded-[10px] text-xs font-medium text-gray-700;
+  }
+
+  .apple-glow {
+    box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15);
+  }
+
+  .traffic-light-close {
+    @apply w-3 h-3 rounded-full bg-[#FF5F56] hover:bg-[#FF3B30] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_1px_0_rgba(0,0,0,0.1)] transition-all;
+  }
+
+  .traffic-light-minimize {
+    @apply w-3 h-3 rounded-full bg-[#FFBD2E] hover:bg-[#FFCC00] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_1px_0_rgba(0,0,0,0.1)] transition-all;
+  }
+
+  .traffic-light-maximize {
+    @apply w-3 h-3 rounded-full bg-[#27C93F] hover:bg-[#4CD964] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_1px_0_rgba(0,0,0,0.1)] transition-all;
+  }
+
+  .squircle {
+    border-radius: 24px;
+  }
+
+  .squircle-sm {
+    border-radius: 16px;
+  }
+
+  .squircle-md {
+    border-radius: 20px;
+  }
+
+  .squircle-lg {
+    border-radius: 28px;
+  }
+
+  .text-title {
+    @apply text-gray-900 font-bold tracking-[-0.02em];
+  }
+
+  .text-body {
+    @apply text-gray-700 font-normal;
+  }
+
+  .text-caption {
+    @apply text-apple-gray text-sm;
+  }
+
+  .spring-transition {
+    transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  .hover-scale {
+    @apply hover:scale-[1.02] active:scale-[0.98];
+    transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  .hover-brightness {
+    @apply hover:brightness-105 active:brightness-95;
+    transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+  }
 }

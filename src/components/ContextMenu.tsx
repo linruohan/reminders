@@ -84,7 +84,7 @@ export function ContextMenu({
     <div className="fixed inset-0 z-50">
       <div
         ref={menuRef}
-        className="absolute bg-white rounded-apple-md shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-scale-in"
+        className="absolute bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-scale-in"
         style={{ left: adjustedX, top: adjustedY, width: menuWidth }}
       >
         <div className="py-1">
@@ -178,7 +178,7 @@ export function ContextMenu({
               </svg>
             </button>
             {expandedSubmenu === 'paste' && canPaste && (
-              <div className="absolute left-full top-0 ml-1 bg-white rounded-apple-md shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-slide-left w-[160px]">
+              <div className="absolute left-full top-0 ml-1 bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-slide-left w-[160px]">
                 <button
                   onClick={() => { onPaste(null); onClose(); }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
@@ -239,7 +239,7 @@ export function ContextMenu({
               </svg>
             </button>
             {expandedSubmenu === 'move' && (
-              <div className="absolute left-full top-0 ml-1 bg-white rounded-apple-md shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-slide-left w-[160px]">
+              <div className="absolute left-full top-0 ml-1 bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-slide-left w-[160px]">
                 {lists.map((list) => (
                   <button
                     key={list.id}
@@ -281,7 +281,7 @@ export function ContextMenu({
               </div>
             </button>
             {expandedSubmenu === 'priority' && (
-              <div className="absolute left-full top-0 ml-1 bg-white rounded-apple-md shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-slide-left w-[140px]">
+              <div className="absolute left-full top-0 ml-1 bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-slide-left w-[140px]">
                 {(['none', 'low', 'medium', 'high'] as const).map((priority) => (
                   <button
                     key={priority}

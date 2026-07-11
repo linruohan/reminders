@@ -57,8 +57,8 @@ const ReminderItemViewMode = memo(function ReminderItemViewMode({
 }) {
   return (
     <div
-      className={`reminder-item px-6 py-2.5 border-b border-apple-divider hover:bg-gray-50/60 transition-colors cursor-pointer group ${
-        reminder.is_completed ? 'bg-gray-50/30' : 'bg-white'
+      className={`reminder-item px-4 py-3 rounded-[12px] hover:bg-white/80 transition-all duration-200 spring-transition cursor-pointer group ${
+        reminder.is_completed ? 'bg-gray-50/40' : 'bg-transparent'
       }`}
       onClick={() => onStartEditing(reminder.id)}
     >
@@ -68,7 +68,7 @@ const ReminderItemViewMode = memo(function ReminderItemViewMode({
             e.stopPropagation();
             onToggleCompleted(reminder.id);
           }}
-          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 spring-transition ${
             reminder.is_completed
               ? 'bg-apple-blue border-apple-blue shadow-[0_1px_3px_rgba(0,122,255,0.3)]'
               : 'border-apple-gray-dark hover:border-apple-blue'
@@ -82,7 +82,7 @@ const ReminderItemViewMode = memo(function ReminderItemViewMode({
         </button>
         
         <div className="flex-1 min-w-0">
-          <div className={`text-base font-medium truncate ${
+          <div className={`text-base font-semibold truncate ${
             reminder.is_completed
               ? 'text-apple-gray line-through'
               : 'text-gray-900'
@@ -91,7 +91,7 @@ const ReminderItemViewMode = memo(function ReminderItemViewMode({
           </div>
           
           {(reminder.description || reminder.due_date || reminder.due_time) && (
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-3 mt-1">
               {reminder.description && (
                 <span className="text-xs text-apple-gray truncate max-w-[200px]">
                   {reminder.description}
@@ -124,7 +124,7 @@ const ReminderItemViewMode = memo(function ReminderItemViewMode({
             e.stopPropagation();
             onShowDetail();
           }}
-          className="w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-gray-100 transition-all text-apple-gray"
+          className="w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-gray-100/80 transition-all duration-200 spring-transition text-apple-gray"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10"/>
@@ -226,13 +226,13 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
   };
 
   const chipBase =
-    'inline-flex items-center gap-1.5 h-8 pl-2.5 pr-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-900 hover:bg-[#E5E5EA] transition-colors cursor-pointer';
+    'inline-flex items-center gap-1.5 h-8 pl-2.5 pr-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-900 hover:bg-[#E5E5EA] transition-colors spring-transition cursor-pointer';
 
   return (
     <>
       <div 
-        className={`reminder-item px-6 py-3 border-b border-apple-divider transition-all duration-200 animate-slide-down ${
-          reminder.is_completed ? 'bg-gray-50/40' : 'bg-blue-50/60'
+        className={`reminder-item px-4 py-3 rounded-[14px] transition-all duration-200 animate-slide-down ${
+          reminder.is_completed ? 'bg-gray-50/60' : 'bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
         }`}
         onClick={handleSave}
       >
@@ -242,7 +242,7 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
               e.stopPropagation();
               onToggleCompleted(reminder.id);
             }}
-            className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${
+            className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all duration-200 spring-transition ${
               reminder.is_completed
                 ? 'bg-apple-blue border-apple-blue shadow-[0_1px_3px_rgba(0,122,255,0.3)]'
                 : 'border-apple-gray-dark hover:border-apple-blue'
@@ -289,7 +289,7 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
                   e.stopPropagation();
                   setShowDetail(true);
                 }}
-                className="w-[22px] h-[22px] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-apple-blue text-white hover:bg-blue-600 transition-colors shadow-sm"
+                className="w-[22px] h-[22px] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-apple-blue text-white hover:bg-[#0066CC] transition-colors spring-transition shadow-sm"
                 aria-label="详情"
               >
                 <span className="text-[12px] font-bold leading-none italic" style={{ fontFamily: 'Georgia, serif' }}>i</span>

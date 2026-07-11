@@ -22,22 +22,22 @@ export function TitleBar({ currentView, onViewChange }: TitleBarProps) {
   };
 
   return (
-    <header className="flex items-center justify-between px-4 h-10 glass-effect border-b border-apple-divider select-none">
+    <header className="flex items-center justify-between px-4 h-10 glass-card-dark border-b border-white/30 select-none">
       <div className="flex items-center gap-8">
         <div className="flex items-center gap-2.5">
           <button
             onClick={handleClose}
-            className="w-3 h-3 rounded-full bg-[#FF5F56] hover:bg-[#FF3B30] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_1px_0_rgba(0,0,0,0.1)] transition-all duration-150"
+            className="traffic-light-close"
             title="关闭"
           />
           <button
             onClick={handleMinimize}
-            className="w-3 h-3 rounded-full bg-[#FFBD2E] hover:bg-[#FFCC00] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_1px_0_rgba(0,0,0,0.1)] transition-all duration-150"
+            className="traffic-light-minimize"
             title="最小化"
           />
           <button
             onClick={handleMaximize}
-            className="w-3 h-3 rounded-full bg-[#27C93F] hover:bg-[#4CD964] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_1px_0_rgba(0,0,0,0.1)] transition-all duration-150"
+            className="traffic-light-maximize"
             title="最大化"
           />
         </div>
@@ -45,10 +45,10 @@ export function TitleBar({ currentView, onViewChange }: TitleBarProps) {
         <div className="flex items-center gap-1">
           <button
             onClick={() => onViewChange('reminder')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-apple-md transition-all duration-200 text-sm font-medium ${
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-[10px] transition-all duration-200 spring-transition text-sm font-medium ${
               currentView === 'reminder'
                 ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.1)] text-apple-blue'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
             }`}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -60,10 +60,10 @@ export function TitleBar({ currentView, onViewChange }: TitleBarProps) {
           </button>
           <button
             onClick={() => onViewChange('calendar')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-apple-md transition-all duration-200 text-sm font-medium ${
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-[10px] transition-all duration-200 spring-transition text-sm font-medium ${
               currentView === 'calendar'
                 ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.1)] text-apple-blue'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
             }`}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

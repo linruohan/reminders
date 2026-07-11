@@ -60,13 +60,13 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
   return (
     <div className="fixed inset-0 bg-black/20 flex items-end justify-center z-50" onClick={onClose}>
       <div
-        className="glass-effect-light rounded-t-3xl w-full max-w-lg shadow-[0_16px_48px_rgba(0,0,0,0.16)] overflow-hidden animate-slide-up"
+        className="glass-card-light rounded-t-[24px] w-full max-w-lg shadow-[0_16px_48px_rgba(0,0,0,0.16)] overflow-hidden animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-apple-divider">
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100/80 transition-all"
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100/80 transition-all spring-transition"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18"/>
@@ -77,7 +77,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
           <button
             onClick={handleSubmit}
             disabled={!title.trim()}
-            className="text-sm font-semibold text-apple-blue disabled:text-apple-gray disabled:opacity-50 transition-opacity"
+            className="text-sm font-semibold text-apple-blue disabled:text-apple-gray disabled:opacity-50 transition-opacity spring-transition"
           >
             完成
           </button>
@@ -107,7 +107,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
 
           <div className="flex items-center flex-wrap gap-2">
             {dueDate && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-gray-700">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-sm font-medium text-gray-700">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <circle cx="12" cy="12" r="10"/>
                   <polyline points="12 6 12 12 16 14"/>
@@ -115,7 +115,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                 {getDateLabel(dueDate) || dueDate}
                 <button
                   onClick={() => setDueDate('')}
-                  className="ml-1 w-4 h-4 rounded-full flex items-center justify-center hover:bg-gray-200/80 transition-colors"
+                  className="ml-1 w-4 h-4 rounded-full flex items-center justify-center hover:bg-gray-200/80 transition-colors spring-transition"
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <line x1="18" y1="6" x2="6" y2="18"/>
@@ -126,7 +126,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
             )}
 
             {dueDate && dueTime && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-apple-orange">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-sm font-medium text-apple-orange">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <circle cx="12" cy="12" r="10"/>
                   <polyline points="12 6 12 12 16 14"/>
@@ -134,7 +134,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                 {formatDisplayTime(dueTime)}
                 <button
                   onClick={() => setDueTime('')}
-                  className="ml-1 w-4 h-4 rounded-full flex items-center justify-center hover:bg-gray-200/80 transition-colors"
+                  className="ml-1 w-4 h-4 rounded-full flex items-center justify-center hover:bg-gray-200/80 transition-colors spring-transition"
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <line x1="18" y1="6" x2="6" y2="18"/>
@@ -148,7 +148,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
               <>
                 <button
                   onClick={() => setDueDate(getTodayStr())}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-sm font-medium text-gray-700 hover:bg-[#E5E5EA] transition-colors spring-transition"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <circle cx="12" cy="12" r="10"/>
@@ -158,7 +158,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                 </button>
                 <button
                   onClick={() => setDueDate(getTomorrowStr())}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-sm font-medium text-gray-700 hover:bg-[#E5E5EA] transition-colors spring-transition"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <circle cx="12" cy="12" r="10"/>
@@ -169,7 +169,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                 <div className="relative">
                   <button
                     onClick={() => setShowDatePicker(!showDatePicker)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-sm font-medium text-gray-700 hover:bg-[#E5E5EA] transition-colors spring-transition"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -182,7 +182,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                   
                   {showDatePicker && (
                     <div className="absolute bottom-full left-0 mb-2 z-20 animate-scale-in">
-                      <div className="bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider min-w-[200px] overflow-hidden">
+                      <div className="bg-white rounded-[14px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider min-w-[200px] overflow-hidden">
                         <div className="p-2">
                           {[
                             { value: getTodayStr(), label: '今天' },
@@ -194,7 +194,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                                 setDueDate(opt.value);
                                 setShowDatePicker(false);
                               }}
-                              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[8px] text-[13px] font-medium transition-colors ${
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[8px] text-[13px] font-medium transition-colors spring-transition ${
                                 dueDate === opt.value
                                   ? 'bg-apple-blue text-white'
                                   : 'text-gray-900 hover:bg-gray-100'
@@ -231,7 +231,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
               <div className="relative">
                 <button
                   onClick={() => setShowTimePicker(!showTimePicker)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-sm font-medium text-gray-700 hover:bg-[#E5E5EA] transition-colors spring-transition"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <circle cx="12" cy="12" r="10"/>
@@ -241,7 +241,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                 </button>
                 
                 {showTimePicker && (
-                  <div className="absolute bottom-full left-0 mb-2 bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider z-10 min-w-[200px] animate-scale-in">
+                  <div className="absolute bottom-full left-0 mb-2 bg-white rounded-[14px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider z-10 min-w-[200px] animate-scale-in">
                     <div className="p-1">
                       <div className="px-3 py-2 text-xs font-semibold text-apple-gray uppercase tracking-wide">建议</div>
                       {suggestedTimes.map((time) => (
@@ -251,7 +251,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                             setDueTime(time.value);
                             setShowTimePicker(false);
                           }}
-                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-apple-md text-sm font-medium transition-all ${
+                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-[10px] text-sm font-medium transition-all spring-transition ${
                             dueTime === time.value
                               ? 'bg-apple-blue text-white'
                               : 'text-gray-700 hover:bg-gray-100'
@@ -278,7 +278,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
             )}
 
             <button
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors opacity-60 cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-sm font-medium text-gray-700 hover:bg-[#E5E5EA] transition-colors spring-transition opacity-60 cursor-not-allowed"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
@@ -302,7 +302,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                 <button
                   key={list.id}
                   onClick={() => setSelectedListId(selectedListId === list.id ? null : list.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-apple-md text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-sm font-medium transition-colors spring-transition ${
                     selectedListId === list.id
                       ? 'bg-blue-50 text-apple-blue'
                       : 'text-gray-700 hover:bg-gray-100/80'
