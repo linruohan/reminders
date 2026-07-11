@@ -26,6 +26,7 @@ pub struct RecurrenceRule {
 }
 
 impl RecurrenceRule {
+    #[allow(dead_code)]
     pub fn display_string(&self) -> String {
         if self.interval == 1 {
             match self.frequency {
@@ -136,11 +137,13 @@ impl Reminder {
         self
     }
 
+    #[allow(dead_code)]
     pub fn with_priority(mut self, priority: Priority) -> Self {
         self.priority = priority;
         self
     }
 
+    #[allow(dead_code)]
     pub fn mark_completed(mut self) -> Self {
         self.is_completed = true;
         self.completion_date = Some(Local::now());
@@ -148,6 +151,7 @@ impl Reminder {
         self
     }
 
+    #[allow(dead_code)]
     pub fn mark_incomplete(mut self) -> Self {
         self.is_completed = false;
         self.completion_date = None;
@@ -155,6 +159,7 @@ impl Reminder {
         self
     }
 
+    #[allow(dead_code)]
     pub fn matches_search(&self, query: &str) -> bool {
         let trimmed = query.trim();
         if trimmed.is_empty() {

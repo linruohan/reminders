@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use tauri::Builder;
+use tauri::{AppHandle, Builder, Manager};
 
 use crate::commands::*;
 use crate::database::connection::Database;
@@ -8,20 +8,31 @@ use crate::database::connection::Database;
 mod commands;
 mod database;
 mod models;
+mod repository;
+
+fn get_data_dir(app_handle: &AppHandle) -> PathBuf {
+    app_handle
+        .path()
+        .data_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
+}
 
 fn main() {
-    let db_path = PathBuf::from("reminders.db");
-    
-    let db = Database::open(&db_path)
-        .expect("Failed to open database");
+    let context = tauri::generate_context!();
     
     Builder::default()
-        .manage(db)
+        .setup(|app| {
+            let db_path = get_data_dir(&app.handle()).join("reminders.db");
+            let db = Database::open(&db_path).expect("Failed to open database");
+            app.manage(db);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_all_reminders,
             get_reminders_by_filter,
             get_reminders_by_list,
             get_reminder_by_id,
+            search_reminders,
             create_reminder,
             update_reminder,
             delete_reminder,
@@ -33,6 +44,6 @@ fn main() {
             create_owner,
             delete_owner,
         ])
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("error while running tauri application");
 }

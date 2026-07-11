@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { ListResponse } from '@/types/api';
+import { getTodayStr, getTomorrowStr, formatTime, suggestedTimes, getDateLabel } from '@/utils/dateUtils';
 
 interface AddReminderModalProps {
   lists: ListResponse[];
@@ -52,33 +53,8 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
     }
   };
 
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
-
-  const suggestedTimes = [
-    { value: '09:00', label: '上午9:00', period: '上午' },
-    { value: '12:00', label: '下午12:00', period: '中午' },
-    { value: '15:00', label: '下午3:00', period: '下午' },
-    { value: '18:00', label: '下午6:00', period: '晚上' },
-    { value: '21:00', label: '下午9:00', period: '夜间' },
-  ];
-
   const formatDisplayTime = (timeStr: string | undefined): string => {
-    if (!timeStr) return '';
-    const parts = timeStr.split(':');
-    const hour = parseInt(parts[0]);
-    const minute = parseInt(parts[1]);
-    if (hour < 12) {
-      return `上午${hour === 0 ? 12 : hour}:${minute.toString().padStart(2, '0')}`;
-    } else if (hour === 12) {
-      return `下午12:${minute.toString().padStart(2, '0')}`;
-    } else {
-      return `下午${hour - 12}:${minute.toString().padStart(2, '0')}`;
-    }
+    return formatTime(timeStr).replace(' ', '');
   };
 
   return (
@@ -136,7 +112,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                   <circle cx="12" cy="12" r="10"/>
                   <polyline points="12 6 12 12 16 14"/>
                 </svg>
-                {dueDate === todayStr ? '今天' : dueDate === tomorrowStr ? '明天' : dueDate}
+                {getDateLabel(dueDate) || dueDate}
                 <button
                   onClick={() => setDueDate('')}
                   className="ml-1 w-4 h-4 rounded-full flex items-center justify-center hover:bg-gray-200/80 transition-colors"
@@ -171,7 +147,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
             {!dueDate && (
               <>
                 <button
-                  onClick={() => setDueDate(todayStr)}
+                  onClick={() => setDueDate(getTodayStr())}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -181,7 +157,7 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                   今天
                 </button>
                 <button
-                  onClick={() => setDueDate(tomorrowStr)}
+                  onClick={() => setDueDate(getTomorrowStr())}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100/80 rounded-apple-md text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -209,8 +185,8 @@ export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalP
                       <div className="bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider min-w-[200px] overflow-hidden">
                         <div className="p-2">
                           {[
-                            { value: todayStr, label: '今天' },
-                            { value: tomorrowStr, label: '明天' },
+                            { value: getTodayStr(), label: '今天' },
+                            { value: getTomorrowStr(), label: '明天' },
                           ].map((opt) => (
                             <button
                               key={opt.value}

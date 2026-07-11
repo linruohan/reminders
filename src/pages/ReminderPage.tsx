@@ -17,11 +17,14 @@ interface ReminderPageProps {
   activeFilter: string;
   filterCounts: FilterCounts;
   onFilterChange: (filter: string) => void;
+  onSearch: (query: string) => void;
   onToggleCompleted: (id: string) => void;
   onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
   onDeleteReminder: (id: string) => void;
   onCreateReminder: () => void;
   onAddList: () => void;
+  onEditStart: () => void;
+  onEditEnd: () => void;
 }
 
 export function ReminderPage({
@@ -31,11 +34,14 @@ export function ReminderPage({
   activeFilter,
   filterCounts,
   onFilterChange,
+  onSearch,
   onToggleCompleted,
   onUpdateReminder,
   onDeleteReminder,
   onCreateReminder,
   onAddList,
+  onEditStart,
+  onEditEnd,
 }: ReminderPageProps) {
   return (
     <div className="flex-1 flex overflow-hidden bg-white">
@@ -44,6 +50,7 @@ export function ReminderPage({
         activeFilter={activeFilter}
         filterCounts={filterCounts}
         onFilterChange={onFilterChange}
+        onSearch={onSearch}
         onAddList={onAddList}
       />
       
@@ -56,6 +63,8 @@ export function ReminderPage({
         onUpdateReminder={onUpdateReminder}
         onDeleteReminder={onDeleteReminder}
         onCreateReminder={onCreateReminder}
+        onEditStart={onEditStart}
+        onEditEnd={onEditEnd}
       />
     </div>
   );

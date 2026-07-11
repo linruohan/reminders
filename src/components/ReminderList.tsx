@@ -1,9 +1,34 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
 import { formatDate, formatTime, getDateColor } from '@/utils/dateUtils';
 import { DatePickerChip } from './DatePickerChip';
 import { TimePickerChip } from './TimePickerChip';
 import { ReminderDetailModal } from './ReminderDetailModal';
+import { ContextMenu } from './ContextMenu';
+
+/**
+ * 比较原始提醒与编辑值，生成需要更新的字段
+ * 用于统一编辑保存与点击外部保存的逻辑，避免两处实现不一致
+ */
+function buildUpdates(
+  reminder: ReminderResponse,
+  values: Partial<ReminderResponse>,
+): Partial<ReminderResponse> {
+  const updates: Partial<ReminderResponse> = {};
+  if (values.title !== undefined && values.title !== reminder.title) {
+    updates.title = values.title;
+  }
+  if (values.description !== reminder.description) {
+    updates.description = values.description ?? null;
+  }
+  if (values.due_date !== reminder.due_date) {
+    updates.due_date = values.due_date ?? null;
+  }
+  if (values.due_time !== reminder.due_time) {
+    updates.due_time = values.due_time ?? null;
+  }
+  return updates;
+}
 
 interface ReminderListProps {
   reminders: ReminderResponse[];
@@ -14,6 +39,8 @@ interface ReminderListProps {
   onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
   onDeleteReminder: (id: string) => void;
   onCreateReminder: () => void;
+  onEditStart: () => void;
+  onEditEnd: () => void;
 }
 
 interface ReminderItemProps {
@@ -21,23 +48,23 @@ interface ReminderItemProps {
   lists: ListResponse[];
   owners: OwnerResponse[];
   isEditing: boolean;
-  onToggleCompleted: () => void;
-  onDelete: () => void;
-  onStartEditing: () => void;
-  onSaveAndStopEditing: (updates: Partial<ReminderResponse>) => void;
+  onToggleCompleted: (id: string) => void;
+  onDelete: (id: string) => void;
+  onStartEditing: (id: string) => void;
+  onSaveAndStopEditing: (id: string, updates: Partial<ReminderResponse>) => void;
   onCancelEditing: () => void;
   onChange: (updates: Partial<ReminderResponse>) => void;
 }
 
-function ReminderItemViewMode({ 
+const ReminderItemViewMode = memo(function ReminderItemViewMode({ 
   reminder, 
   onToggleCompleted, 
   onStartEditing, 
   onShowDetail 
 }: {
   reminder: ReminderResponse;
-  onToggleCompleted: () => void;
-  onStartEditing: () => void;
+  onToggleCompleted: (id: string) => void;
+  onStartEditing: (id: string) => void;
   onShowDetail: () => void;
 }) {
   return (
@@ -45,13 +72,13 @@ function ReminderItemViewMode({
       className={`reminder-item px-6 py-2.5 border-b border-apple-divider hover:bg-gray-50/60 transition-colors cursor-pointer group ${
         reminder.is_completed ? 'bg-gray-50/30' : 'bg-white'
       }`}
-      onClick={onStartEditing}
+      onClick={() => onStartEditing(reminder.id)}
     >
       <div className="flex items-center gap-3">
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onToggleCompleted();
+            onToggleCompleted(reminder.id);
           }}
           className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
             reminder.is_completed
@@ -120,18 +147,22 @@ function ReminderItemViewMode({
       </div>
     </div>
   );
-}
+});
 
-function ReminderItemEditMode({ 
-  reminder, 
+const ReminderItemEditMode = memo(function ReminderItemEditMode({
+  reminder,
+  lists,
+  owners,
   onToggleCompleted,
   onSaveAndStopEditing,
   onCancelEditing,
   onChange
 }: {
   reminder: ReminderResponse;
-  onToggleCompleted: () => void;
-  onSaveAndStopEditing: (updates: Partial<ReminderResponse>) => void;
+  lists: ListResponse[];
+  owners: OwnerResponse[];
+  onToggleCompleted: (id: string) => void;
+  onSaveAndStopEditing: (id: string, updates: Partial<ReminderResponse>) => void;
   onCancelEditing: () => void;
   onChange: (updates: Partial<ReminderResponse>) => void;
 }) {
@@ -160,21 +191,14 @@ function ReminderItemEditMode({
   }, []);
   
   const handleSave = useCallback(() => {
-    const updates: Partial<ReminderResponse> = {};
-    if (editTitle !== reminder.title) {
-      updates.title = editTitle;
-    }
-    const newDescription = editNotes || null;
-    if (newDescription !== reminder.description) {
-      updates.description = newDescription;
-    }
-    if (editDate !== (reminder.due_date || '')) {
-      updates.due_date = editDate || null;
-    }
-    if (editTime !== (reminder.due_time || '')) {
-      updates.due_time = editTime || null;
-    }
-    onSaveAndStopEditing(updates);
+    const values: Partial<ReminderResponse> = {
+      title: editTitle,
+      description: editNotes || null,
+      due_date: editDate || null,
+      due_time: editTime || null,
+    };
+    const updates = buildUpdates(reminder, values);
+    onSaveAndStopEditing(reminder.id, updates);
   }, [onSaveAndStopEditing, editTitle, editNotes, editDate, editTime, reminder]);
   
   const handleCancel = useCallback(() => {
@@ -228,7 +252,7 @@ function ReminderItemEditMode({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onToggleCompleted();
+              onToggleCompleted(reminder.id);
             }}
             className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${
               reminder.is_completed
@@ -314,20 +338,20 @@ function ReminderItemEditMode({
       {showDetail && (
         <ReminderDetailModal
           reminder={reminder}
-          lists={[]}
-          owners={[]}
+          lists={lists}
+          owners={owners}
           isOpen={showDetail}
           onClose={() => setShowDetail(false)}
-          onDelete={onCancelEditing}
-          onToggleCompleted={onToggleCompleted}
-          onEdit={() => {}}
+          onDelete={() => { setShowDetail(false); onCancelEditing(); }}
+          onToggleCompleted={() => onToggleCompleted(reminder.id)}
+          onEdit={() => { setShowDetail(false); }}
         />
       )}
     </>
   );
-}
+});
 
-function ReminderItem({ 
+const ReminderItem = memo(function ReminderItem({ 
   reminder, 
   lists, 
   owners,
@@ -337,16 +361,37 @@ function ReminderItem({
   onStartEditing, 
   onSaveAndStopEditing, 
   onCancelEditing,
-  onChange
-}: ReminderItemProps) {
+  onChange,
+  onUpdateReminder
+}: ReminderItemProps & { onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void }) {
   const [showDetail, setShowDetail] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; x: number; y: number }>({ isOpen: false, x: 0, y: 0 });
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ isOpen: true, x: e.clientX, y: e.clientY });
+  };
+
+  const handleCloseContextMenu = () => {
+    setContextMenu({ isOpen: false, x: 0, y: 0 });
+  };
+
+  const handleSetPriority = (priority: string) => {
+    onUpdateReminder(reminder.id, { priority });
+  };
+
+  const handleMoveToList = (listId: string) => {
+    onUpdateReminder(reminder.id, { list_id: listId });
+  };
 
   if (isEditing) {
     return (
       <ReminderItemEditMode
         reminder={reminder}
+        lists={lists}
+        owners={owners}
         onToggleCompleted={onToggleCompleted}
-        onSaveAndStopEditing={(updates) => onSaveAndStopEditing(updates)}
+        onSaveAndStopEditing={onSaveAndStopEditing}
         onCancelEditing={onCancelEditing}
         onChange={onChange}
       />
@@ -355,12 +400,14 @@ function ReminderItem({
 
   return (
     <>
-      <ReminderItemViewMode
-        reminder={reminder}
-        onToggleCompleted={onToggleCompleted}
-        onStartEditing={onStartEditing}
-        onShowDetail={() => setShowDetail(true)}
-      />
+      <div onContextMenu={handleContextMenu}>
+        <ReminderItemViewMode
+          reminder={reminder}
+          onToggleCompleted={onToggleCompleted}
+          onStartEditing={onStartEditing}
+          onShowDetail={() => setShowDetail(true)}
+        />
+      </div>
       
       <ReminderDetailModal
         reminder={reminder}
@@ -372,9 +419,24 @@ function ReminderItem({
         onToggleCompleted={onToggleCompleted}
         onEdit={onStartEditing}
       />
+
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        onClose={handleCloseContextMenu}
+        onToggleCompleted={() => onToggleCompleted(reminder.id)}
+        onShowDetail={() => setShowDetail(true)}
+        onDelete={() => onDelete(reminder.id)}
+        onSetPriority={handleSetPriority}
+        onMoveToList={handleMoveToList}
+        lists={lists}
+        currentPriority={reminder.priority}
+        isCompleted={reminder.is_completed}
+      />
     </>
   );
-}
+});
 
 export function ReminderList({
   reminders,
@@ -385,9 +447,30 @@ export function ReminderList({
   onUpdateReminder,
   onDeleteReminder,
   onCreateReminder,
+  onEditStart,
+  onEditEnd,
 }: ReminderListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingValues, setEditingValues] = useState<Partial<ReminderResponse>>({});
+  const [showCompleted, setShowCompleted] = useState(false);
+  const editingValuesRef = useRef<Partial<ReminderResponse>>({});
+  const remindersRef = useRef(reminders);
+  const onUpdateReminderRef = useRef(onUpdateReminder);
+
+  useEffect(() => {
+    remindersRef.current = reminders;
+  }, [reminders]);
+
+  useEffect(() => {
+    onUpdateReminderRef.current = onUpdateReminder;
+  }, [onUpdateReminder]);
+
+  useEffect(() => {
+    if (editingId !== null) {
+      onEditStart();
+    } else {
+      onEditEnd();
+    }
+  }, [editingId, onEditStart, onEditEnd]);
   
   const getTitle = () => {
     if (activeFilter.startsWith('list:')) {
@@ -408,22 +491,22 @@ export function ReminderList({
   
   const handleStartEditing = useCallback((id: string) => {
     setEditingId(id);
-    setEditingValues({});
+    editingValuesRef.current = {};
   }, []);
-  
+
   const handleChangeEditing = useCallback((updates: Partial<ReminderResponse>) => {
-    setEditingValues(updates);
+    editingValuesRef.current = updates;
   }, []);
-  
+
   const handleSaveAndStopEditing = useCallback((id: string, updates: Partial<ReminderResponse>) => {
     onUpdateReminder(id, updates);
     setEditingId(null);
-    setEditingValues({});
+    editingValuesRef.current = {};
   }, [onUpdateReminder]);
-  
+
   const handleCancelEditing = useCallback(() => {
     setEditingId(null);
-    setEditingValues({});
+    editingValuesRef.current = {};
   }, []);
   
   useEffect(() => {
@@ -433,29 +516,22 @@ export function ReminderList({
       const isInsideDatePicker = target.closest('.date-picker-chip');
       const isInsideTimePicker = target.closest('.time-picker-chip');
       if (!isInsideReminderItem && !isInsideDatePicker && !isInsideTimePicker) {
-        if (editingId) {
-          const reminder = reminders.find(r => r.id === editingId);
+        const currentEditingId = editingId;
+        if (currentEditingId) {
+          const currentValues = editingValuesRef.current;
+          const currentReminders = remindersRef.current;
+          const currentUpdateFn = onUpdateReminderRef.current;
+
+          const reminder = currentReminders.find(r => r.id === currentEditingId);
           if (reminder) {
-            const updates: Partial<ReminderResponse> = {};
-            if (editingValues.title !== undefined && editingValues.title !== reminder.title) {
-              updates.title = editingValues.title;
-            }
-            if (editingValues.description !== reminder.description) {
-              updates.description = editingValues.description;
-            }
-            if (editingValues.due_date !== reminder.due_date) {
-              updates.due_date = editingValues.due_date;
-            }
-            if (editingValues.due_time !== reminder.due_time) {
-              updates.due_time = editingValues.due_time;
-            }
+            const updates = buildUpdates(reminder, currentValues);
             if (Object.keys(updates).length > 0) {
-              onUpdateReminder(editingId, updates);
+              currentUpdateFn(currentEditingId, updates);
             }
           }
         }
         setEditingId(null);
-        setEditingValues({});
+        editingValuesRef.current = {};
       }
     };
     
@@ -474,17 +550,26 @@ export function ReminderList({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [editingId, editingValues, reminders, onUpdateReminder, handleCancelEditing]);
+  }, [editingId, handleCancelEditing]);
   
   return (
     <main className="flex-1 h-full flex flex-col bg-white">
       <div className="flex items-start justify-between px-6 pt-6 pb-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{getTitle()}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-sm text-apple-gray">{completedCount}项已完成</span>
-            <span className="text-sm text-apple-orange font-medium cursor-pointer hover:text-orange-600 transition-colors">显示</span>
-          </div>
+          {completedCount > 0 && (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-sm text-apple-gray">{completedCount}项已完成</span>
+              <button
+                onClick={() => setShowCompleted(!showCompleted)}
+                className={`text-sm font-medium cursor-pointer transition-colors ${
+                  showCompleted ? 'text-apple-blue hover:text-blue-600' : 'text-apple-orange hover:text-orange-600'
+                }`}
+              >
+                {showCompleted ? '隐藏' : '显示'}
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-2xl font-bold text-apple-orange tracking-tight">{reminders.length}</span>
@@ -511,19 +596,22 @@ export function ReminderList({
             <span className="mt-4 text-base">没有提醒事项</span>
           </div>
         ) : (
-          reminders.map((reminder) => (
+          reminders
+            .filter(r => showCompleted || !r.is_completed)
+            .map((reminder) => (
             <ReminderItem
               key={reminder.id}
               reminder={reminder}
               lists={lists}
               owners={owners}
               isEditing={editingId === reminder.id}
-              onToggleCompleted={() => onToggleCompleted(reminder.id)}
-              onDelete={() => onDeleteReminder(reminder.id)}
-              onStartEditing={() => handleStartEditing(reminder.id)}
-              onSaveAndStopEditing={(updates) => handleSaveAndStopEditing(reminder.id, updates)}
+              onToggleCompleted={onToggleCompleted}
+              onDelete={onDeleteReminder}
+              onStartEditing={handleStartEditing}
+              onSaveAndStopEditing={handleSaveAndStopEditing}
               onCancelEditing={handleCancelEditing}
               onChange={handleChangeEditing}
+              onUpdateReminder={onUpdateReminder}
             />
           ))
         )}

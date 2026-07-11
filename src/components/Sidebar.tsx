@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ListResponse } from '@/types/api';
 
 interface FilterCounts {
@@ -13,6 +14,7 @@ interface SidebarProps {
   activeFilter: string;
   filterCounts: FilterCounts;
   onFilterChange: (filter: string) => void;
+  onSearch: (query: string) => void;
   onAddList: () => void;
 }
 
@@ -67,6 +69,29 @@ function AllFilterItem({ active, onClick, count }: { active: boolean; onClick: (
   );
 }
 
+function CompletedFilterItem({ active, onClick, count }: { active: boolean; onClick: () => void; count: number }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-apple-md transition-all duration-150 ${
+        active
+          ? 'bg-blue-50 text-apple-blue'
+          : 'text-gray-700 hover:bg-gray-50/60'
+      }`}
+    >
+      <div className="flex items-center gap-2.5">
+        <Icon name="check" size={16} />
+        <span className="text-sm font-semibold">已完成</span>
+      </div>
+      <span className={`text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full ${
+        active ? 'bg-apple-blue text-white' : 'bg-gray-200/50 text-gray-600'
+      }`}>
+        {count}
+      </span>
+    </button>
+  );
+}
+
 function ListItem({ list, active, onClick, count }: { list: ListResponse; active: boolean; onClick: () => void; count: number }) {
   return (
     <button
@@ -84,7 +109,7 @@ function ListItem({ list, active, onClick, count }: { list: ListResponse; active
         >
           <Icon name="list" size={10} className="text-white" />
         </div>
-        <span className="text-sm font-semibold">{list.name}</span>
+        <span className="text-sm font-semibold truncate">{list.name}</span>
       </div>
       <span className={`text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full ${
         active ? 'bg-apple-blue text-white' : 'bg-gray-200/50 text-gray-600'
@@ -105,6 +130,9 @@ function Icon({ name, size = 16, className = '' }: { name: string; size?: number
     plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
     close: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
     search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+    chevronDown: '<polyline points="6 9 12 15 18 9"/>',
+    chevronRight: '<polyline points="9 18 15 12 9 6"/>',
+    sort: '<path d="M12 21l-6-6 6-6"/><path d="M18 17l-6-6 6-6"/>',
   };
 
   return (
@@ -114,16 +142,66 @@ function Icon({ name, size = 16, className = '' }: { name: string; size?: number
   );
 }
 
+type SortOrder = 'name-asc' | 'name-desc' | 'count-asc' | 'count-desc';
+
 export function Sidebar({
   lists,
   activeFilter,
   filterCounts,
   onFilterChange,
+  onSearch,
   onAddList,
 }: SidebarProps) {
+  const [listsExpanded, setListsExpanded] = useState(true);
+  const [sortOrder, setSortOrder] = useState<SortOrder>('name-asc');
+
   const getListCount = (listId: string) => {
     const found = filterCounts.lists.find(l => l.id === listId);
     return found?.count || 0;
+  };
+
+  const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onSearch(e.target.value);
+  };
+
+  const handleFilterClick = (filter: string) => {
+    onFilterChange(filter);
+    onSearch('');
+  };
+
+  const sortedLists = [...lists].sort((a, b) => {
+    const countA = getListCount(a.id);
+    const countB = getListCount(b.id);
+    
+    switch (sortOrder) {
+      case 'name-asc':
+        return a.name.localeCompare(b.name);
+      case 'name-desc':
+        return b.name.localeCompare(a.name);
+      case 'count-asc':
+        return countA - countB;
+      case 'count-desc':
+        return countB - countA;
+    }
+  });
+
+  const cycleSortOrder = () => {
+    const orders: SortOrder[] = ['name-asc', 'name-desc', 'count-asc', 'count-desc'];
+    const currentIndex = orders.indexOf(sortOrder);
+    setSortOrder(orders[(currentIndex + 1) % orders.length]);
+  };
+
+  const getSortIndicator = () => {
+    switch (sortOrder) {
+      case 'name-asc':
+        return '名称 A→Z';
+      case 'name-desc':
+        return '名称 Z→A';
+      case 'count-asc':
+        return '数量 少→多';
+      case 'count-desc':
+        return '数量 多→少';
+    }
   };
 
   return (
@@ -134,6 +212,7 @@ export function Sidebar({
           <input
             type="text"
             placeholder="搜索"
+            onChange={handleSearchInput}
             className="w-full h-8 pl-9 pr-3.5 bg-white/60 rounded-apple-md text-sm text-gray-900 placeholder-apple-gray focus:ring-2 focus:ring-apple-blue/30 outline-none border border-gray-100/50 shadow-sm"
           />
         </div>
@@ -145,7 +224,7 @@ export function Sidebar({
             key={filter.id}
             filter={filter}
             active={activeFilter === filter.id}
-            onClick={() => onFilterChange(filter.id)}
+            onClick={() => handleFilterClick(filter.id)}
             count={filter.id === 'today' ? filterCounts.today : filterCounts.planned}
           />
         ))}
@@ -154,26 +233,52 @@ export function Sidebar({
       <div className="px-3 pb-2">
         <AllFilterItem
           active={activeFilter === 'all'}
-          onClick={() => onFilterChange('all')}
+          onClick={() => handleFilterClick('all')}
           count={filterCounts.all}
         />
       </div>
 
-      <div className="px-4 py-2 mt-2">
-        <span className="text-xs font-semibold text-apple-gray uppercase tracking-wide">我的列表</span>
+      <div className="px-3 pb-2">
+        <CompletedFilterItem
+          active={activeFilter === 'completed'}
+          onClick={() => handleFilterClick('completed')}
+          count={filterCounts.completed}
+        />
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3">
-        {lists.map((list) => (
-          <ListItem
-            key={list.id}
-            list={list}
-            active={activeFilter === `list:${list.id}`}
-            onClick={() => onFilterChange(`list:${list.id}`)}
-            count={getListCount(list.id)}
-          />
-        ))}
+      <div className="px-4 py-2 mt-2 flex items-center justify-between">
+        <button
+          onClick={() => setListsExpanded(!listsExpanded)}
+          className="flex items-center gap-2 text-xs font-semibold text-apple-gray uppercase tracking-wide hover:text-gray-700 transition-colors"
+        >
+          <Icon name={listsExpanded ? 'chevronDown' : 'chevronRight'} size={14} />
+          <span>我的列表</span>
+          <span className="text-gray-400">({lists.length})</span>
+        </button>
+        {listsExpanded && lists.length > 1 && (
+          <button
+            onClick={cycleSortOrder}
+            title={getSortIndicator()}
+            className="p-1 rounded-apple-sm hover:bg-gray-100/60 transition-colors"
+          >
+            <Icon name="sort" size={12} className="text-apple-gray" />
+          </button>
+        )}
       </div>
+
+      {listsExpanded && (
+        <div className="flex-1 overflow-y-auto px-3">
+          {sortedLists.map((list) => (
+            <ListItem
+              key={list.id}
+              list={list}
+              active={activeFilter === `list:${list.id}`}
+              onClick={() => handleFilterClick(`list:${list.id}`)}
+              count={getListCount(list.id)}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="px-3 py-3">
         <button

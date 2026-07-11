@@ -13,14 +13,6 @@ import type {
 type LoadingState = Record<string, boolean>;
 type ErrorState = Record<string, string | null>;
 
-function debounce<T>(fn: T, delay: number): T {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
-  return ((...args: unknown[]) => {
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => (fn as unknown as (...args: unknown[]) => void)(...args), delay);
-  }) as T;
-}
-
 export function useApi() {
   const [loading, setLoading] = useState<LoadingState>({});
   const [error, setError] = useState<ErrorState>({});
@@ -111,6 +103,12 @@ export function useApi() {
     return handleRequest('get_owners', () => invoke<OwnerResponse[]>('get_all_owners'));
   }, [handleRequest]);
 
+  const searchReminders = useCallback(async (query: string): Promise<ReminderResponse[] | null> => {
+    return handleRequest(`search_reminders_${query}`, () => 
+      invoke<ReminderResponse[]>('search_reminders', { query })
+    );
+  }, [handleRequest]);
+
   const createOwner = useCallback(async (request: CreateOwnerRequest): Promise<OwnerResponse | null> => {
     return handleRequest('create_owner', () => 
       invoke<OwnerResponse>('create_owner', { request })
@@ -138,13 +136,6 @@ export function useApi() {
     setError(prev => ({ ...prev, [key]: null }));
   }, []);
 
-  const debouncedUpdateReminder = useCallback(
-    debounce(async (request: UpdateReminderRequest): Promise<ReminderResponse | null> => {
-      return updateReminder(request);
-    }, 300),
-    [updateReminder]
-  );
-
   return {
     loading,
     error,
@@ -154,9 +145,9 @@ export function useApi() {
     getReminders,
     getRemindersByList,
     getReminderById,
+    searchReminders,
     createReminder,
     updateReminder,
-    debouncedUpdateReminder,
     deleteReminder,
     toggleReminderCompleted,
     getLists,

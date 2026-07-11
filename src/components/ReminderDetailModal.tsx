@@ -7,9 +7,9 @@ interface ReminderDetailModalProps {
   owners: OwnerResponse[];
   isOpen: boolean;
   onClose: () => void;
-  onDelete: () => void;
-  onToggleCompleted: () => void;
-  onEdit: () => void;
+  onDelete: (id: string) => void;
+  onToggleCompleted: (id: string) => void;
+  onEdit: (id: string) => void;
 }
 
 export function ReminderDetailModal({
@@ -84,13 +84,13 @@ export function ReminderDetailModal({
         
         <div className="px-4 py-3 border-t border-apple-divider flex justify-end gap-3">
           <button
-            onClick={onDelete}
+            onClick={() => onDelete(reminder.id)}
             className="px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-apple-sm transition-colors"
           >
             删除
           </button>
           <button
-            onClick={onToggleCompleted}
+            onClick={() => onToggleCompleted(reminder.id)}
             className="px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-apple-sm transition-colors"
           >
             {reminder.is_completed ? '标记未完成' : '完成'}
@@ -98,7 +98,7 @@ export function ReminderDetailModal({
           <button
             onClick={() => {
               onClose();
-              onEdit();
+              onEdit(reminder.id);
             }}
             className="px-4 py-1.5 text-sm font-medium text-apple-blue hover:bg-blue-50 rounded-apple-sm transition-colors"
           >

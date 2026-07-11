@@ -33,6 +33,15 @@ export default {
         'apple-sm': '0 2px 8px rgba(0, 0, 0, 0.06)',
         'apple-lg': '0 8px 32px rgba(0, 0, 0, 0.12)',
       },
+      animation: {
+        'slide-in': 'slideIn 0.3s ease-out',
+      },
+      keyframes: {
+        slideIn: {
+          '0%': { transform: 'translateX(100%)', opacity: '0' },
+          '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
+      },
     },
   },
   plugins: [],
