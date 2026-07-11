@@ -7,6 +7,8 @@ interface FilterCounts {
   today: number;
   planned: number;
   completed: number;
+  urgent: number;
+  flagged: number;
   lists: Array<{ id: string; count: number }>;
 }
 
@@ -25,6 +27,10 @@ interface ReminderPageProps {
   onAddList: () => void;
   onEditStart: () => void;
   onEditEnd: () => void;
+  onCut: (reminder: ReminderResponse) => void;
+  onCopy: (reminder: ReminderResponse) => void;
+  onPaste: (listId: string | null) => void;
+  canPaste: boolean;
 }
 
 export function ReminderPage({
@@ -42,6 +48,10 @@ export function ReminderPage({
   onAddList,
   onEditStart,
   onEditEnd,
+  onCut,
+  onCopy,
+  onPaste,
+  canPaste,
 }: ReminderPageProps) {
   return (
     <div className="flex-1 flex overflow-hidden bg-white">
@@ -65,6 +75,10 @@ export function ReminderPage({
         onCreateReminder={onCreateReminder}
         onEditStart={onEditStart}
         onEditEnd={onEditEnd}
+        onCut={onCut}
+        onCopy={onCopy}
+        onPaste={onPaste}
+        canPaste={canPaste}
       />
     </div>
   );

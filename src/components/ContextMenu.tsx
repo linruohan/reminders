@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { getTomorrowStr } from '@/utils/dateUtils';
 
 interface ContextMenuProps {
   isOpen: boolean;
@@ -10,6 +11,11 @@ interface ContextMenuProps {
   onDelete: () => void;
   onSetPriority: (priority: string) => void;
   onMoveToList: (listId: string) => void;
+  onSetDueDate: (date: string) => void;
+  onCut: () => void;
+  onCopy: () => void;
+  onPaste: (listId: string | null) => void;
+  canPaste: boolean;
   lists: Array<{ id: string; name: string; color: string }>;
   currentPriority: string;
   isCompleted: boolean;
@@ -25,11 +31,17 @@ export function ContextMenu({
   onDelete,
   onSetPriority,
   onMoveToList,
+  onSetDueDate,
+  onCut,
+  onCopy,
+  onPaste,
+  canPaste,
   lists,
   currentPriority,
   isCompleted,
 }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [expandedSubmenu, setExpandedSubmenu] = useState<string | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -113,23 +125,99 @@ export function ContextMenu({
 
           <div className="h-px bg-apple-divider my-1" />
 
+          <button
+            onClick={() => { onCut(); onClose(); }}
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 17v-4a4 4 0 0 0-4-4H5"/>
+              <line x1="9" y1="9" x2="20" y2="20"/>
+              <path d="M20 20V10a2 2 0 0 0-2-2h-6"/>
+            </svg>
+            剪切
+          </button>
+
+          <button
+            onClick={() => { onCopy(); onClose(); }}
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            拷贝
+          </button>
+
           <div className="relative">
-            <button className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors">
+            <button 
+              onClick={() => setExpandedSubmenu(expandedSubmenu === 'paste' ? null : 'paste')}
+              className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
+                canPaste 
+                  ? 'text-gray-900 hover:bg-gray-100/80' 
+                  : 'text-gray-400 cursor-not-allowed'
+              }`}
+              disabled={!canPaste}
+            >
               <span className="flex items-center gap-3">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
+                  <rect x="12" y="12" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M19 12H9a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2z"/>
                 </svg>
-                明天到期
+                粘贴
               </span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg 
+                width="14" 
+                height="14" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2"
+                className={`transition-transform duration-200 ${expandedSubmenu === 'paste' ? 'rotate-90' : ''}`}
+              >
                 <polyline points="9 18 15 12 9 6"/>
               </svg>
             </button>
+            {expandedSubmenu === 'paste' && canPaste && (
+              <div className="absolute left-full top-0 ml-1 bg-white rounded-apple-md shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-slide-left w-[160px]">
+                <button
+                  onClick={() => { onPaste(null); onClose(); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+                >
+                  <span className="inline-block w-2 h-2 rounded-full bg-gray-400" />
+                  原列表
+                </button>
+                {lists.map((list) => (
+                  <button
+                    key={list.id}
+                    onClick={() => { onPaste(list.id); onClose(); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+                  >
+                    <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: list.color }} />
+                    {list.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
+          <div className="h-px bg-apple-divider my-1" />
+
+          <button
+            onClick={() => { onSetDueDate(getTomorrowStr()); onClose(); }}
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            明天到期
+          </button>
+
           <div className="relative">
-            <button className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors">
+            <button 
+              onClick={() => setExpandedSubmenu(expandedSubmenu === 'move' ? null : 'move')}
+              className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+            >
               <span className="flex items-center gap-3">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
@@ -138,64 +226,92 @@ export function ContextMenu({
                 </svg>
                 移到列表
               </span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg 
+                width="14" 
+                height="14" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2"
+                className={`transition-transform duration-200 ${expandedSubmenu === 'move' ? 'rotate-90' : ''}`}
+              >
                 <polyline points="9 18 15 12 9 6"/>
               </svg>
             </button>
-            <div className="absolute left-full top-0 ml-1 bg-white rounded-apple-md shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-fade-in w-[160px]">
-              {lists.map((list) => (
-                <button
-                  key={list.id}
-                  onClick={() => { onMoveToList(list.id); onClose(); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
-                >
-                  <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: list.color }} />
-                  {list.name}
-                </button>
-              ))}
-            </div>
+            {expandedSubmenu === 'move' && (
+              <div className="absolute left-full top-0 ml-1 bg-white rounded-apple-md shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-slide-left w-[160px]">
+                {lists.map((list) => (
+                  <button
+                    key={list.id}
+                    onClick={() => { onMoveToList(list.id); onClose(); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+                  >
+                    <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: list.color }} />
+                    {list.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="relative">
-            <button className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors">
+            <button 
+              onClick={() => setExpandedSubmenu(expandedSubmenu === 'priority' ? null : 'priority')}
+              className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+            >
               <span className="flex items-center gap-3">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polygon points="3 11 22 2 13 21 11 13 3 11"/>
                 </svg>
                 优先级
               </span>
-              <span className="text-xs text-apple-gray">{priorityLabels[currentPriority]}</span>
-            </button>
-            <div className="absolute left-full top-0 ml-1 bg-white rounded-apple-md shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-fade-in w-[140px]">
-              {(['none', 'low', 'medium', 'high'] as const).map((priority) => (
-                <button
-                  key={priority}
-                  onClick={() => { onSetPriority(priority); onClose(); }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
-                    currentPriority === priority
-                      ? 'bg-blue-50 text-apple-blue'
-                      : 'text-gray-900 hover:bg-gray-100/80'
-                  }`}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-apple-gray">{priorityLabels[currentPriority]}</span>
+                <svg 
+                  width="14" 
+                  height="14" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2"
+                  className={`transition-transform duration-200 ${expandedSubmenu === 'priority' ? 'rotate-90' : ''}`}
                 >
-                  {priority === 'high' && (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#FF3B30" stroke="#FF3B30" strokeWidth="2">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                    </svg>
-                  )}
-                  {priority === 'medium' && (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#FF9500" stroke="#FF9500" strokeWidth="2">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                    </svg>
-                  )}
-                  {priority === 'low' && (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#007AFF" stroke="#007AFF" strokeWidth="2">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                    </svg>
-                  )}
-                  {priorityLabels[priority]}
-                </button>
-              ))}
-            </div>
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </div>
+            </button>
+            {expandedSubmenu === 'priority' && (
+              <div className="absolute left-full top-0 ml-1 bg-white rounded-apple-md shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-slide-left w-[140px]">
+                {(['none', 'low', 'medium', 'high'] as const).map((priority) => (
+                  <button
+                    key={priority}
+                    onClick={() => { onSetPriority(priority); onClose(); }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
+                      currentPriority === priority
+                        ? 'bg-blue-50 text-apple-blue'
+                        : 'text-gray-900 hover:bg-gray-100/80'
+                    }`}
+                  >
+                    {priority === 'high' && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#FF3B30" stroke="#FF3B30" strokeWidth="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                      </svg>
+                    )}
+                    {priority === 'medium' && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#FF9500" stroke="#FF9500" strokeWidth="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                      </svg>
+                    )}
+                    {priority === 'low' && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#007AFF" stroke="#007AFF" strokeWidth="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                      </svg>
+                    )}
+                    {priorityLabels[priority]}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="h-px bg-apple-divider my-1" />

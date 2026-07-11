@@ -85,6 +85,22 @@ impl ReminderRepository {
         rows.collect()
     }
 
+    pub fn get_urgent(&self) -> Result<Vec<Reminder>> {
+        let conn = self.conn.lock().unwrap();
+        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE priority = 'high' AND is_completed = 0 ORDER BY created_at DESC");
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map([], Self::row_to_reminder)?;
+        rows.collect()
+    }
+
+    pub fn get_flagged(&self) -> Result<Vec<Reminder>> {
+        let conn = self.conn.lock().unwrap();
+        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE priority IN ('high', 'medium') AND is_completed = 0 ORDER BY created_at DESC");
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map([], Self::row_to_reminder)?;
+        rows.collect()
+    }
+
     pub fn search(&self, query: &str) -> Result<Vec<Reminder>> {
         let conn = self.conn.lock().unwrap();
         let like_query = format!("%{}%", query);
@@ -166,7 +182,7 @@ impl ReminderRepository {
 
     fn row_to_reminder(row: &Row) -> Result<Reminder> {
         let id_str: String = row.get("id")?;
-        let id = Uuid::parse_str(&id_str).unwrap_or_else(|_| Uuid::new_v4());
+        let id = Uuid::parse_str(&id_str).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
 
         let due_date_str: Option<String> = row.get("due_date")?;
         let due_date = due_date_str

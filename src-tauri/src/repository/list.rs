@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use rusqlite::{params, Connection, Result, Row};
+use rusqlite::{params, Connection, OptionalExtension, Result, Row};
 use uuid::Uuid;
 
 use crate::models::reminder::ReminderList;
@@ -36,9 +36,25 @@ impl ListRepository {
         Ok(())
     }
 
+    pub fn update(&self, list: &ReminderList) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE reminder_lists SET name = ?, color = ?, icon = ? WHERE id = ?",
+            params![list.name, list.color, list.icon, list.id.to_string()],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_by_id(&self, id: &Uuid) -> Result<Option<ReminderList>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, name, color, icon FROM reminder_lists WHERE id = ?")?;
+        stmt.query_row([id.to_string()], Self::row_to_list)
+            .optional()
+    }
+
     fn row_to_list(row: &Row) -> Result<ReminderList> {
         let id_str: String = row.get("id")?;
-        let id = Uuid::parse_str(&id_str).unwrap_or_else(|_| Uuid::new_v4());
+        let id = Uuid::parse_str(&id_str).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
 
         Ok(ReminderList {
             id,

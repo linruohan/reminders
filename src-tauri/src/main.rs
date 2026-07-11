@@ -39,9 +39,11 @@ fn main() {
             toggle_reminder_completed,
             get_all_lists,
             create_list,
+            update_list,
             delete_list,
             get_all_owners,
             create_owner,
+            update_owner,
             delete_owner,
         ])
         .run(context)

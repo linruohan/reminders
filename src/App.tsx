@@ -28,6 +28,7 @@ export function App() {
     lists,
     owners,
     activeFilter,
+    clipboard,
     isInitialLoading,
     setIsEditing,
     filterCounts,
@@ -38,6 +39,9 @@ export function App() {
     handleDeleteReminder,
     handleCreateReminder,
     handleAddList,
+    handleCutReminder,
+    handleCopyReminder,
+    handlePasteReminder,
     refreshData,
   } = useReminderData();
 
@@ -104,6 +108,10 @@ export function App() {
             onAddList={handleAddListCallback}
             onEditStart={() => setIsEditing(true)}
             onEditEnd={() => setIsEditing(false)}
+            onCut={handleCutReminder}
+            onCopy={handleCopyReminder}
+            onPaste={handlePasteReminder}
+            canPaste={clipboard !== null}
           />
       ) : (
         <CalendarPage reminders={allReminders} lists={lists} />

@@ -104,6 +104,14 @@ pub struct CreateListRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateListRequest {
+    pub id: String,
+    pub name: Option<String>,
+    pub color: Option<String>,
+    pub icon: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct OwnerResponse {
     pub id: String,
     pub name: String,
@@ -126,6 +134,13 @@ pub struct CreateOwnerRequest {
     pub color: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateOwnerRequest {
+    pub id: String,
+    pub name: Option<String>,
+    pub color: Option<String>,
+}
+
 #[command]
 pub fn get_all_reminders(db: State<'_, Database>) -> Result<Vec<ReminderResponse>, String> {
     let repo = ReminderRepository::new(get_conn(db));
@@ -142,6 +157,8 @@ pub fn get_reminders_by_filter(db: State<'_, Database>, filter: String) -> Resul
         "planned" => repo.get_planned(),
         "overdue" => repo.get_overdue(),
         "completed" => repo.get_completed(),
+        "urgent" => repo.get_urgent(),
+        "flagged" => repo.get_flagged(),
         "all" => repo.get_all(),
         _ => repo.get_active(),
     };
@@ -322,6 +339,29 @@ pub fn delete_list(db: State<'_, Database>, id: String) -> Result<(), String> {
 }
 
 #[command]
+pub fn update_list(db: State<'_, Database>, request: UpdateListRequest) -> Result<ListResponse, String> {
+    let repo = ListRepository::new(get_conn(db));
+    let id = Uuid::parse_str(&request.id).map_err(|e| e.to_string())?;
+    
+    let mut list = repo.get_by_id(&id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "List not found".to_string())?;
+    
+    if let Some(name) = request.name {
+        list.name = name;
+    }
+    if let Some(color) = request.color {
+        list.color = color;
+    }
+    if let Some(icon) = request.icon {
+        list.icon = icon;
+    }
+    
+    repo.update(&list).map_err(|e| e.to_string())?;
+    Ok(list.into())
+}
+
+#[command]
 pub fn get_all_owners(db: State<'_, Database>) -> Result<Vec<OwnerResponse>, String> {
     let repo = OwnerRepository::new(get_conn(db));
     repo.get_all()
@@ -355,4 +395,24 @@ pub fn delete_owner(db: State<'_, Database>, id: String) -> Result<(), String> {
     let repo = OwnerRepository::new(get_conn(db));
     let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
     repo.delete(&id).map_err(|e| e.to_string())
+}
+
+#[command]
+pub fn update_owner(db: State<'_, Database>, request: UpdateOwnerRequest) -> Result<OwnerResponse, String> {
+    let repo = OwnerRepository::new(get_conn(db));
+    let id = Uuid::parse_str(&request.id).map_err(|e| e.to_string())?;
+    
+    let mut owner = repo.get_by_id(&id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Owner not found".to_string())?;
+    
+    if let Some(name) = request.name {
+        owner.name = name;
+    }
+    if let Some(color) = request.color {
+        owner.color = color;
+    }
+    
+    repo.update(&owner).map_err(|e| e.to_string())?;
+    Ok(owner.into())
 }

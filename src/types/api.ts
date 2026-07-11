@@ -51,7 +51,20 @@ export interface CreateListRequest {
   icon?: string;
 }
 
+export interface UpdateListRequest {
+  id: string;
+  name?: string;
+  color?: string;
+  icon?: string;
+}
+
 export interface CreateOwnerRequest {
   name: string;
+  color?: string;
+}
+
+export interface UpdateOwnerRequest {
+  id: string;
+  name?: string;
   color?: string;
 }

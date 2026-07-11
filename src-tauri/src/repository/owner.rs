@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use rusqlite::{params, Connection, Result, Row};
+use rusqlite::{params, Connection, OptionalExtension, Result, Row};
 use uuid::Uuid;
 
 use crate::models::owner::Owner;
@@ -36,9 +36,25 @@ impl OwnerRepository {
         Ok(())
     }
 
+    pub fn update(&self, owner: &Owner) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE owners SET name = ?, color = ? WHERE id = ?",
+            params![owner.name, owner.color, owner.id.to_string()],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_by_id(&self, id: &Uuid) -> Result<Option<Owner>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, name, color FROM owners WHERE id = ?")?;
+        stmt.query_row([id.to_string()], Self::row_to_owner)
+            .optional()
+    }
+
     fn row_to_owner(row: &Row) -> Result<Owner> {
         let id_str: String = row.get("id")?;
-        let id = Uuid::parse_str(&id_str).unwrap_or_else(|_| Uuid::new_v4());
+        let id = Uuid::parse_str(&id_str).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
 
         Ok(Owner {
             id,

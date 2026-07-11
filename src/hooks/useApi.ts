@@ -7,7 +7,9 @@ import type {
   CreateReminderRequest,
   UpdateReminderRequest,
   CreateListRequest,
+  UpdateListRequest,
   CreateOwnerRequest,
+  UpdateOwnerRequest,
 } from '@/types/api';
 
 type LoadingState = Record<string, boolean>;
@@ -99,6 +101,12 @@ export function useApi() {
     return result !== null;
   }, [handleRequest]);
 
+  const updateList = useCallback(async (request: UpdateListRequest): Promise<ListResponse | null> => {
+    return handleRequest(`update_list_${request.id}`, () => 
+      invoke<ListResponse>('update_list', { request })
+    );
+  }, [handleRequest]);
+
   const getOwners = useCallback(async (): Promise<OwnerResponse[] | null> => {
     return handleRequest('get_owners', () => invoke<OwnerResponse[]>('get_all_owners'));
   }, [handleRequest]);
@@ -120,6 +128,12 @@ export function useApi() {
       invoke<void>('delete_owner', { id })
     );
     return result !== null;
+  }, [handleRequest]);
+
+  const updateOwner = useCallback(async (request: UpdateOwnerRequest): Promise<OwnerResponse | null> => {
+    return handleRequest(`update_owner_${request.id}`, () => 
+      invoke<OwnerResponse>('update_owner', { request })
+    );
   }, [handleRequest]);
 
   const isLoading = useCallback((key?: string) => {
@@ -152,9 +166,11 @@ export function useApi() {
     toggleReminderCompleted,
     getLists,
     createList,
+    updateList,
     deleteList,
     getOwners,
     createOwner,
+    updateOwner,
     deleteOwner,
   };
 }

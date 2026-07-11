@@ -32,6 +32,10 @@ function doesReminderMatchFilter(reminder: ReminderResponse, filter: string): bo
       return !reminder.is_completed && reminder.due_date !== null && reminder.due_date < todayStr;
     case 'completed':
       return reminder.is_completed;
+    case 'urgent':
+      return !reminder.is_completed && reminder.priority === 'high';
+    case 'flagged':
+      return !reminder.is_completed && (reminder.priority === 'high' || reminder.priority === 'medium');
     case 'all':
       return true;
     default:
@@ -72,7 +76,11 @@ export function useReminderData() {
     deleteReminder,
     toggleReminderCompleted,
     createList,
+    updateList,
     deleteList,
+    createOwner,
+    updateOwner,
+    deleteOwner,
     isLoading,
   } = useApi();
 
@@ -85,6 +93,7 @@ export function useReminderData() {
   const [allDataLoaded, setAllDataLoaded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [clipboard, setClipboard] = useState<{ action: 'cut' | 'copy'; reminder: ReminderResponse } | null>(null);
   const cacheRef = useRef(cache);
   const isEditingRef = useRef(isEditing);
   useEffect(() => {
@@ -114,18 +123,26 @@ export function useReminderData() {
 
   /** 加载指定过滤器的提醒数据，force=true 时跳过缓存强制拉取 */
   const loadReminders = useCallback(async (filter: string, force: boolean = false, skipSetReminders: boolean = false) => {
-    if (!force) {
-      const cached = getCachedReminders(filter);
-      if (cached) {
-        if (!skipSetReminders) {
-          setReminders(cached);
-        }
-        if (filter === 'all') {
-          setAllDataLoaded(true);
-        } else {
-          setActiveFilterLoaded(true);
-        }
-        return;
+    const cached = getCachedReminders(filter);
+    
+    if (!force && cached) {
+      if (!skipSetReminders) {
+        setReminders(cached);
+      }
+      if (filter === 'all') {
+        setAllDataLoaded(true);
+      } else {
+        setActiveFilterLoaded(true);
+      }
+      return;
+    }
+
+    if (cached && !skipSetReminders) {
+      setReminders(cached);
+      if (filter === 'all') {
+        setAllDataLoaded(true);
+      } else {
+        setActiveFilterLoaded(true);
       }
     }
 
@@ -303,6 +320,73 @@ export function useReminderData() {
     return success;
   }, [deleteList, activeFilter]);
 
+  const handleUpdateList = useCallback(async (id: string, updates: Partial<ListResponse>) => {
+    const result = await updateList({ id, ...updates });
+    if (result) {
+      setLists(prev => prev.map(l => l.id === id ? result : l));
+    }
+    return result;
+  }, [updateList]);
+
+  const handleUpdateOwner = useCallback(async (id: string, updates: Partial<OwnerResponse>) => {
+    const result = await updateOwner({ id, ...updates });
+    if (result) {
+      setOwners(prev => prev.map(o => o.id === id ? result : o));
+    }
+    return result;
+  }, [updateOwner]);
+
+  const handleAddOwner = useCallback(async (name: string) => {
+    const result = await createOwner({ name });
+    if (result) {
+      setOwners(prev => [...prev, result]);
+    }
+    return result;
+  }, [createOwner]);
+
+  const handleDeleteOwner = useCallback(async (id: string) => {
+    const success = await deleteOwner(id);
+    if (success) {
+      setOwners(prev => prev.filter(o => o.id !== id));
+    }
+    return success;
+  }, [deleteOwner]);
+
+  const handleCutReminder = useCallback((reminder: ReminderResponse) => {
+    setClipboard({ action: 'cut', reminder });
+  }, []);
+
+  const handleCopyReminder = useCallback((reminder: ReminderResponse) => {
+    setClipboard({ action: 'copy', reminder });
+  }, []);
+
+  const handlePasteReminder = useCallback(async (targetListId: string | null) => {
+    if (!clipboard) return;
+    
+    const newReminderData = {
+      title: clipboard.reminder.title,
+      description: clipboard.reminder.description,
+      due_date: clipboard.reminder.due_date,
+      due_time: clipboard.reminder.due_time,
+      list_id: targetListId ?? clipboard.reminder.list_id,
+    };
+    
+    const result = await createReminder(newReminderData);
+    if (result) {
+      if (clipboard.action === 'cut') {
+        await deleteReminder(clipboard.reminder.id);
+        removeReminderFromCache(clipboard.reminder.id);
+      }
+      if (doesReminderMatchFilter(result, activeFilter)) {
+        setReminders(prev => [result, ...prev]);
+      }
+      upsertReminderInCache(result);
+    }
+    
+    setClipboard(null);
+    return result;
+  }, [clipboard, createReminder, deleteReminder, removeReminderFromCache, upsertReminderInCache, activeFilter]);
+
   /** 强制刷新所有已缓存过滤器，编辑中跳过 activeFilter 的 setReminders 避免打断编辑 */
   const refreshData = useCallback(async () => {
     await loadLists();
@@ -323,6 +407,8 @@ export function useReminderData() {
       today: allReminders.filter(r => !r.is_completed && r.due_date === todayStr).length,
       planned: allReminders.filter(r => !r.is_completed && r.due_date !== null).length,
       completed: allReminders.filter(r => r.is_completed).length,
+      urgent: allReminders.filter(r => !r.is_completed && r.priority === 'high').length,
+      flagged: allReminders.filter(r => !r.is_completed && (r.priority === 'high' || r.priority === 'medium')).length,
       lists: lists.map(list => ({
         id: list.id,
         count: allReminders.filter(r => r.list_id === list.id).length,
@@ -330,7 +416,8 @@ export function useReminderData() {
     };
   }, [allReminders, lists]);
 
-  const isInitialLoading = activeFilterLoaded === false || allDataLoaded === false;
+  const isInitialLoading = 
+    (activeFilterLoaded === false || allDataLoaded === false) && reminders.length === 0;
 
   return {
     reminders,
@@ -339,6 +426,7 @@ export function useReminderData() {
     owners,
     activeFilter,
     searchQuery,
+    clipboard,
     isLoading,
     isInitialLoading,
     isEditing,
@@ -351,7 +439,14 @@ export function useReminderData() {
     handleDeleteReminder,
     handleCreateReminder,
     handleAddList,
+    handleUpdateList,
     handleDeleteList,
+    handleAddOwner,
+    handleUpdateOwner,
+    handleDeleteOwner,
+    handleCutReminder,
+    handleCopyReminder,
+    handlePasteReminder,
     refreshData,
   };
 }

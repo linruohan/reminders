@@ -1,3 +1,10 @@
+function formatDateToISO(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -46,21 +53,13 @@ export function getDateColor(dateStr: string | null | undefined): string {
 }
 
 export function getTodayStr(): string {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return formatDateToISO(new Date());
 }
 
 export function getTomorrowStr(): string {
-  const today = new Date();
-  const tomorrow = new Date(today);
+  const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const year = tomorrow.getFullYear();
-  const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-  const day = String(tomorrow.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return formatDateToISO(tomorrow);
 }
 
 export function getWeekendStr(): string {
@@ -69,10 +68,7 @@ export function getWeekendStr(): string {
   const daysUntilWeekend = dayOfWeek === 0 ? 0 : (7 - dayOfWeek);
   const weekend = new Date(today);
   weekend.setDate(today.getDate() + daysUntilWeekend);
-  const year = weekend.getFullYear();
-  const month = String(weekend.getMonth() + 1).padStart(2, '0');
-  const day = String(weekend.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return formatDateToISO(weekend);
 }
 
 export function getNextMondayStr(): string {
@@ -81,10 +77,7 @@ export function getNextMondayStr(): string {
   const daysUntilMonday = dayOfWeek === 1 ? 7 : (8 - dayOfWeek);
   const nextMonday = new Date(today);
   nextMonday.setDate(today.getDate() + daysUntilMonday);
-  const year = nextMonday.getFullYear();
-  const month = String(nextMonday.getMonth() + 1).padStart(2, '0');
-  const day = String(nextMonday.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return formatDateToISO(nextMonday);
 }
 
 export const suggestedTimes = [
