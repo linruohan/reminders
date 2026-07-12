@@ -285,6 +285,7 @@ export function useReminderData() {
     due_date?: string | null;
     due_time?: string | null;
     list_id?: string | null;
+    is_all_day?: boolean;
   }) => {
     const result = await createReminder(data);
     if (result) {

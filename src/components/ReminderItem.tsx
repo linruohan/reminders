@@ -68,7 +68,7 @@ const ReminderItemViewMode = memo(function ReminderItemViewMode({
             e.stopPropagation();
             onToggleCompleted(reminder.id);
           }}
-          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 spring-transition ${
+          className={`w-5 h-5 rounded-[4px] border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 spring-transition ${
             reminder.is_completed
               ? 'bg-apple-blue border-apple-blue shadow-[0_1px_3px_rgba(0,122,255,0.3)]'
               : 'border-apple-gray-dark hover:border-apple-blue'
@@ -242,7 +242,7 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
               e.stopPropagation();
               onToggleCompleted(reminder.id);
             }}
-            className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all duration-200 spring-transition ${
+            className={`w-[22px] h-[22px] rounded-[4px] border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all duration-200 spring-transition ${
               reminder.is_completed
                 ? 'bg-apple-blue border-apple-blue shadow-[0_1px_3px_rgba(0,122,255,0.3)]'
                 : 'border-apple-gray-dark hover:border-apple-blue'

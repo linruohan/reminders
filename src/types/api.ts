@@ -31,6 +31,7 @@ export interface CreateReminderRequest {
   due_date?: string | null;
   due_time?: string | null;
   list_id?: string | null;
+  is_all_day?: boolean;
 }
 
 export interface UpdateReminderRequest {
@@ -43,6 +44,7 @@ export interface UpdateReminderRequest {
   priority?: string;
   list_id?: string | null;
   owner_id?: string | null;
+  is_all_day?: boolean;
 }
 
 export interface CreateListRequest {

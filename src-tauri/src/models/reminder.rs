@@ -132,6 +132,11 @@ impl Reminder {
         self
     }
 
+    pub fn with_is_all_day(mut self) -> Self {
+        self.is_all_day = true;
+        self
+    }
+
     pub fn with_description(mut self, description: String) -> Self {
         self.description = Some(description);
         self

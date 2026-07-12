@@ -123,7 +123,8 @@ export function getDaysInMonth(year: number, month: number): Date[] {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
 
-  for (let i = 0; i < firstDay.getDay(); i++) {
+  const startPad = (firstDay.getDay() + 6) % 7;
+  for (let i = 0; i < startPad; i++) {
     days.push(new Date(year, month, -i));
   }
   days.reverse();

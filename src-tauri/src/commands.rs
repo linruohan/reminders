@@ -62,6 +62,8 @@ pub struct CreateReminderRequest {
     pub due_date: Option<String>,
     pub due_time: Option<String>,
     pub list_id: Option<String>,
+    #[serde(default)]
+    pub is_all_day: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -75,6 +77,7 @@ pub struct UpdateReminderRequest {
     pub priority: Option<String>,
     pub list_id: Option<String>,
     pub owner_id: Option<String>,
+    pub is_all_day: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -211,6 +214,10 @@ pub fn create_reminder(db: State<'_, Database>, request: CreateReminderRequest) 
         }
     }
     
+    if request.is_all_day {
+        reminder = reminder.with_is_all_day();
+    }
+    
     let repo = ReminderRepository::new(get_conn(db));
     repo.insert(&reminder).map_err(|e| e.to_string())?;
     Ok(reminder.into())
@@ -274,6 +281,9 @@ pub fn update_reminder(db: State<'_, Database>, request: UpdateReminderRequest) 
         } else if let Ok(owner_id) = Uuid::parse_str(&owner_id_str) {
             reminder.owner_id = Some(owner_id);
         }
+    }
+    if let Some(is_all_day) = request.is_all_day {
+        reminder.is_all_day = is_all_day;
     }
     
     repo.update(&reminder).map_err(|e| e.to_string())?;

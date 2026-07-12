@@ -13,13 +13,15 @@ interface AddReminderModalProps {
     due_time?: string | null;
     list_id?: string | null;
   }) => void;
+  initialDate?: string;
+  initialTime?: string;
 }
 
-export function AddReminderModal({ lists, onClose, onSubmit }: AddReminderModalProps) {
+export function AddReminderModal({ lists, onClose, onSubmit, initialDate, initialTime }: AddReminderModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [dueTime, setDueTime] = useState('');
+  const [dueDate, setDueDate] = useState(initialDate || '');
+  const [dueTime, setDueTime] = useState(initialTime || '');
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
