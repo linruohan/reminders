@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { formatTime, suggestedTimes, groupedTimes } from '@/utils/dateUtils';
+import { DropdownPortal } from './DropdownPortal';
 
 interface TimePickerChipProps {
   value: string | null;
@@ -12,21 +13,7 @@ export function TimePickerChip({ value, onChange, onClear, onDateRequired }: Tim
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('.time-picker-chip')) {
-        setIsOpen(false);
-      }
-    };
-    
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
+  const triggerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -61,7 +48,7 @@ export function TimePickerChip({ value, onChange, onClear, onDateRequired }: Tim
   }, [inputValue, handleTimeSelect]);
 
   return (
-    <div className="relative time-picker-chip">
+    <div className="relative time-picker-chip" ref={triggerRef}>
       <div
         className={`inline-flex items-center gap-1.5 h-8 pl-2.5 pr-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-900 hover:bg-[#E5E5EA] transition-colors cursor-pointer ${
           isOpen ? 'ring-2 ring-apple-blue/30 bg-blue-50' : ''
@@ -104,10 +91,16 @@ export function TimePickerChip({ value, onChange, onClear, onDateRequired }: Tim
           </button>
         )}
       </div>
-      
-      {isOpen && (
+
+      <DropdownPortal
+        triggerRef={triggerRef}
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        minWidth={220}
+      >
         <div
-          className="absolute top-full left-0 mt-1.5 bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider z-30 min-w-[220px] animate-scale-in overflow-hidden"
+          className="bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider animate-scale-in overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
         >
           {Object.entries(groupedTimes).map(([period, times]) => (
             <div key={period}>
@@ -136,7 +129,7 @@ export function TimePickerChip({ value, onChange, onClear, onDateRequired }: Tim
             </div>
           ))}
         </div>
-      )}
+      </DropdownPortal>
     </div>
   );
 }

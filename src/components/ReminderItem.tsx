@@ -230,8 +230,8 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
 
   return (
     <>
-      <div 
-        className={`reminder-item px-4 py-3 rounded-[14px] transition-all duration-200 animate-slide-down ${
+      <div
+        className={`reminder-item relative z-50 px-4 py-3 rounded-[14px] transition-all duration-200 animate-slide-down ${
           reminder.is_completed ? 'bg-gray-50/60' : 'bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
         }`}
         onClick={handleSave}

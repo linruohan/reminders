@@ -216,9 +216,9 @@ export function useReminderData() {
     loadReminders(activeFilter);
   }, [activeFilter, loadReminders]);
 
-  // 后台加载 all 数据用于计数和日历视图
+  // 后台加载 all 数据用于计数和日历视图，skipSetReminders=true 避免覆盖当前过滤器的数据
   useEffect(() => {
-    loadRemindersRef.current('all');
+    loadRemindersRef.current('all', false, true);
   }, []);
 
   const handleFilterChange = useCallback((filter: string) => {

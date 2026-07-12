@@ -22,7 +22,7 @@ export function TitleBar({ currentView, onViewChange }: TitleBarProps) {
   };
 
   return (
-    <header className="flex items-center justify-between px-4 h-10 glass-card-dark border-b border-white/30 select-none">
+    <header className="flex items-center justify-between px-4 h-10 glass-card-dark select-none">
       <div className="flex items-center gap-8">
         <div className="flex items-center gap-2.5">
           <button

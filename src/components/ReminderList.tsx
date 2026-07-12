@@ -150,7 +150,7 @@ export function ReminderList({
   }, [editingId, handleCancelEditing]);
   
   return (
-    <main className="flex-1 h-full flex flex-col">
+    <main className="flex-1 h-full flex flex-col relative">
       <div className="flex items-start justify-between px-6 pt-6 pb-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight text-title">{getTitle()}</h1>
@@ -170,15 +170,6 @@ export function ReminderList({
         </div>
         <div className="flex items-center gap-3">
           <span className="text-2xl font-bold text-apple-orange tracking-tight">{reminders.length}</span>
-          <button
-            onClick={onCreateReminder}
-            className="w-10 h-10 rounded-full flex items-center justify-center bg-apple-blue text-white hover:bg-[#0066CC] hover:brightness-105 transition-all duration-200 spring-transition shadow-[0_2px_8px_rgba(0,122,255,0.3)] hover-scale"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-          </button>
         </div>
       </div>
       
@@ -221,6 +212,16 @@ export function ReminderList({
           )}
         </div>
       </div>
+
+      <button
+        onClick={onCreateReminder}
+        className="absolute bottom-6 right-6 w-10 h-10 rounded-full flex items-center justify-center bg-apple-blue text-white hover:bg-[#0066CC] hover:brightness-105 transition-all duration-200 spring-transition shadow-[0_2px_8px_rgba(0,122,255,0.3)] hover-scale z-10"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
     </main>
   );
 }

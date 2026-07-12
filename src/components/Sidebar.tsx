@@ -21,21 +21,21 @@ interface SidebarProps {
 }
 
 const quickFilters = [
-  { id: 'today', label: '今天', icon: 'calendar', bgColor: 'bg-blue-500', iconColor: 'text-blue-600' },
-  { id: 'planned', label: '计划', icon: 'calendarDays', bgColor: 'bg-red-500', iconColor: 'text-red-600' },
-  { id: 'all', label: '全部', icon: 'mail', bgColor: 'bg-gray-700', iconColor: 'text-gray-700' },
-  { id: 'flagged', label: '旗标', icon: 'flag', bgColor: 'bg-orange-500', iconColor: 'text-orange-600' },
-  { id: 'urgent', label: '紧急', icon: 'alert', bgColor: 'bg-pink-500', iconColor: 'text-pink-600' },
-  { id: 'completed', label: '完成', icon: 'check', bgColor: 'bg-gray-500', iconColor: 'text-gray-600' },
+  { id: 'today', label: '今天', icon: 'calendar', bgColor: 'bg-blue-400', iconColor: 'text-blue-600' },
+  { id: 'planned', label: '计划', icon: 'calendarDays', bgColor: 'bg-red-400', iconColor: 'text-red-600' },
+  { id: 'all', label: '全部', icon: 'mail', bgColor: 'bg-gray-600', iconColor: 'text-gray-700' },
+  { id: 'flagged', label: '旗标', icon: 'flag', bgColor: 'bg-orange-400', iconColor: 'text-orange-600' },
+  { id: 'urgent', label: '紧急', icon: 'alert', bgColor: 'bg-pink-400', iconColor: 'text-pink-600' },
+  { id: 'completed', label: '完成', icon: 'check', bgColor: 'bg-gray-400', iconColor: 'text-gray-600' },
 ];
 
 function QuickFilterItem({ filter, active, onClick, count }: { filter: typeof quickFilters[0]; active: boolean; onClick: () => void; count: number }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex flex-col items-start px-3 py-3 rounded-[16px] transition-all duration-200 spring-transition ${
+      className={`w-full flex flex-col items-start px-3 py-2.5 rounded-[14px] transition-all duration-200 spring-transition ${
         active
-          ? `${filter.bgColor} shadow-[0_4px_16px_rgba(0,0,0,0.2)] scale-[1.02]`
+          ? `${filter.bgColor} shadow-[0_8px_24px_rgba(0,0,0,0.25)] scale-[1.02] border-2 border-black/30`
           : `${filter.bgColor} shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.15)] hover:scale-[1.02]`
       }`}
     >
@@ -80,7 +80,7 @@ function Icon({ name, size = 16, className = '' }: { name: string; size?: number
   const icons: Record<string, string> = {
     calendar: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
     calendarDays: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/>',
-    flag: '<path d="M14 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 14.158V3.5a2.5 2.5 0 0 0-5 0v10.659c0 .538-.214 1.055-.595 1.436L14 17z"/>',
+    flag: '<path d="M7 2v18"/><path d="M7 2c3 0 5 .5 7 1.5s3 2 3 4-1 2-3 3-5 1-7.5-.5-2-3-2-5.5"/><path d="M7 14c3.5 0 5.5.5 6.5 1"/>',
     mail: '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',
     layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
     check: '<polyline points="20 6 9 17 4 12"/>',
@@ -175,8 +175,8 @@ export function Sidebar({
         </div>
       </div>
 
-      <div className="px-3 py-3">
-        <div className="grid grid-cols-2 gap-2">
+      <div className="px-3 py-2">
+        <div className="grid grid-cols-2 gap-1.5">
           {quickFilters.map((filter, index) => (
             <div key={filter.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 50}ms` }}>
               <QuickFilterItem

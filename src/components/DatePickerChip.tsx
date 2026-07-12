@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { getTodayStr, getTomorrowStr, getWeekendStr, getNextMondayStr, getDateLabel } from '@/utils/dateUtils';
 import { DatePicker } from './DatePicker';
+import { DropdownPortal } from './DropdownPortal';
 
 interface DatePickerChipProps {
   value: string | null;
@@ -10,21 +11,7 @@ interface DatePickerChipProps {
 
 export function DatePickerChip({ value, onChange, onClear }: DatePickerChipProps) {
   const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('.date-picker-chip')) {
-        setIsOpen(false);
-      }
-    };
-    
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
+  const triggerRef = useRef<HTMLDivElement>(null);
 
   const todayStr = getTodayStr();
   const tomorrowStr = getTomorrowStr();
@@ -37,7 +24,7 @@ export function DatePickerChip({ value, onChange, onClear }: DatePickerChipProps
   }, [onChange]);
 
   return (
-    <div className="relative date-picker-chip">
+    <div className="relative date-picker-chip" ref={triggerRef}>
       <div
         className={`inline-flex items-center gap-1.5 h-8 pl-2.5 pr-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-900 hover:bg-[#E5E5EA] transition-colors cursor-pointer ${
           isOpen ? 'ring-2 ring-apple-blue/30 bg-blue-50' : ''
@@ -70,10 +57,16 @@ export function DatePickerChip({ value, onChange, onClear }: DatePickerChipProps
           </button>
         )}
       </div>
-      
-      {isOpen && (
+
+      <DropdownPortal
+        triggerRef={triggerRef}
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        minWidth={200}
+      >
         <div
-          className="absolute top-full left-0 mt-1.5 bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider z-30 min-w-[200px] animate-scale-in overflow-hidden"
+          className="bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider animate-scale-in overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="p-1">
             {[
@@ -112,7 +105,7 @@ export function DatePickerChip({ value, onChange, onClear }: DatePickerChipProps
             </div>
           </div>
         </div>
-      )}
+      </DropdownPortal>
     </div>
   );
 }

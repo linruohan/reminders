@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { 
   getDaysInMonth, 
   formatMonthYear, 
@@ -22,17 +22,6 @@ export function DatePicker({ onSelect, onClose, initialDate }: DatePickerProps) 
   const [selectedDate, setSelectedDate] = useState<string | null>(initialDate || null);
   const [showYearPicker, setShowYearPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -82,6 +71,7 @@ export function DatePicker({ onSelect, onClose, initialDate }: DatePickerProps) 
     <div
       ref={pickerRef}
       className="bg-white rounded-apple-lg shadow-apple-lg border border-apple-divider overflow-hidden min-w-[280px]"
+      onClick={(e) => e.stopPropagation()}
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-apple-divider">
         <button
