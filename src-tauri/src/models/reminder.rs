@@ -20,34 +20,6 @@ pub enum RecurrenceFrequency {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RecurrenceRule {
-    pub frequency: RecurrenceFrequency,
-    pub interval: u32,
-}
-
-impl RecurrenceRule {
-    #[allow(dead_code)]
-    pub fn display_string(&self) -> String {
-        if self.interval == 1 {
-            match self.frequency {
-                RecurrenceFrequency::Daily => "daily".to_string(),
-                RecurrenceFrequency::Weekly => "weekly".to_string(),
-                RecurrenceFrequency::Monthly => "monthly".to_string(),
-                RecurrenceFrequency::Yearly => "yearly".to_string(),
-            }
-        } else {
-            let unit = match self.frequency {
-                RecurrenceFrequency::Daily => "days",
-                RecurrenceFrequency::Weekly => "weeks",
-                RecurrenceFrequency::Monthly => "months",
-                RecurrenceFrequency::Yearly => "years",
-            };
-            format!("every {} {}", self.interval, unit)
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum LocationProximity {
     Arriving,
     Leaving,
@@ -70,12 +42,19 @@ pub struct Reminder {
     pub url: Option<String>,
     pub due_date: Option<NaiveDate>,
     pub due_time: Option<NaiveTime>,
+    pub end_date: Option<NaiveDate>,
+    pub end_time: Option<NaiveTime>,
     pub is_all_day: bool,
     pub is_completed: bool,
     pub completion_date: Option<DateTime<Local>>,
     pub priority: Priority,
-    pub alarm_at: Option<DateTime<Local>>,
-    pub recurrence: Option<RecurrenceRule>,
+    pub is_flagged: bool,
+    pub recurrence_frequency: Option<String>,
+    pub recurrence_interval: Option<i32>,
+    pub custom_recurrence_unit: Option<String>,
+    pub recurrence_end_date: Option<NaiveDate>,
+    pub remind_before_value: Option<i32>,
+    pub remind_before_unit: Option<String>,
     pub location: Option<LocationTrigger>,
     pub owner_id: Option<Uuid>,
     pub list_id: Option<Uuid>,
@@ -101,12 +80,19 @@ impl Reminder {
             url: None,
             due_date: None,
             due_time: None,
+            end_date: None,
+            end_time: None,
             is_all_day: false,
             is_completed: false,
             completion_date: None,
             priority: Priority::None,
-            alarm_at: None,
-            recurrence: None,
+            is_flagged: false,
+            recurrence_frequency: None,
+            recurrence_interval: None,
+            custom_recurrence_unit: None,
+            recurrence_end_date: None,
+            remind_before_value: None,
+            remind_before_unit: None,
             location: None,
             owner_id: None,
             list_id: None,
@@ -164,7 +150,6 @@ impl Reminder {
         self
     }
 
-    #[allow(dead_code)]
     pub fn matches_search(&self, query: &str) -> bool {
         let trimmed = query.trim();
         if trimmed.is_empty() {

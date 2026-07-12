@@ -45,6 +45,9 @@ fn main() {
             create_owner,
             update_owner,
             delete_owner,
+            get_reminder_tags,
+            get_all_tags,
+            search_tags,
         ])
         .run(context)
         .expect("error while running tauri application");

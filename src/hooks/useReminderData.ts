@@ -35,7 +35,7 @@ function doesReminderMatchFilter(reminder: ReminderResponse, filter: string): bo
     case 'urgent':
       return !reminder.is_completed && reminder.priority === 'high';
     case 'flagged':
-      return !reminder.is_completed && (reminder.priority === 'high' || reminder.priority === 'medium');
+      return !reminder.is_completed && (reminder.is_flagged || reminder.priority === 'high' || reminder.priority === 'medium');
     case 'all':
       return true;
     default:
@@ -263,7 +263,12 @@ export function useReminderData() {
   }, [toggleReminderCompleted, activeFilter, upsertReminderInCache]);
 
   const handleUpdateReminder = useCallback(async (id: string, updates: Partial<ReminderResponse>) => {
-    const request: UpdateReminderRequest = { id, ...updates };
+    const { tags: tagObjs, ...rest } = updates;
+    const request: UpdateReminderRequest = {
+      id,
+      ...rest,
+      ...(tagObjs ? { tags: tagObjs.map(t => typeof t === 'string' ? t : t.name) } : {}),
+    };
     const result = await updateReminder(request);
     if (result) {
       setReminders(prev => applyReminderToList(prev, result, activeFilter));
@@ -282,10 +287,22 @@ export function useReminderData() {
   const handleCreateReminder = useCallback(async (data: {
     title: string;
     description?: string | null;
+    url?: string | null;
     due_date?: string | null;
     due_time?: string | null;
+    end_date?: string | null;
+    end_time?: string | null;
     list_id?: string | null;
     is_all_day?: boolean;
+    is_flagged?: boolean;
+    priority?: string;
+    recurrence_frequency?: string | null;
+    recurrence_interval?: number | null;
+    custom_recurrence_unit?: string | null;
+    recurrence_end_date?: string | null;
+    remind_before_value?: number | null;
+    remind_before_unit?: string | null;
+    tags?: string[];
   }) => {
     const result = await createReminder(data);
     if (result) {
@@ -364,12 +381,24 @@ export function useReminderData() {
   const handlePasteReminder = useCallback(async (targetListId: string | null) => {
     if (!clipboard) return;
     
-    const newReminderData = {
+    const newReminderData: Parameters<typeof handleCreateReminder>[0] = {
       title: clipboard.reminder.title,
       description: clipboard.reminder.description,
+      url: clipboard.reminder.url,
       due_date: clipboard.reminder.due_date,
       due_time: clipboard.reminder.due_time,
+      end_date: clipboard.reminder.end_date,
+      end_time: clipboard.reminder.end_time,
       list_id: targetListId ?? clipboard.reminder.list_id,
+      is_all_day: clipboard.reminder.is_all_day,
+      is_flagged: clipboard.reminder.is_flagged,
+      priority: clipboard.reminder.priority,
+      recurrence_frequency: clipboard.reminder.recurrence_frequency,
+      recurrence_interval: clipboard.reminder.recurrence_interval,
+      custom_recurrence_unit: clipboard.reminder.custom_recurrence_unit,
+      recurrence_end_date: clipboard.reminder.recurrence_end_date,
+      remind_before_value: clipboard.reminder.remind_before_value,
+      remind_before_unit: clipboard.reminder.remind_before_unit,
     };
     
     const result = await createReminder(newReminderData);
@@ -409,7 +438,7 @@ export function useReminderData() {
       planned: allReminders.filter(r => !r.is_completed && r.due_date !== null).length,
       completed: allReminders.filter(r => r.is_completed).length,
       urgent: allReminders.filter(r => !r.is_completed && r.priority === 'high').length,
-      flagged: allReminders.filter(r => !r.is_completed && (r.priority === 'high' || r.priority === 'medium')).length,
+      flagged: allReminders.filter(r => !r.is_completed && (r.is_flagged || r.priority === 'high' || r.priority === 'medium')).length,
       lists: lists.map(list => ({
         id: list.id,
         count: allReminders.filter(r => r.list_id === list.id).length,

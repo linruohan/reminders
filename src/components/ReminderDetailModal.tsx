@@ -12,6 +12,32 @@ interface ReminderDetailModalProps {
   onEdit: (id: string) => void;
 }
 
+const priorityLabels: Record<string, string> = {
+  none: '无',
+  low: '低',
+  medium: '中',
+  high: '高',
+};
+
+const recurrenceLabels: Record<string, string> = {
+  hourly: '每小时',
+  daily: '每天',
+  weekdays: '工作日',
+  weekends: '周末',
+  weekly: '每周',
+  monthly: '每月',
+  yearly: '每年',
+  custom: '自定义',
+};
+
+const unitLabels: Record<string, string> = {
+  minute: '分钟',
+  hour: '小时',
+  day: '天',
+  week: '周',
+  month: '个月',
+};
+
 export function ReminderDetailModal({
   reminder,
   lists,
@@ -32,39 +58,109 @@ export function ReminderDetailModal({
     ? owners.find(o => o.id === reminder.owner_id)?.name
     : null;
 
+  const hasRecurrence = reminder.recurrence_frequency && reminder.recurrence_frequency !== '';
+  const hasRemind = reminder.remind_before_value != null;
+  const hasEndRange = !reminder.is_all_day && (reminder.end_date || reminder.end_time);
+  const isCustomRecur = reminder.recurrence_frequency === 'custom';
+
   return (
     <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50" onClick={onClose}>
       <div
-        className="bg-white rounded-apple-lg shadow-[0_16px_48px_rgba(0,0,0,0.16)] w-[320px] overflow-hidden animate-scale-in"
+        className="bg-white rounded-apple-lg shadow-[0_16px_48px_rgba(0,0,0,0.16)] w-[340px] overflow-hidden animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-4 py-3 border-b border-apple-divider flex items-center gap-2">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="16" x2="12" y2="12"/>
-            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m9 11 3 3L22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
           </svg>
           <span className="text-sm font-semibold text-gray-900">查看</span>
         </div>
-        
+
         <div className="p-4 max-h-[400px] overflow-y-auto">
-          <div className="text-lg text-gray-900 font-medium mb-2">{reminder.title}</div>
+          <div className="flex items-start gap-2">
+            <div className="flex-1">
+              <div className="text-lg text-gray-900 font-medium">{reminder.title}</div>
+            </div>
+            {reminder.is_flagged && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#FF9500" stroke="#FF9500" strokeWidth="2" className="flex-shrink-0 mt-1">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+              </svg>
+            )}
+          </div>
+
           {reminder.description && (
             <div className="text-sm text-apple-gray mt-2">{reminder.description}</div>
           )}
-          
-          {reminder.due_date || reminder.due_time ? (
-            <div className="flex items-center gap-2 mt-4 text-sm text-apple-orange">
+
+          {reminder.url && (
+            <a href={reminder.url} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 mt-2 text-sm text-apple-blue hover:underline">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+              {reminder.url}
+            </a>
+          )}
+
+          {reminder.due_date && (
+            <div className="flex items-center gap-2 mt-3 text-sm text-apple-orange">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10"/>
                 <polyline points="12 6 12 12 16 14"/>
               </svg>
               <span>
-                {formatDate(reminder.due_date)} {formatTime(reminder.due_time)}
+                {formatDate(reminder.due_date)}{reminder.due_time ? ' ' + formatTime(reminder.due_time) : ''}
+                {reminder.is_all_day && ' (全天)'}
               </span>
             </div>
-          ) : null}
-          
+          )}
+
+          {hasEndRange && (
+            <div className="flex items-center gap-2 mt-1.5 text-sm text-orange-300 ml-6">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="9 14 4 9 9 4"/><path d="M4 9h11a4 4 0 0 1 4 4v1"/>
+              </svg>
+              <span>
+                {reminder.end_date ? formatDate(reminder.end_date) : ''}{reminder.end_time ? ' ' + formatTime(reminder.end_time) : ''}
+              </span>
+            </div>
+          )}
+
+          {hasRecurrence && (
+            <div className="flex items-center gap-2 mt-2 text-sm text-apple-blue">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+              </svg>
+              <span>
+                {isCustomRecur
+                  ? `每 ${reminder.recurrence_interval} ${unitLabels[reminder.custom_recurrence_unit || 'day'] || reminder.custom_recurrence_unit}`
+                  : recurrenceLabels[reminder.recurrence_frequency || ''] || reminder.recurrence_frequency}
+                {reminder.recurrence_end_date && ` (至 ${formatDate(reminder.recurrence_end_date)})`}
+              </span>
+            </div>
+          )}
+
+          {hasRemind && (
+            <div className="flex items-center gap-2 mt-2 text-sm text-apple-purple">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              <span>提前 {reminder.remind_before_value} {unitLabels[reminder.remind_before_unit || ''] || reminder.remind_before_unit}</span>
+            </div>
+          )}
+
+          {reminder.tags && reminder.tags.length > 0 && (
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
+              </svg>
+              {reminder.tags.map(t => (
+                <span key={t.id} className="text-xs bg-blue-50 text-apple-blue px-1.5 py-0.5 rounded-[6px]">#{t.name}</span>
+              ))}
+            </div>
+          )}
+
           {ownerName && (
             <div className="flex items-center gap-2 mt-3 text-sm text-apple-purple">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -75,13 +171,15 @@ export function ReminderDetailModal({
               <span>负责人: {ownerName}</span>
             </div>
           )}
-          
-          <div className="mt-4 pt-4 border-t border-apple-divider">
-            <div className="text-xs text-apple-gray">所属分类: {listName}</div>
-            <div className="text-xs text-apple-gray mt-1">优先级: {reminder.priority}</div>
+
+          <div className="mt-3 pt-3 border-t border-apple-divider">
+            <div className="flex gap-4 text-xs text-apple-gray">
+              <span>列表: {listName}</span>
+              <span>优先级: {priorityLabels[reminder.priority] || reminder.priority}</span>
+            </div>
           </div>
         </div>
-        
+
         <div className="px-4 py-3 border-t border-apple-divider flex justify-end gap-3">
           <button
             onClick={() => onDelete(reminder.id)}

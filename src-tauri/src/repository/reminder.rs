@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::models::reminder::{Priority, Reminder};
 
-const REMINDER_FIELDS: &str = "id, title, description, due_date, due_time, is_completed, priority, list_id, created_at, updated_at, url, is_all_day, completion_date, alarm_at, recurrence_frequency, recurrence_interval, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id";
+const REMINDER_FIELDS: &str = "id, title, description, due_date, due_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id";
 
 pub struct ReminderRepository {
     conn: Arc<Mutex<Connection>>,
@@ -113,24 +113,30 @@ impl ReminderRepository {
     pub fn insert(&self, reminder: &Reminder) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT INTO reminders (id, title, description, due_date, due_time, is_completed, priority, list_id, created_at, updated_at, url, is_all_day, completion_date, alarm_at, recurrence_frequency, recurrence_interval, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
+            "INSERT INTO reminders (id, title, description, due_date, due_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)",
             params![
                 reminder.id.to_string(),
                 reminder.title,
                 reminder.description,
                 reminder.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
                 reminder.due_time.map(|t| t.format("%H:%M:%S").to_string()),
+                reminder.end_date.map(|d| d.format("%Y-%m-%d").to_string()),
+                reminder.end_time.map(|t| t.format("%H:%M:%S").to_string()),
+                reminder.is_all_day as i32,
                 reminder.is_completed as i32,
+                reminder.is_flagged as i32,
                 Self::priority_to_str(&reminder.priority),
                 reminder.list_id.map(|id| id.to_string()),
                 reminder.created_at.to_rfc3339(),
                 reminder.updated_at.to_rfc3339(),
                 reminder.url,
-                reminder.is_all_day as i32,
                 reminder.completion_date.map(|d| d.to_rfc3339()),
-                reminder.alarm_at.map(|d| d.to_rfc3339()),
-                None::<String>,
-                None::<i64>,
+                reminder.recurrence_frequency,
+                reminder.recurrence_interval,
+                reminder.custom_recurrence_unit,
+                reminder.recurrence_end_date.map(|d| d.format("%Y-%m-%d").to_string()),
+                reminder.remind_before_value,
+                reminder.remind_before_unit,
                 None::<String>,
                 None::<f64>,
                 None::<f64>,
@@ -146,22 +152,28 @@ impl ReminderRepository {
         let conn = self.conn.lock().unwrap();
         let now = Local::now();
         conn.execute(
-            "UPDATE reminders SET title = ?1, description = ?2, due_date = ?3, due_time = ?4, is_completed = ?5, priority = ?6, list_id = ?7, updated_at = ?8, url = ?9, is_all_day = ?10, completion_date = ?11, alarm_at = ?12, recurrence_frequency = ?13, recurrence_interval = ?14, location_address = ?15, location_latitude = ?16, location_longitude = ?17, location_radius = ?18, location_proximity = ?19, owner_id = ?20 WHERE id = ?21",
+            "UPDATE reminders SET title = ?1, description = ?2, due_date = ?3, due_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, location_address = ?21, location_latitude = ?22, location_longitude = ?23, location_radius = ?24, location_proximity = ?25, owner_id = ?26 WHERE id = ?27",
             params![
                 reminder.title,
                 reminder.description,
                 reminder.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
                 reminder.due_time.map(|t| t.format("%H:%M:%S").to_string()),
+                reminder.end_date.map(|d| d.format("%Y-%m-%d").to_string()),
+                reminder.end_time.map(|t| t.format("%H:%M:%S").to_string()),
+                reminder.is_all_day as i32,
                 reminder.is_completed as i32,
+                reminder.is_flagged as i32,
                 Self::priority_to_str(&reminder.priority),
                 reminder.list_id.map(|id| id.to_string()),
                 now.to_rfc3339(),
                 reminder.url,
-                reminder.is_all_day as i32,
                 reminder.completion_date.map(|d| d.to_rfc3339()),
-                reminder.alarm_at.map(|d| d.to_rfc3339()),
-                None::<String>,
-                None::<i64>,
+                reminder.recurrence_frequency,
+                reminder.recurrence_interval,
+                reminder.custom_recurrence_unit,
+                reminder.recurrence_end_date.map(|d| d.format("%Y-%m-%d").to_string()),
+                reminder.remind_before_value,
+                reminder.remind_before_unit,
                 None::<String>,
                 None::<f64>,
                 None::<f64>,
@@ -194,7 +206,18 @@ impl ReminderRepository {
             .as_deref()
             .and_then(|s| NaiveTime::parse_from_str(s, "%H:%M:%S").ok());
 
+        let end_date_str: Option<String> = row.get("end_date").unwrap_or(None);
+        let end_date = end_date_str
+            .as_deref()
+            .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok());
+
+        let end_time_str: Option<String> = row.get("end_time").unwrap_or(None);
+        let end_time = end_time_str
+            .as_deref()
+            .and_then(|s| NaiveTime::parse_from_str(s, "%H:%M:%S").ok());
+
         let is_completed: i32 = row.get("is_completed")?;
+        let is_flagged: i32 = row.get("is_flagged").unwrap_or(0);
         let priority_str: String = row.get("priority")?;
         let list_id_str: Option<String> = row.get("list_id")?;
         let list_id = list_id_str.as_deref().and_then(|s| Uuid::parse_str(s).ok());
@@ -221,12 +244,10 @@ impl ReminderRepository {
             .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
             .map(|d| d.with_timezone(&Local));
 
-        let alarm_at = row
-            .get::<_, Option<String>>("alarm_at")
-            .ok()
-            .flatten()
-            .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
-            .map(|d| d.with_timezone(&Local));
+        let recurrence_end_date_str: Option<String> = row.get("recurrence_end_date").unwrap_or(None);
+        let recurrence_end_date = recurrence_end_date_str
+            .as_deref()
+            .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok());
 
         Ok(Reminder {
             id,
@@ -235,12 +256,19 @@ impl ReminderRepository {
             url,
             due_date,
             due_time,
+            end_date,
+            end_time,
             is_all_day: is_all_day != 0,
             is_completed: is_completed != 0,
             completion_date,
             priority: Self::str_to_priority(&priority_str),
-            alarm_at,
-            recurrence: None,
+            is_flagged: is_flagged != 0,
+            recurrence_frequency: row.get("recurrence_frequency").unwrap_or(None),
+            recurrence_interval: row.get("recurrence_interval").unwrap_or(None),
+            custom_recurrence_unit: row.get("custom_recurrence_unit").unwrap_or(None),
+            recurrence_end_date,
+            remind_before_value: row.get("remind_before_value").unwrap_or(None),
+            remind_before_unit: row.get("remind_before_unit").unwrap_or(None),
             location: None,
             owner_id,
             list_id,

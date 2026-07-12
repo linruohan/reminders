@@ -4,6 +4,7 @@ import type {
   ReminderResponse,
   ListResponse,
   OwnerResponse,
+  TagResponse,
   CreateReminderRequest,
   UpdateReminderRequest,
   CreateListRequest,
@@ -123,6 +124,24 @@ export function useApi() {
     );
   }, [handleRequest]);
 
+  const getReminderTags = useCallback(async (reminderId: string): Promise<TagResponse[] | null> => {
+    return handleRequest(`get_tags_${reminderId}`, () =>
+      invoke<TagResponse[]>('get_reminder_tags', { reminderId })
+    );
+  }, [handleRequest]);
+
+  const getAllTags = useCallback(async (): Promise<TagResponse[] | null> => {
+    return handleRequest('get_all_tags', () =>
+      invoke<TagResponse[]>('get_all_tags')
+    );
+  }, [handleRequest]);
+
+  const searchTags = useCallback(async (query: string): Promise<TagResponse[] | null> => {
+    return handleRequest(`search_tags_${query}`, () =>
+      invoke<TagResponse[]>('search_tags', { query })
+    );
+  }, [handleRequest]);
+
   const deleteOwner = useCallback(async (id: string): Promise<boolean> => {
     const result = await handleRequest(`delete_owner_${id}`, () => 
       invoke<void>('delete_owner', { id })
@@ -172,5 +191,8 @@ export function useApi() {
     createOwner,
     updateOwner,
     deleteOwner,
+    getReminderTags,
+    getAllTags,
+    searchTags,
   };
 }

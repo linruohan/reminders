@@ -35,17 +35,23 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             description TEXT,
             due_date TEXT,
             due_time TEXT,
+            end_date TEXT,
+            end_time TEXT,
+            is_all_day INTEGER NOT NULL DEFAULT 0,
             is_completed INTEGER NOT NULL DEFAULT 0,
+            is_flagged INTEGER NOT NULL DEFAULT 0,
             priority TEXT NOT NULL DEFAULT 'none',
             list_id TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             url TEXT,
-            is_all_day INTEGER NOT NULL DEFAULT 0,
             completion_date TEXT,
-            alarm_at TEXT,
             recurrence_frequency TEXT,
             recurrence_interval INTEGER,
+            custom_recurrence_unit TEXT,
+            recurrence_end_date TEXT,
+            remind_before_value INTEGER,
+            remind_before_unit TEXT,
             location_address TEXT,
             location_latitude REAL,
             location_longitude REAL,
@@ -54,6 +60,25 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             owner_id TEXT,
             FOREIGN KEY (list_id) REFERENCES reminder_lists(id) ON DELETE SET NULL,
             FOREIGN KEY (owner_id) REFERENCES owners(id) ON DELETE SET NULL
+        )"#,
+        [],
+    )?;
+
+    conn.execute(
+        r#"CREATE TABLE IF NOT EXISTS tags (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE
+        )"#,
+        [],
+    )?;
+
+    conn.execute(
+        r#"CREATE TABLE IF NOT EXISTS reminder_tags (
+            reminder_id TEXT NOT NULL,
+            tag_id TEXT NOT NULL,
+            PRIMARY KEY (reminder_id, tag_id),
+            FOREIGN KEY (reminder_id) REFERENCES reminders(id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
         )"#,
         [],
     )?;
@@ -102,7 +127,6 @@ fn migrate_schema(conn: &Connection) -> Result<()> {
         "completion_date",
         "ALTER TABLE reminders ADD COLUMN completion_date TEXT",
     )?;
-    add_column("alarm_at", "ALTER TABLE reminders ADD COLUMN alarm_at TEXT")?;
     add_column(
         "recurrence_frequency",
         "ALTER TABLE reminders ADD COLUMN recurrence_frequency TEXT",
@@ -134,6 +158,34 @@ fn migrate_schema(conn: &Connection) -> Result<()> {
     add_column(
         "owner_id",
         "ALTER TABLE reminders ADD COLUMN owner_id TEXT REFERENCES owners(id) ON DELETE SET NULL",
+    )?;
+    add_column(
+        "end_date",
+        "ALTER TABLE reminders ADD COLUMN end_date TEXT",
+    )?;
+    add_column(
+        "end_time",
+        "ALTER TABLE reminders ADD COLUMN end_time TEXT",
+    )?;
+    add_column(
+        "is_flagged",
+        "ALTER TABLE reminders ADD COLUMN is_flagged INTEGER NOT NULL DEFAULT 0",
+    )?;
+    add_column(
+        "custom_recurrence_unit",
+        "ALTER TABLE reminders ADD COLUMN custom_recurrence_unit TEXT",
+    )?;
+    add_column(
+        "recurrence_end_date",
+        "ALTER TABLE reminders ADD COLUMN recurrence_end_date TEXT",
+    )?;
+    add_column(
+        "remind_before_value",
+        "ALTER TABLE reminders ADD COLUMN remind_before_value INTEGER",
+    )?;
+    add_column(
+        "remind_before_unit",
+        "ALTER TABLE reminders ADD COLUMN remind_before_unit TEXT",
     )?;
 
     Ok(())

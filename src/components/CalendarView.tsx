@@ -271,29 +271,54 @@ function EditReminderCard({
 }) {
   const [title, setTitle] = useState(reminder.title);
   const [description, setDescription] = useState(reminder.description || '');
-  const [dueDate, setDueDate] = useState(reminder.due_date || '');
-  const [dueTime, setDueTime] = useState(reminder.due_time || '');
+  const [url, setUrl] = useState(reminder.url || '');
+  const [startDateTime, setStartDateTime] = useState(
+    reminder.due_date && reminder.due_time ? `${reminder.due_date}T${reminder.due_time}` : reminder.due_date || ''
+  );
+  const [endDateTime, setEndDateTime] = useState(
+    reminder.end_date && reminder.end_time ? `${reminder.end_date}T${reminder.end_time}` : reminder.end_date || ''
+  );
+  const [isAllDay, setIsAllDay] = useState(reminder.is_all_day ?? false);
   const [selectedListId, setSelectedListId] = useState(reminder.list_id || '');
+  const [isFlagged, setIsFlagged] = useState(reminder.is_flagged ?? false);
+  const [priority, setPriority] = useState(reminder.priority || 'none');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
 
+  function splitDateTime(dt: string): { date: string; time: string } | null {
+    if (!dt) return null;
+    const parts = dt.split('T');
+    if (parts.length !== 2) return { date: parts[0], time: '' };
+    return { date: parts[0], time: parts[1] || '' };
+  }
+
   const handleSave = useCallback(() => {
     const updates: Partial<ReminderResponse> = {};
+    const start = splitDateTime(startDateTime);
+    const end = splitDateTime(endDateTime);
     if (title !== reminder.title) updates.title = title;
     if ((description || null) !== reminder.description) updates.description = description || null;
-    if ((dueDate || null) !== reminder.due_date) updates.due_date = dueDate || null;
-    if ((dueTime || null) !== reminder.due_time) updates.due_time = dueTime || null;
+    if ((url || null) !== reminder.url) updates.url = url || null;
+    if ((start?.date || null) !== reminder.due_date) updates.due_date = start?.date || null;
+    if ((isAllDay || !start?.time ? null : start.time) !== reminder.due_time) updates.due_time = isAllDay ? null : (start?.time || null);
+    if ((end?.date || null) !== reminder.end_date) updates.end_date = end?.date || null;
+    if ((isAllDay ? null : (end?.time || null)) !== reminder.end_time) updates.end_time = isAllDay ? null : (end?.time || null);
+    if (isAllDay !== reminder.is_all_day) updates.is_all_day = isAllDay;
     if (selectedListId !== (reminder.list_id || '')) updates.list_id = selectedListId || null;
+    if (isFlagged !== reminder.is_flagged) updates.is_flagged = isFlagged;
+    if (priority !== reminder.priority) updates.priority = priority;
     onSave(reminder.id, updates);
     onClose();
-  }, [title, description, dueDate, dueTime, selectedListId, reminder, onSave, onClose]);
+  }, [title, description, url, startDateTime, endDateTime, isAllDay, selectedListId, isFlagged, priority, reminder, onSave, onClose]);
+
+  const chipBase = 'inline-flex items-center gap-1.5 h-8 px-2.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-900';
 
   return (
     <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-apple-lg shadow-[0_16px_48px_rgba(0,0,0,0.16)] w-[320px] overflow-hidden animate-scale-in" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-apple-lg shadow-[0_16px_48px_rgba(0,0,0,0.16)] w-[380px] overflow-hidden animate-scale-in" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-apple-divider">
           <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-all">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -306,30 +331,50 @@ function EditReminderCard({
             <button onClick={handleSave} className="text-sm font-semibold text-apple-blue transition-opacity">完成</button>
           </div>
         </div>
-        <div className="p-4">
+        <div className="p-4 max-h-[460px] overflow-y-auto">
           <input ref={inputRef} type="text" value={title} onChange={e => setTitle(e.target.value)}
             placeholder="标题" className="w-full text-[17px] font-semibold text-gray-900 placeholder-apple-gray bg-transparent border-none outline-none" />
           <input type="text" value={description} onChange={e => setDescription(e.target.value)}
             placeholder="备注" className="w-full mt-1 text-[13px] text-apple-gray placeholder-apple-gray bg-transparent border-none outline-none" />
+          <input type="url" value={url} onChange={e => setUrl(e.target.value)}
+            placeholder="URL" className="w-full mt-0.5 text-[13px] text-apple-blue placeholder-apple-gray bg-transparent border-none outline-none" />
           <div className="border-t border-apple-divider my-3" />
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="inline-flex items-center gap-1.5 h-8 px-2.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-900">
+          <div className="flex items-center gap-2 mb-3">
+            <button onClick={() => { setIsAllDay(true); setEndDateTime(''); }}
+              className={`px-3 py-1 text-xs rounded-[8px] font-medium ${isAllDay ? 'bg-apple-blue text-white' : 'bg-[#F2F2F7] text-gray-600'}`}>全天</button>
+            <button onClick={() => setIsAllDay(false)}
+              className={`px-3 py-1 text-xs rounded-[8px] font-medium ${!isAllDay ? 'bg-apple-blue text-white' : 'bg-[#F2F2F7] text-gray-600'}`}>时间段</button>
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className={chipBase}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-700">
                 <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
               </svg>
-              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
-                className="bg-transparent border-none outline-none text-[13px] w-24 text-gray-700" />
+              <input type={isAllDay ? "date" : "datetime-local"} value={startDateTime} onChange={e => setStartDateTime(e.target.value)}
+                className="bg-transparent border-none outline-none text-[13px] text-gray-700" style={{ width: isAllDay ? '96px' : '170px' }} />
             </div>
-            <div className="inline-flex items-center gap-1.5 h-8 px-2.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-900">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-700">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-              <input type="time" value={dueTime} onChange={e => setDueTime(e.target.value)}
-                className="bg-transparent border-none outline-none text-[13px] w-20 text-gray-700" />
-            </div>
+            {!isAllDay && startDateTime && (
+              <div className="flex items-center gap-2 ml-1">
+                <span className="text-xs text-gray-400">至</span>
+                <div className={chipBase}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-700">
+                    <polyline points="9 14 4 9 9 4"/><path d="M4 9h11a4 4 0 0 1 4 4v1"/>
+                  </svg>
+                  <input type="datetime-local" value={endDateTime} onChange={e => setEndDateTime(e.target.value)}
+                    className="bg-transparent border-none outline-none text-[13px] text-gray-700" style={{ width: '170px' }} />
+                </div>
+              </div>
+            )}
           </div>
           <div className="mt-3 pt-3 border-t border-apple-divider">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-500">列表</span>
+              <button onClick={() => setIsFlagged(!isFlagged)}
+                className={`w-8 h-[18px] rounded-full transition-colors relative ${isFlagged ? 'bg-apple-blue' : 'bg-gray-300'}`}>
+                <div className={`absolute top-0.5 w-[14px] h-[14px] bg-white rounded-full shadow-sm transition-transform ${isFlagged ? 'translate-x-[16px]' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2 mb-2">
               {lists.map(list => (
                 <button key={list.id} onClick={() => setSelectedListId(selectedListId === list.id ? '' : list.id)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-sm font-medium transition-colors spring-transition ${
@@ -338,6 +383,16 @@ function EditReminderCard({
                   <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: list.color }} />
                   {list.name}
                 </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              {[{ value: 'none', label: '无' }, { value: 'low', label: '低' }, { value: 'medium', label: '中' }, { value: 'high', label: '高' }].map(opt => (
+                <button key={opt.value} onClick={() => setPriority(opt.value)}
+                  className={`px-2.5 py-1 text-xs rounded-[8px] font-medium transition-colors ${
+                    priority === opt.value
+                      ? opt.value === 'high' ? 'bg-red-50 text-red-600' : opt.value === 'medium' ? 'bg-orange-50 text-orange-600' : opt.value === 'low' ? 'bg-green-50 text-green-600' : 'bg-[#F2F2F7] text-gray-700'
+                      : 'bg-[#F2F2F7] text-gray-500'
+                  }`}>{opt.label}</button>
               ))}
             </div>
           </div>
@@ -352,7 +407,26 @@ interface CalendarViewProps {
   lists: ListResponse[];
   onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
   onDeleteReminder: (id: string) => void;
-  onCreateReminder: (data: { title: string; description?: string | null; due_date?: string | null; due_time?: string | null; list_id?: string | null; is_all_day?: boolean }) => Promise<ReminderResponse | null>;
+  onCreateReminder: (data: {
+    title: string;
+    description?: string | null;
+    url?: string | null;
+    due_date?: string | null;
+    due_time?: string | null;
+    end_date?: string | null;
+    end_time?: string | null;
+    list_id?: string | null;
+    is_all_day?: boolean;
+    is_flagged?: boolean;
+    priority?: string;
+    recurrence_frequency?: string | null;
+    recurrence_interval?: number | null;
+    custom_recurrence_unit?: string | null;
+    recurrence_end_date?: string | null;
+    remind_before_value?: number | null;
+    remind_before_unit?: string | null;
+    tags?: string[];
+  }) => Promise<ReminderResponse | null>;
 }
 
 export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteReminder, onCreateReminder }: CalendarViewProps) {
@@ -365,7 +439,6 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
   const [showAddModal, setShowAddModal] = useState(false);
   const [addModalDate, setAddModalDate] = useState<string>('');
   const [addModalTime, setAddModalTime] = useState<string>('');
-  const [addModalAllDay, setAddModalAllDay] = useState(false);
   const [editReminder, setEditReminder] = useState<ReminderResponse | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -410,22 +483,39 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
   const handleDoubleClickTimeline = useCallback((hour: number, minute: number, date: Date) => {
     setAddModalDate(toISODateStr(date));
     setAddModalTime(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
-    setAddModalAllDay(false);
     setShowAddModal(true);
   }, []);
 
   const handleAllDayDoubleClick = useCallback((date: Date) => {
     setAddModalDate(toISODateStr(date));
     setAddModalTime('09:00');
-    setAddModalAllDay(true);
     setShowAddModal(true);
   }, []);
 
-  const handleAddSubmit = useCallback(async (data: { title: string; description?: string | null; due_date?: string | null; due_time?: string | null; list_id?: string | null; is_all_day?: boolean }) => {
-    const result = await onCreateReminder({ ...data, is_all_day: addModalAllDay || undefined });
+  const handleAddSubmit = useCallback(async (data: {
+    title: string;
+    description?: string | null;
+    url?: string | null;
+    due_date?: string | null;
+    due_time?: string | null;
+    end_date?: string | null;
+    end_time?: string | null;
+    list_id?: string | null;
+    is_all_day?: boolean;
+    is_flagged?: boolean;
+    priority?: string;
+    recurrence_frequency?: string | null;
+    recurrence_interval?: number | null;
+    custom_recurrence_unit?: string | null;
+    recurrence_end_date?: string | null;
+    remind_before_value?: number | null;
+    remind_before_unit?: string | null;
+    tags?: string[];
+  }) => {
+    const result = await onCreateReminder({ ...data });
     setShowAddModal(false);
     return result;
-  }, [onCreateReminder, addModalAllDay]);
+  }, [onCreateReminder]);
 
   const handleTimelineReminderClick = useCallback((reminder: ReminderResponse) => {
     setEditReminder(reminder);
@@ -479,7 +569,7 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
       <div className="flex items-center justify-between px-5 py-3">
         <div className="w-[120px] flex items-center">
           <button
-            onClick={() => { setAddModalDate(''); setAddModalTime(''); setAddModalAllDay(false); setShowAddModal(true); }}
+            onClick={() => { setAddModalDate(''); setAddModalTime(''); setShowAddModal(true); }}
             className="w-8 h-8 rounded-full bg-apple-blue text-white flex items-center justify-center hover:bg-apple-blue-hover transition-colors shadow-sm active:scale-95"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
