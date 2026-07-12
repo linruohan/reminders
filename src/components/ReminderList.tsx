@@ -173,10 +173,9 @@ export function ReminderList({
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
-        <div className="space-y-1">
+      <div className="flex-1 overflow-y-auto px-6 pb-20">
           {reminders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-apple-gray py-20">
+            <div className="flex flex-col items-center justify-center h-full text-apple-gray">
               <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                 <line x1="9" y1="3" x2="9" y2="21"/>
@@ -185,9 +184,10 @@ export function ReminderList({
               <span className="mt-4 text-base font-medium">没有提醒事项</span>
             </div>
           ) : (
-            reminders
-              .filter(r => showCompleted || !r.is_completed)
-              .map((reminder, index) => (
+            <div className="space-y-1">
+              {reminders
+                .filter(r => showCompleted || !r.is_completed)
+                .map((reminder, index) => (
               <div key={reminder.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 30}ms` }}>
                 <ReminderItem
                   key={reminder.id}
@@ -208,14 +208,14 @@ export function ReminderList({
                   canPaste={canPaste}
                 />
               </div>
-            ))
-          )}
-        </div>
+                ))}
+              </div>
+            )}
       </div>
 
       <button
         onClick={onCreateReminder}
-        className="absolute bottom-6 right-6 w-10 h-10 rounded-full flex items-center justify-center bg-apple-blue text-white hover:bg-[#0066CC] hover:brightness-105 transition-all duration-200 spring-transition shadow-[0_2px_8px_rgba(0,122,255,0.3)] hover-scale z-10"
+        className="absolute bottom-6 right-6 w-10 h-10 rounded-full flex items-center justify-center bg-apple-blue text-white hover:bg-[#0066CC] hover:brightness-105 transition-all duration-200 spring-transition shadow-[0_2px_8px_rgba(0,122,255,0.3)] hover-scale z-30"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
           <line x1="12" y1="5" x2="12" y2="19"/>
