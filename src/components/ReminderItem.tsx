@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
-import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, TimeUnit, Priority } from '@/types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, TimeUnit, Priority, RecurrenceFrequency } from '@/types/api';
 import { formatDate, formatTime, getDateColor, getTodayStr, getTomorrowStr, getWeekendStr, getNextMondayStr, groupedTimes } from '@/utils/dateUtils';
 import { ReminderDetailModal } from './ReminderDetailModal';
 import { ContextMenu } from './ContextMenu';
@@ -187,7 +187,7 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const [editTime, setEditTime] = useState(reminder.due_time || '');
   const [editListId, setEditListId] = useState(reminder.list_id || '');
   const [editIsFlagged, setEditIsFlagged] = useState(reminder.is_flagged ?? false);
-  const [editRecurrenceFreq, setEditRecurrenceFreq] = useState(reminder.recurrence_frequency ?? '');
+  const [editRecurrenceFreq, setEditRecurrenceFreq] = useState<string>(reminder.recurrence_frequency ?? '');
   const [editRecurrenceInterval, setEditRecurrenceInterval] = useState(reminder.recurrence_interval ?? 1);
   const [editCustomUnit, setEditCustomUnit] = useState<TimeUnit>(reminder.custom_recurrence_unit ?? 'days');
   const [editRecurrenceEndDate, setEditRecurrenceEndDate] = useState(reminder.recurrence_end_date || '');
@@ -227,7 +227,7 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
       due_time: editTime || null,
       is_flagged: editIsFlagged !== reminder.is_flagged ? editIsFlagged : undefined,
       list_id: editListId || null,
-      recurrence_frequency: editRecurrenceFreq || null,
+      recurrence_frequency: (editRecurrenceFreq || null) as RecurrenceFrequency | null,
       recurrence_interval: editRecurrenceFreq === 'custom' ? editRecurrenceInterval : null,
       custom_recurrence_unit: editRecurrenceFreq === 'custom' ? editCustomUnit : null,
       recurrence_end_date: editRecurrenceEndDate || null,
@@ -251,7 +251,7 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
       due_time: editTime || null,
       is_flagged: editIsFlagged,
       list_id: editListId || null,
-      recurrence_frequency: editRecurrenceFreq || null,
+      recurrence_frequency: (editRecurrenceFreq || null) as RecurrenceFrequency | null,
       recurrence_interval: editRecurrenceFreq === 'custom' ? editRecurrenceInterval : null,
       custom_recurrence_unit: editRecurrenceFreq === 'custom' ? editCustomUnit : null,
       recurrence_end_date: editRecurrenceEndDate || null,
@@ -558,7 +558,7 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
                       <input type="number" min={1} value={editRecurrenceInterval}
                         onChange={e => setEditRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))}
                         className="w-12 px-1 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none text-center" />
-                      <select value={editCustomUnit} onChange={e => setEditCustomUnit(e.target.value)}
+                      <select value={editCustomUnit} onChange={e => setEditCustomUnit(e.target.value as TimeUnit)}
                         className="px-1 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none">
                         <option value="hour">小时</option>
                         <option value="day">天</option>

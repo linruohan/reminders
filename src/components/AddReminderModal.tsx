@@ -59,12 +59,12 @@ const remindOptions = [
   { value: 'custom', label: '自定义' },
 ];
 
-function parseRemindValue(value: string): { remind_before_value: number | null; remind_before_unit: string | null } {
+function parseRemindValue(value: string): { remind_before_value: number | null; remind_before_unit: TimeUnit | null } {
   if (!value) return { remind_before_value: null, remind_before_unit: null };
   if (value === 'custom') return { remind_before_value: null, remind_before_unit: null };
   const unit = value.slice(-1);
   const num = parseInt(value.slice(0, -1));
-  const unitMap: Record<string, string> = { d: 'day', w: 'week', M: 'month' };
+  const unitMap: Record<string, TimeUnit> = { d: 'days', w: 'weeks', M: 'days' };
   return { remind_before_value: num, remind_before_unit: unitMap[unit] || null };
 }
 
@@ -121,9 +121,9 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
   const handleSubmit = useCallback(() => {
     if (!title.trim()) return;
 
-    let remindData: { remind_before_value: number | null; remind_before_unit: string | null };
+    let remindData: { remind_before_value: number | null; remind_before_unit: TimeUnit | null };
     if (remindValue === 'custom') {
-      remindData = { remind_before_value: customRemindNum, remind_before_unit: customRemindUnit };
+      remindData = { remind_before_value: customRemindNum, remind_before_unit: customRemindUnit as TimeUnit };
     } else {
       remindData = parseRemindValue(remindValue);
     }
@@ -142,10 +142,10 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
       list_id: selectedListId || null,
       is_all_day: isAllDay,
       is_flagged: isFlagged,
-      priority,
-      recurrence_frequency: recurrenceFreq || null,
+      priority: priority as Priority,
+      recurrence_frequency: (recurrenceFreq || null) as RecurrenceFrequency | null,
       recurrence_interval: recurrenceFreq === 'custom' ? recurrenceInterval : null,
-      custom_recurrence_unit: recurrenceFreq === 'custom' ? customUnit : null,
+      custom_recurrence_unit: (recurrenceFreq === 'custom' ? customUnit : null) as TimeUnit | null,
       recurrence_end_date: showEndRepeat && recurrenceEndDate ? recurrenceEndDate : null,
       ...remindData,
       tags: tags.length > 0 ? tags : undefined,

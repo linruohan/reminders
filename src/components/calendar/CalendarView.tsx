@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { ReminderResponse, ListResponse } from '@/types/api';
+import type { ReminderResponse, ListResponse, CreateReminderRequest, Priority, RecurrenceFrequency, TimeUnit } from '@/types/api';
 import { getDaysInMonth, toISODateStr } from '@/utils/dateUtils';
 import { AddReminderModal } from '../AddReminderModal';
 import { DayView } from './DayView';
@@ -18,26 +18,7 @@ interface CalendarViewProps {
   lists: ListResponse[];
   onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
   onDeleteReminder: (id: string) => void;
-  onCreateReminder: (data: {
-    title: string;
-    description?: string | null;
-    url?: string | null;
-    due_date?: string | null;
-    due_time?: string | null;
-    end_date?: string | null;
-    end_time?: string | null;
-    list_id?: string | null;
-    is_all_day?: boolean;
-    is_flagged?: boolean;
-    priority?: string;
-    recurrence_frequency?: string | null;
-    recurrence_interval?: number | null;
-    custom_recurrence_unit?: string | null;
-    recurrence_end_date?: string | null;
-    remind_before_value?: number | null;
-    remind_before_unit?: string | null;
-    tags?: string[];
-  }) => Promise<{ data: ReminderResponse | null; error: string | null }>;
+  onCreateReminder: (data: CreateReminderRequest) => Promise<{ data: ReminderResponse | null; error: string | null }>;
 }
 
 export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteReminder, onCreateReminder }: CalendarViewProps) {
@@ -121,13 +102,13 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
     list_id?: string | null;
     is_all_day?: boolean;
     is_flagged?: boolean;
-    priority?: string;
-    recurrence_frequency?: string | null;
+    priority?: Priority;
+    recurrence_frequency?: RecurrenceFrequency | null;
     recurrence_interval?: number | null;
-    custom_recurrence_unit?: string | null;
+    custom_recurrence_unit?: TimeUnit | null;
     recurrence_end_date?: string | null;
     remind_before_value?: number | null;
-    remind_before_unit?: string | null;
+    remind_before_unit?: TimeUnit | null;
     tags?: string[];
   }) => {
     const result = await onCreateReminder({ ...data });

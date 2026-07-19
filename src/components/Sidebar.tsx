@@ -21,29 +21,30 @@ interface SidebarProps {
 }
 
 const quickFilters = [
-  { id: 'today', label: '今天', icon: 'calendar', color: '#007AFF', gradient: 'from-blue-400 to-blue-500' },
-  { id: 'planned', label: '计划', icon: 'calendarDays', color: '#FF3B30', gradient: 'from-red-400 to-red-500' },
-  { id: 'all', label: '全部', icon: 'mail', color: '#8E8E93', gradient: 'from-gray-400 to-gray-500' },
-  { id: 'flagged', label: '旗标', icon: 'flag', color: '#FF9500', gradient: 'from-orange-400 to-orange-500' },
-  { id: 'urgent', label: '紧急', icon: 'alert', color: '#FF2D55', gradient: 'from-pink-400 to-pink-500' },
-  { id: 'completed', label: '完成', icon: 'check', color: '#C7C7CC', gradient: 'from-gray-300 to-gray-400' },
+  { id: 'today', label: '今天', icon: 'calendar', color: '#007AFF', gradient: 'linear-gradient(135deg, #60A5FA, #3B82F6)' },
+  { id: 'planned', label: '计划', icon: 'calendarDays', color: '#FF3B30', gradient: 'linear-gradient(135deg, #F87171, #EF4444)' },
+  { id: 'all', label: '全部', icon: 'mail', color: '#8E8E93', gradient: 'linear-gradient(135deg, #9CA3AF, #6B7280)' },
+  { id: 'flagged', label: '旗标', icon: 'flag', color: '#FF9500', gradient: 'linear-gradient(135deg, #FB923C, #F97316)' },
+  { id: 'urgent', label: '紧急', icon: 'alert', color: '#FF2D55', gradient: 'linear-gradient(135deg, #F472B6, #EC4899)' },
+  { id: 'completed', label: '完成', icon: 'check', color: '#C7C7CC', gradient: 'linear-gradient(135deg, #D1D5DB, #9CA3AF)' },
 ];
 
 function QuickFilterItem({ filter, active, onClick, count }: { filter: typeof quickFilters[0]; active: boolean; onClick: () => void; count: number }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex flex-col items-start px-3 py-3 rounded-[16px] transition-all duration-300 spring-transition ${
+      style={{ background: filter.gradient }}
+      className={`w-full flex flex-col items-start px-3 py-3 rounded-[16px] shadow-[0_2px_8px_rgba(0,0,0,0.12)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)] hover:scale-[1.02] transition-all duration-300 spring-transition ${
         active
-          ? `bg-gradient-to-br ${filter.gradient} shadow-[0_8px_28px_rgba(0,0,0,0.25)] scale-[1.03]`
-          : `bg-[#F2F2F7] shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] hover:scale-[1.02]`
+          ? 'ring-[3px] ring-black/80 shadow-[0_8px_28px_rgba(0,0,0,0.3)] scale-[1.03]'
+          : ''
       }`}
     >
       <div className="flex items-center justify-between w-full mb-1">
-        <Icon name={filter.icon} size={18} className={active ? "text-white" : "text-gray-700"} />
-        <span className={`text-lg font-bold leading-none ${active ? 'text-white/90' : 'text-gray-600'}`}>{count}</span>
+        <Icon name={filter.icon} size={18} className="text-white" />
+        <span className="text-lg font-bold leading-none text-white/90">{count}</span>
       </div>
-      <span className={`text-sm font-semibold ${active ? 'text-white' : 'text-gray-700'}`}>{filter.label}</span>
+      <span className="text-sm font-semibold text-white">{filter.label}</span>
     </button>
   );
 }

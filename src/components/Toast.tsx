@@ -23,9 +23,9 @@ function ToastItem({ message, onRemove }: ToastProps) {
   }, [message.id, onRemove]);
 
   const bgColors = {
-    success: 'bg-[#34C759]',
-    error: 'bg-[#FF3B30]',
-    info: 'bg-[#007AFF]',
+    success: 'bg-apple-green',
+    error: 'bg-apple-red',
+    info: 'bg-apple-blue',
   };
 
   const icons = {

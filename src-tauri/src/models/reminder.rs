@@ -12,6 +12,7 @@ pub enum Priority {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub enum RecurrenceFrequency {
     Daily,
     Weekly,
@@ -150,6 +151,7 @@ impl Reminder {
         self
     }
 
+    #[allow(dead_code)]
     pub fn matches_search(&self, query: &str) -> bool {
         let trimmed = query.trim();
         if trimmed.is_empty() {

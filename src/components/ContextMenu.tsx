@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getTomorrowStr } from '@/utils/dateUtils';
+import type { Priority } from '@/types/api';
 
 interface ContextMenuProps {
   isOpen: boolean;
@@ -9,7 +10,7 @@ interface ContextMenuProps {
   onToggleCompleted: () => void;
   onShowDetail: () => void;
   onDelete: () => void;
-  onSetPriority: (priority: string) => void;
+  onSetPriority: (priority: Priority) => void;
   onMoveToList: (listId: string) => void;
   onSetDueDate: (date: string) => void;
   onCut: () => void;

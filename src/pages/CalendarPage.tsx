@@ -1,31 +1,12 @@
 import { CalendarView } from '../components/calendar/CalendarView';
-import type { ReminderResponse, ListResponse } from '../types/api';
+import type { ReminderResponse, ListResponse, CreateReminderRequest } from '../types/api';
 
 interface CalendarPageProps {
   reminders: ReminderResponse[];
   lists: ListResponse[];
   onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
   onDeleteReminder: (id: string) => void;
-  onCreateReminder: (data: {
-    title: string;
-    description?: string | null;
-    url?: string | null;
-    due_date?: string | null;
-    due_time?: string | null;
-    end_date?: string | null;
-    end_time?: string | null;
-    list_id?: string | null;
-    is_all_day?: boolean;
-    is_flagged?: boolean;
-    priority?: string;
-    recurrence_frequency?: string | null;
-    recurrence_interval?: number | null;
-    custom_recurrence_unit?: string | null;
-    recurrence_end_date?: string | null;
-    remind_before_value?: number | null;
-    remind_before_unit?: string | null;
-    tags?: string[];
-  }) => Promise<{ data: ReminderResponse | null; error: string | null }>;
+  onCreateReminder: (data: CreateReminderRequest) => Promise<{ data: ReminderResponse | null; error: string | null }>;
 }
 
 export function CalendarPage({ reminders, lists, onUpdateReminder, onDeleteReminder, onCreateReminder }: CalendarPageProps) {

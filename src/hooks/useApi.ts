@@ -37,7 +37,7 @@ export function useApi() {
       const message = appError.message;
       setLoading(prev => ({ ...prev, [key]: false }));
       setError(prev => ({ ...prev, [key]: message }));
-      console.error(`[${key}] ${appError.type}:`, appError.details || message);
+      // 错误已通过 setError 记录到状态中，此处不再输出到控制台
       return null;
     }
   }, []);
@@ -76,7 +76,7 @@ export function useApi() {
       const message = appError.message;
       setLoading(prev => ({ ...prev, [key]: false }));
       setError(prev => ({ ...prev, [key]: message }));
-      console.error(`[${key}] ${appError.type}:`, appError.details || message);
+      // 错误已通过 setError 记录到状态中，此处不再输出到控制台
       return { data: null, error: message };
     }
   }, []);

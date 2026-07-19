@@ -98,7 +98,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
         setCachedReminders(filter, data);
       }
     } catch {
-      console.error(`Failed to load reminders for filter: ${filter}`);
+      // 加载失败时静默处理，避免控制台噪音
     } finally {
       if (filter === 'all') {
         setAllDataLoaded(true);
@@ -121,7 +121,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
         setReminders(data);
       }
     } catch {
-      console.error('Failed to search reminders');
+      // 搜索失败时静默处理
     }
   }, [searchReminders, activeFilter, loadReminders]);
 
