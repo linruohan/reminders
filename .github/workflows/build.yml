@@ -30,15 +30,16 @@ jobs:
       BUILD_ENV: ${{ github.event.inputs.environment || contains(github.ref, 'release/') && 'production' || contains(github.ref, 'beta/') && 'beta' || github.ref == 'refs/heads/main' && 'production' || 'development' }}
       HAS_CERT: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
       HAS_SLACK: ${{ secrets.SLACK_WEBHOOK != '' }}
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: "npm"
@@ -110,7 +111,7 @@ jobs:
 
       - name: Upload development artifacts
         if: env.BUILD_ENV == 'development'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reminders-dev
           path: |
@@ -120,7 +121,7 @@ jobs:
 
       - name: Upload beta artifacts
         if: env.BUILD_ENV == 'beta'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: reminders-beta
           path: |
