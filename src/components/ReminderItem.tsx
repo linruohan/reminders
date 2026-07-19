@@ -687,6 +687,8 @@ export const ReminderItem = memo(function ReminderItem({
     onUpdateReminder(reminder.id, { due_date: date });
   };
 
+  const handleShowDetail = useCallback(() => setShowDetail(true), []);
+
   if (isEditing) {
     return (
       <ReminderItemEditMode
@@ -708,7 +710,7 @@ export const ReminderItem = memo(function ReminderItem({
           reminder={reminder}
           onToggleCompleted={onToggleCompleted}
           onStartEditing={onStartEditing}
-          onShowDetail={() => setShowDetail(true)}
+          onShowDetail={handleShowDetail}
         />
       </div>
       
@@ -729,7 +731,7 @@ export const ReminderItem = memo(function ReminderItem({
         y={contextMenu.y}
         onClose={handleCloseContextMenu}
         onToggleCompleted={() => onToggleCompleted(reminder.id)}
-        onShowDetail={() => setShowDetail(true)}
+        onShowDetail={handleShowDetail}
         onDelete={() => onDelete(reminder.id)}
         onSetPriority={handleSetPriority}
         onMoveToList={handleMoveToList}

@@ -110,6 +110,25 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
 }
 
 fn migrate_schema(conn: &Connection) -> Result<()> {
+    // 确保 tags 和 reminder_tags 表存在（旧数据库可能缺少这两张表）
+    conn.execute(
+        r#"CREATE TABLE IF NOT EXISTS tags (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE
+        )"#,
+        [],
+    )?;
+    conn.execute(
+        r#"CREATE TABLE IF NOT EXISTS reminder_tags (
+            reminder_id TEXT NOT NULL,
+            tag_id TEXT NOT NULL,
+            PRIMARY KEY (reminder_id, tag_id),
+            FOREIGN KEY (reminder_id) REFERENCES reminders(id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+        )"#,
+        [],
+    )?;
+
     let columns = table_columns(conn, "reminders")?;
     let add_column = |name: &str, ddl: &str| -> Result<()> {
         if !columns.iter().any(|c| c == name) {

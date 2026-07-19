@@ -60,11 +60,21 @@ export function useApi() {
     return result ?? null;
   }, [handleRequest]);
 
-  const createReminder = useCallback(async (request: CreateReminderRequest): Promise<ReminderResponse | null> => {
-    return handleRequest('create_reminder', () => 
-      invoke<ReminderResponse>('create_reminder', { request })
-    );
-  }, [handleRequest]);
+  const createReminder = useCallback(async (request: CreateReminderRequest): Promise<{ data: ReminderResponse | null; error: string | null }> => {
+    const key = 'create_reminder';
+    setLoading(prev => ({ ...prev, [key]: true }));
+    setError(prev => ({ ...prev, [key]: null }));
+    try {
+      const result = await invoke<ReminderResponse>('create_reminder', { request });
+      setLoading(prev => ({ ...prev, [key]: false }));
+      return { data: result, error: null };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      setLoading(prev => ({ ...prev, [key]: false }));
+      setError(prev => ({ ...prev, [key]: message }));
+      return { data: null, error: message };
+    }
+  }, []);
 
   const updateReminder = useCallback(async (request: UpdateReminderRequest): Promise<ReminderResponse | null> => {
     return handleRequest(`update_reminder_${request.id}`, () => 

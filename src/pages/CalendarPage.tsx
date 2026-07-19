@@ -25,7 +25,7 @@ interface CalendarPageProps {
     remind_before_value?: number | null;
     remind_before_unit?: string | null;
     tags?: string[];
-  }) => Promise<ReminderResponse | null>;
+  }) => Promise<{ data: ReminderResponse | null; error: string | null }>;
 }
 
 export function CalendarPage({ reminders, lists, onUpdateReminder, onDeleteReminder, onCreateReminder }: CalendarPageProps) {

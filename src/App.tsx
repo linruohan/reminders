@@ -6,6 +6,7 @@ import { AddReminderModal } from './components/AddReminderModal';
 import { Dialog } from './components/Dialog';
 import { ToastContainer, type ToastMessage, type ToastType } from './components/Toast';
 import { useReminderData } from './hooks/useReminderData';
+import { CreateReminderRequest } from './types/api';
 
 function AuroraBackground() {
   return (
@@ -53,34 +54,15 @@ export function App() {
     handleCopyReminder,
     handlePasteReminder,
     refreshData,
-  } = useReminderData();
+  } = useReminderData(showToast);
 
-  const handleCreateReminderCallback = useCallback(async (data: {
-    title: string;
-    description?: string | null;
-    url?: string | null;
-    due_date?: string | null;
-    due_time?: string | null;
-    end_date?: string | null;
-    end_time?: string | null;
-    list_id?: string | null;
-    is_all_day?: boolean;
-    is_flagged?: boolean;
-    priority?: string;
-    recurrence_frequency?: string | null;
-    recurrence_interval?: number | null;
-    custom_recurrence_unit?: string | null;
-    recurrence_end_date?: string | null;
-    remind_before_value?: number | null;
-    remind_before_unit?: string | null;
-    tags?: string[];
-  }) => {
+  const handleCreateReminderCallback = useCallback(async (data: CreateReminderRequest) => {
     const result = await handleCreateReminder(data);
-    if (result) {
+    if (result.data) {
       setShowAddModal(false);
       showToast('success', '提醒事项已创建');
     } else {
-      showToast('error', '创建提醒事项失败');
+      showToast('error', result.error || '创建提醒事项失败');
     }
   }, [handleCreateReminder, showToast]);
 

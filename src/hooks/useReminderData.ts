@@ -13,58 +13,7 @@ interface ReminderCache {
 /** 缓存 TTL，与自动刷新间隔对齐，避免缓存过期但未刷新的空窗期 */
 const CACHE_TTL = 60000;
 
-/**
- * 判断提醒是否匹配指定过滤器
- * 用于缓存更新时决定该提醒应被加入、保留还是移除
- */
-function doesReminderMatchFilter(reminder: ReminderResponse, filter: string): boolean {
-  if (filter.startsWith('list:')) {
-    const listId = filter.split(':')[1];
-    return reminder.list_id === listId;
-  }
-  const todayStr = getTodayStr();
-  switch (filter) {
-    case 'today':
-      return !reminder.is_completed && reminder.due_date === todayStr;
-    case 'planned':
-      return !reminder.is_completed && reminder.due_date !== null;
-    case 'overdue':
-      return !reminder.is_completed && reminder.due_date !== null && reminder.due_date < todayStr;
-    case 'completed':
-      return reminder.is_completed;
-    case 'urgent':
-      return !reminder.is_completed && reminder.priority === 'high';
-    case 'flagged':
-      return !reminder.is_completed && (reminder.is_flagged || reminder.priority === 'high' || reminder.priority === 'medium');
-    case 'all':
-      return true;
-    default:
-      return true;
-  }
-}
-
-/**
- * 将一个提醒应用到列表中（按过滤器语义增删替换）
- * - 匹配且存在：替换
- * - 匹配且不存在：添加到开头
- * - 不匹配：移除
- */
-function applyReminderToList(
-  list: ReminderResponse[],
-  reminder: ReminderResponse,
-  filter: string,
-): ReminderResponse[] {
-  if (doesReminderMatchFilter(reminder, filter)) {
-    const existed = list.some(r => r.id === reminder.id);
-    if (existed) {
-      return list.map(r => (r.id === reminder.id ? reminder : r));
-    }
-    return [reminder, ...list];
-  }
-  return list.filter(r => r.id !== reminder.id);
-}
-
-export function useReminderData() {
+export function useReminderData(showToast?: (type: 'success' | 'error' | 'info', message: string) => void) {
   const {
     getReminders,
     getRemindersByList,
@@ -95,14 +44,9 @@ export function useReminderData() {
   const [searchQuery, setSearchQuery] = useState('');
   const [clipboard, setClipboard] = useState<{ action: 'cut' | 'copy'; reminder: ReminderResponse } | null>(null);
   const cacheRef = useRef(cache);
-  const isEditingRef = useRef(isEditing);
   useEffect(() => {
     cacheRef.current = cache;
   }, [cache]);
-
-  useEffect(() => {
-    isEditingRef.current = isEditing;
-  }, [isEditing]);
 
   /** 从全量缓存派生，用于计数和日历视图，避免日历只看到当前过滤器的数据 */
   const allReminders = useMemo(() => cache['all']?.data ?? [], [cache]);
@@ -124,18 +68,6 @@ export function useReminderData() {
   /** 加载指定过滤器的提醒数据，force=true 时跳过缓存强制拉取 */
   const loadReminders = useCallback(async (filter: string, force: boolean = false, skipSetReminders: boolean = false) => {
     const cached = getCachedReminders(filter);
-    
-    if (!force && cached) {
-      if (!skipSetReminders) {
-        setReminders(cached);
-      }
-      if (filter === 'all') {
-        setAllDataLoaded(true);
-      } else {
-        setActiveFilterLoaded(true);
-      }
-      return;
-    }
 
     if (cached && !skipSetReminders) {
       setReminders(cached);
@@ -144,6 +76,10 @@ export function useReminderData() {
       } else {
         setActiveFilterLoaded(true);
       }
+    }
+
+    if (!force && cached) {
+      return;
     }
 
     try {
@@ -226,41 +162,28 @@ export function useReminderData() {
     setActiveFilterLoaded(false);
   }, []);
 
-  /** 在所有已缓存过滤器中按语义同步一个提醒（增/改/删） */
-  const upsertReminderInCache = useCallback((reminder: ReminderResponse) => {
-    setCache(prev => {
-      const newCache = { ...prev };
-      Object.keys(newCache).forEach(key => {
-        newCache[key] = {
-          ...newCache[key],
-          data: applyReminderToList(newCache[key].data, reminder, key),
-        };
-      });
-      return newCache;
-    });
-  }, []);
-
-  /** 从所有缓存中移除一个提醒 */
-  const removeReminderFromCache = useCallback((id: string) => {
-    setCache(prev => {
-      const newCache = { ...prev };
-      Object.keys(newCache).forEach(key => {
-        newCache[key] = {
-          ...newCache[key],
-          data: newCache[key].data.filter(r => r.id !== id),
-        };
-      });
-      return newCache;
-    });
-  }, []);
+  /** mutation 后统一失效并重取：搜索态重跑搜索，否则重取 all + 当前过滤器 */
+  const syncAfterMutation = useCallback(async () => {
+    if (searchQuery.trim()) {
+      await handleSearch(searchQuery);
+      return;
+    }
+    if (activeFilter === 'all') {
+      await loadReminders('all', true);
+    } else {
+      await loadReminders('all', true, true);
+      await loadReminders(activeFilter, true);
+    }
+  }, [searchQuery, handleSearch, loadReminders, activeFilter]);
 
   const handleToggleCompleted = useCallback(async (id: string) => {
     const result = await toggleReminderCompleted(id);
     if (result) {
-      setReminders(prev => applyReminderToList(prev, result, activeFilter));
-      upsertReminderInCache(result);
+      await syncAfterMutation();
+    } else {
+      showToast?.('error', '更新提醒状态失败');
     }
-  }, [toggleReminderCompleted, activeFilter, upsertReminderInCache]);
+  }, [toggleReminderCompleted, syncAfterMutation, showToast]);
 
   const handleUpdateReminder = useCallback(async (id: string, updates: Partial<ReminderResponse>) => {
     const { tags: tagObjs, ...rest } = updates;
@@ -271,18 +194,20 @@ export function useReminderData() {
     };
     const result = await updateReminder(request);
     if (result) {
-      setReminders(prev => applyReminderToList(prev, result, activeFilter));
-      upsertReminderInCache(result);
+      await syncAfterMutation();
+    } else {
+      showToast?.('error', '更新提醒失败');
     }
-  }, [updateReminder, activeFilter, upsertReminderInCache]);
+  }, [updateReminder, syncAfterMutation, showToast]);
 
   const handleDeleteReminder = useCallback(async (id: string) => {
     const success = await deleteReminder(id);
     if (success) {
-      setReminders(prev => prev.filter(r => r.id !== id));
-      removeReminderFromCache(id);
+      await syncAfterMutation();
+    } else {
+      showToast?.('error', '删除提醒失败');
     }
-  }, [deleteReminder, removeReminderFromCache]);
+  }, [deleteReminder, syncAfterMutation, showToast]);
 
   const handleCreateReminder = useCallback(async (data: {
     title: string;
@@ -305,70 +230,72 @@ export function useReminderData() {
     tags?: string[];
   }) => {
     const result = await createReminder(data);
-    if (result) {
-      if (doesReminderMatchFilter(result, activeFilter)) {
-        setReminders(prev => [result, ...prev]);
-      }
-      upsertReminderInCache(result);
+    if (result.data) {
+      await syncAfterMutation();
     }
     return result;
-  }, [createReminder, activeFilter, upsertReminderInCache]);
+  }, [createReminder, syncAfterMutation]);
 
   const handleAddList = useCallback(async (name: string) => {
     const result = await createList({ name });
     if (result) {
-      setLists(prev => [...prev, result]);
+      await loadLists();
     }
     return result;
-  }, [createList]);
+  }, [createList, loadLists]);
 
   const handleDeleteList = useCallback(async (id: string) => {
     const success = await deleteList(id);
     if (success) {
-      setLists(prev => prev.filter(l => l.id !== id));
-      setCache(prev => {
-        const newCache = { ...prev };
-        delete newCache[`list:${id}`];
-        return newCache;
-      });
+      await loadLists();
       if (activeFilter === `list:${id}`) {
         setActiveFilter('all');
       }
+    } else {
+      showToast?.('error', '删除列表失败');
     }
     return success;
-  }, [deleteList, activeFilter]);
+  }, [deleteList, activeFilter, loadLists, showToast]);
 
   const handleUpdateList = useCallback(async (id: string, updates: Partial<ListResponse>) => {
     const result = await updateList({ id, ...updates });
     if (result) {
-      setLists(prev => prev.map(l => l.id === id ? result : l));
+      await loadLists();
+    } else {
+      showToast?.('error', '更新列表失败');
     }
     return result;
-  }, [updateList]);
+  }, [updateList, loadLists, showToast]);
 
   const handleUpdateOwner = useCallback(async (id: string, updates: Partial<OwnerResponse>) => {
     const result = await updateOwner({ id, ...updates });
     if (result) {
-      setOwners(prev => prev.map(o => o.id === id ? result : o));
+      await loadOwners();
+    } else {
+      showToast?.('error', '更新所有者失败');
     }
     return result;
-  }, [updateOwner]);
+  }, [updateOwner, loadOwners, showToast]);
 
   const handleAddOwner = useCallback(async (name: string) => {
     const result = await createOwner({ name });
     if (result) {
-      setOwners(prev => [...prev, result]);
+      await loadOwners();
+    } else {
+      showToast?.('error', '创建所有者失败');
     }
     return result;
-  }, [createOwner]);
+  }, [createOwner, loadOwners, showToast]);
 
   const handleDeleteOwner = useCallback(async (id: string) => {
     const success = await deleteOwner(id);
     if (success) {
-      setOwners(prev => prev.filter(o => o.id !== id));
+      await loadOwners();
+    } else {
+      showToast?.('error', '删除所有者失败');
     }
     return success;
-  }, [deleteOwner]);
+  }, [deleteOwner, loadOwners, showToast]);
 
   const handleCutReminder = useCallback((reminder: ReminderResponse) => {
     setClipboard({ action: 'cut', reminder });
@@ -402,31 +329,29 @@ export function useReminderData() {
     };
     
     const result = await createReminder(newReminderData);
-    if (result) {
+    if (result.data) {
       if (clipboard.action === 'cut') {
         await deleteReminder(clipboard.reminder.id);
-        removeReminderFromCache(clipboard.reminder.id);
       }
-      if (doesReminderMatchFilter(result, activeFilter)) {
-        setReminders(prev => [result, ...prev]);
-      }
-      upsertReminderInCache(result);
+      await syncAfterMutation();
+    } else {
+      showToast?.('error', result.error || '粘贴提醒失败');
     }
     
     setClipboard(null);
-    return result;
-  }, [clipboard, createReminder, deleteReminder, removeReminderFromCache, upsertReminderInCache, activeFilter]);
+    return result.data;
+  }, [clipboard, createReminder, deleteReminder, syncAfterMutation, showToast]);
 
-  /** 强制刷新所有已缓存过滤器，编辑中跳过 activeFilter 的 setReminders 避免打断编辑 */
+  /** 强制刷新列表、所有者与提醒（all + 当前过滤器） */
   const refreshData = useCallback(async () => {
     await loadLists();
     await loadOwners();
-    const filters = Object.keys(cacheRef.current);
-    const currentActiveFilter = activeFilter;
-    const currentIsEditing = isEditingRef.current;
-    await Promise.all(
-      filters.map(f => loadReminders(f, true, currentIsEditing && f === currentActiveFilter))
-    );
+    await loadReminders('all', true, true);
+    if (activeFilter !== 'all') {
+      await loadReminders(activeFilter, true);
+    } else {
+      await loadReminders('all', true);
+    }
   }, [loadLists, loadOwners, loadReminders, activeFilter]);
 
   /** 基于全量数据计算各过滤器计数，避免用当前过滤器数据误算 */

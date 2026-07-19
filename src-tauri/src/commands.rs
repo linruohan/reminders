@@ -17,18 +17,67 @@ fn get_conn(db: &State<'_, Database>) -> Arc<Mutex<Connection>> {
     db.conn()
 }
 
-fn map_reminder_with_tags(reminder: Reminder, db: &State<'_, Database>) -> ReminderResponse {
-    let mut resp: ReminderResponse = reminder.into();
-    resp.tags = get_reminder_tags_internal(get_conn(db), &resp.id);
-    resp
+fn parse_date(s: &str) -> Option<NaiveDate> {
+    NaiveDate::parse_from_str(s, "%Y-%m-%d").ok()
 }
 
-fn map_reminders_with_tags(reminders: Vec<Reminder>, db: &State<'_, Database>) -> Vec<ReminderResponse> {
-    reminders.into_iter().map(|r| {
-        let mut resp: ReminderResponse = r.into();
-        resp.tags = get_reminder_tags_internal(get_conn(db), &resp.id);
-        resp
-    }).collect()
+fn parse_time(s: &str) -> Option<NaiveTime> {
+    NaiveTime::parse_from_str(s, "%H:%M").ok()
+}
+
+fn parse_priority(s: &str) -> Priority {
+    match s {
+        "high" => Priority::High,
+        "medium" => Priority::Medium,
+        "low" => Priority::Low,
+        _ => Priority::None,
+    }
+}
+
+/// 在事务中同步提醒的标签：先清空现有关联，再按名称 upsert 标签并重建关联。
+/// 使用事务保证原子性，避免中途失败留下脏数据。
+fn sync_reminder_tags(conn: &mut Connection, reminder_id: &str, tag_names: &[String]) -> Result<(), String> {
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    tx.execute(
+        "DELETE FROM reminder_tags WHERE reminder_id = ?",
+        rusqlite::params![reminder_id],
+    )
+    .map_err(|e| e.to_string())?;
+    for name in tag_names {
+        let tag_id = Uuid::new_v4().to_string();
+        tx.execute(
+            "INSERT OR IGNORE INTO tags (id, name) VALUES (?, ?)",
+            rusqlite::params![tag_id, name],
+        )
+        .map_err(|e| e.to_string())?;
+        let existing_id: String = tx
+            .query_row(
+                "SELECT id FROM tags WHERE name = ?",
+                rusqlite::params![name],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        tx.execute(
+            "INSERT OR IGNORE INTO reminder_tags (reminder_id, tag_id) VALUES (?, ?)",
+            rusqlite::params![reminder_id, existing_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn map_reminder_with_tags(reminder: Reminder, db: &State<'_, Database>) -> Result<ReminderResponse, String> {
+    let mut resp: ReminderResponse = reminder.into();
+    resp.tags = get_reminder_tags_internal(get_conn(db), &resp.id)?;
+    Ok(resp)
+}
+
+fn map_reminders_with_tags(reminders: Vec<Reminder>, db: &State<'_, Database>) -> Result<Vec<ReminderResponse>, String> {
+    reminders
+        .into_iter()
+        .map(|r| map_reminder_with_tags(r, db))
+        .collect()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -212,8 +261,8 @@ pub struct UpdateOwnerRequest {
 pub fn get_all_reminders(db: State<'_, Database>) -> Result<Vec<ReminderResponse>, String> {
     let repo = ReminderRepository::new(get_conn(&db));
     repo.get_all()
-        .map(|reminders| map_reminders_with_tags(reminders, &db))
         .map_err(|e| e.to_string())
+        .and_then(|reminders| map_reminders_with_tags(reminders, &db))
 }
 
 #[command]
@@ -230,8 +279,8 @@ pub fn get_reminders_by_filter(db: State<'_, Database>, filter: String) -> Resul
         _ => repo.get_active(),
     };
     reminders
-        .map(|reminders| map_reminders_with_tags(reminders, &db))
         .map_err(|e| e.to_string())
+        .and_then(|rs| map_reminders_with_tags(rs, &db))
 }
 
 #[command]
@@ -239,8 +288,8 @@ pub fn get_reminders_by_list(db: State<'_, Database>, list_id: String) -> Result
     let repo = ReminderRepository::new(get_conn(&db));
     let id = Uuid::parse_str(&list_id).map_err(|e| e.to_string())?;
     repo.get_by_list_id(&id)
-        .map(|reminders| map_reminders_with_tags(reminders, &db))
         .map_err(|e| e.to_string())
+        .and_then(|reminders| map_reminders_with_tags(reminders, &db))
 }
 
 #[command]
@@ -248,36 +297,31 @@ pub fn get_reminder_by_id(db: State<'_, Database>, id: String) -> Result<Option<
     let repo = ReminderRepository::new(get_conn(&db));
     let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
     repo.get_by_id(&id)
-        .map(|reminder| reminder.map(|r| map_reminder_with_tags(r, &db)))
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?
+        .map(|r| map_reminder_with_tags(r, &db))
+        .transpose()
 }
 
 #[command]
 pub fn create_reminder(db: State<'_, Database>, request: CreateReminderRequest) -> Result<ReminderResponse, String> {
     let mut reminder = Reminder::new(request.title);
-    
-    if let Some(date_str) = request.due_date {
-        if let Ok(date) = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
-            reminder = reminder.with_due_date(date);
-        }
+
+    if let Some(d) = request.due_date.as_deref().and_then(parse_date) {
+        reminder = reminder.with_due_date(d);
     }
-    
-    if let Some(time_str) = request.due_time {
-        if let Ok(time) = NaiveTime::parse_from_str(&time_str, "%H:%M") {
-            reminder = reminder.with_due_time(time);
-        }
+
+    if let Some(t) = request.due_time.as_deref().and_then(parse_time) {
+        reminder = reminder.with_due_time(t);
     }
-    
+
     if let Some(desc) = request.description {
         reminder = reminder.with_description(desc);
     }
-    
-    if let Some(list_id_str) = request.list_id {
-        if let Ok(list_id) = Uuid::parse_str(&list_id_str) {
-            reminder = reminder.with_list_id(list_id);
-        }
+
+    if let Some(list_id) = request.list_id.as_deref().and_then(|s| Uuid::parse_str(s).ok()) {
+        reminder = reminder.with_list_id(list_id);
     }
-    
+
     if request.is_all_day {
         reminder = reminder.with_is_all_day();
     }
@@ -286,71 +330,45 @@ pub fn create_reminder(db: State<'_, Database>, request: CreateReminderRequest) 
         reminder.url = Some(url);
     }
 
-    if let Some(end_date_str) = request.end_date {
-        if let Ok(end_date) = NaiveDate::parse_from_str(&end_date_str, "%Y-%m-%d") {
-            reminder.end_date = Some(end_date);
-        }
+    if let Some(d) = request.end_date.as_deref().and_then(parse_date) {
+        reminder.end_date = Some(d);
     }
 
-    if let Some(end_time_str) = request.end_time {
-        if let Ok(end_time) = NaiveTime::parse_from_str(&end_time_str, "%H:%M") {
-            reminder.end_time = Some(end_time);
-        }
+    if let Some(t) = request.end_time.as_deref().and_then(parse_time) {
+        reminder.end_time = Some(t);
     }
 
     if request.is_flagged {
         reminder.is_flagged = true;
     }
 
-    if let Some(priority_str) = request.priority {
-        reminder.priority = match priority_str.as_str() {
-            "high" => Priority::High,
-            "medium" => Priority::Medium,
-            "low" => Priority::Low,
-            _ => Priority::None,
-        };
+    if let Some(p) = request.priority.as_deref() {
+        reminder.priority = parse_priority(p);
     }
 
     reminder.recurrence_frequency = request.recurrence_frequency;
     reminder.recurrence_interval = request.recurrence_interval;
     reminder.custom_recurrence_unit = request.custom_recurrence_unit;
 
-    if let Some(re_end_str) = request.recurrence_end_date {
-        if let Ok(re_end) = NaiveDate::parse_from_str(&re_end_str, "%Y-%m-%d") {
-            reminder.recurrence_end_date = Some(re_end);
-        }
+    if let Some(d) = request.recurrence_end_date.as_deref().and_then(parse_date) {
+        reminder.recurrence_end_date = Some(d);
     }
 
     reminder.remind_before_value = request.remind_before_value;
     reminder.remind_before_unit = request.remind_before_unit;
-    
+
     let reminder_id = reminder.id.to_string();
     let repo = ReminderRepository::new(get_conn(&db));
     repo.insert(&reminder).map_err(|e| e.to_string())?;
 
     if let Some(tag_names) = request.tags {
         let conn = get_conn(&db);
-        let conn = conn.lock().unwrap();
-        for name in tag_names {
-            let tag_id = Uuid::new_v4().to_string();
-            conn.execute(
-                "INSERT OR IGNORE INTO tags (id, name) VALUES (?, ?)",
-                rusqlite::params![tag_id, name],
-            ).map_err(|e| e.to_string())?;
-            let existing_id: String = conn.query_row(
-                "SELECT id FROM tags WHERE name = ?",
-                rusqlite::params![name],
-                |row| row.get(0),
-            ).map_err(|e| e.to_string())?;
-            conn.execute(
-                "INSERT OR IGNORE INTO reminder_tags (reminder_id, tag_id) VALUES (?, ?)",
-                rusqlite::params![reminder_id, existing_id],
-            ).map_err(|e| e.to_string())?;
-        }
+        let mut conn = conn.lock().unwrap();
+        sync_reminder_tags(&mut *conn, &reminder_id, &tag_names)?;
     }
-    
+
     let mut resp: ReminderResponse = reminder.into();
-    resp.tags = get_reminder_tags_internal(get_conn(&db), &reminder_id);
+    resp.tags = get_reminder_tags_internal(get_conn(&db), &reminder_id)?;
     Ok(resp)
 }
 
@@ -373,66 +391,33 @@ pub fn update_reminder(db: State<'_, Database>, request: UpdateReminderRequest) 
     if let Some(url) = request.url {
         reminder.url = if url.is_empty() { None } else { Some(url) };
     }
-    if let Some(date_str) = request.due_date {
-        if date_str.is_empty() {
-            reminder.due_date = None;
-        } else if let Ok(date) = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
-            reminder.due_date = Some(date);
-        }
+    if let Some(s) = request.due_date {
+        reminder.due_date = if s.is_empty() { None } else { parse_date(&s) };
     }
-    if let Some(time_str) = request.due_time {
-        if time_str.is_empty() {
-            reminder.due_time = None;
-        } else if let Ok(time) = NaiveTime::parse_from_str(&time_str, "%H:%M") {
-            reminder.due_time = Some(time);
-        }
+    if let Some(s) = request.due_time {
+        reminder.due_time = if s.is_empty() { None } else { parse_time(&s) };
     }
-    if let Some(end_date_str) = request.end_date {
-        if end_date_str.is_empty() {
-            reminder.end_date = None;
-        } else if let Ok(end_date) = NaiveDate::parse_from_str(&end_date_str, "%Y-%m-%d") {
-            reminder.end_date = Some(end_date);
-        }
+    if let Some(s) = request.end_date {
+        reminder.end_date = if s.is_empty() { None } else { parse_date(&s) };
     }
-    if let Some(end_time_str) = request.end_time {
-        if end_time_str.is_empty() {
-            reminder.end_time = None;
-        } else if let Ok(end_time) = NaiveTime::parse_from_str(&end_time_str, "%H:%M") {
-            reminder.end_time = Some(end_time);
-        }
+    if let Some(s) = request.end_time {
+        reminder.end_time = if s.is_empty() { None } else { parse_time(&s) };
     }
     if let Some(is_completed) = request.is_completed {
         reminder.is_completed = is_completed;
-        if is_completed {
-            reminder.completion_date = Some(Local::now());
-        } else {
-            reminder.completion_date = None;
-        }
+        reminder.completion_date = if is_completed { Some(Local::now()) } else { None };
     }
     if let Some(is_flagged) = request.is_flagged {
         reminder.is_flagged = is_flagged;
     }
-    if let Some(priority_str) = request.priority {
-        reminder.priority = match priority_str.as_str() {
-            "high" => Priority::High,
-            "medium" => Priority::Medium,
-            "low" => Priority::Low,
-            _ => Priority::None,
-        };
+    if let Some(s) = request.priority {
+        reminder.priority = if s.is_empty() { Priority::None } else { parse_priority(&s) };
     }
-    if let Some(list_id_str) = request.list_id {
-        if list_id_str.is_empty() {
-            reminder.list_id = None;
-        } else if let Ok(list_id) = Uuid::parse_str(&list_id_str) {
-            reminder.list_id = Some(list_id);
-        }
+    if let Some(s) = request.list_id {
+        reminder.list_id = if s.is_empty() { None } else { Uuid::parse_str(&s).ok() };
     }
-    if let Some(owner_id_str) = request.owner_id {
-        if owner_id_str.is_empty() {
-            reminder.owner_id = None;
-        } else if let Ok(owner_id) = Uuid::parse_str(&owner_id_str) {
-            reminder.owner_id = Some(owner_id);
-        }
+    if let Some(s) = request.owner_id {
+        reminder.owner_id = if s.is_empty() { None } else { Uuid::parse_str(&s).ok() };
     }
     if let Some(is_all_day) = request.is_all_day {
         reminder.is_all_day = is_all_day;
@@ -444,47 +429,28 @@ pub fn update_reminder(db: State<'_, Database>, request: UpdateReminderRequest) 
     if let Some(cru) = request.custom_recurrence_unit {
         reminder.custom_recurrence_unit = if cru.is_empty() { None } else { Some(cru) };
     }
-    if let Some(re_end_str) = request.recurrence_end_date {
-        if re_end_str.is_empty() {
-            reminder.recurrence_end_date = None;
-        } else if let Ok(re_end) = NaiveDate::parse_from_str(&re_end_str, "%Y-%m-%d") {
-            reminder.recurrence_end_date = Some(re_end);
-        }
+    if let Some(s) = request.recurrence_end_date {
+        reminder.recurrence_end_date = if s.is_empty() { None } else { parse_date(&s) };
     }
     reminder.remind_before_value = request.remind_before_value;
     if let Some(rbu) = request.remind_before_unit {
         reminder.remind_before_unit = if rbu.is_empty() { None } else { Some(rbu) };
     }
-    
+
     repo.update(&reminder).map_err(|e| e.to_string())?;
 
     if let Some(tag_names) = request.tags {
         let conn = get_conn(&db);
-        let conn = conn.lock().unwrap();
+        let mut conn = conn.lock().unwrap();
         conn.execute(
             "DELETE FROM reminder_tags WHERE reminder_id = ?",
             rusqlite::params![reminder_id],
         ).map_err(|e| e.to_string())?;
-        for name in tag_names {
-            let tag_id = Uuid::new_v4().to_string();
-            conn.execute(
-                "INSERT OR IGNORE INTO tags (id, name) VALUES (?, ?)",
-                rusqlite::params![tag_id, name],
-            ).map_err(|e| e.to_string())?;
-            let existing_id: String = conn.query_row(
-                "SELECT id FROM tags WHERE name = ?",
-                rusqlite::params![name],
-                |row| row.get(0),
-            ).map_err(|e| e.to_string())?;
-            conn.execute(
-                "INSERT OR IGNORE INTO reminder_tags (reminder_id, tag_id) VALUES (?, ?)",
-                rusqlite::params![reminder_id, existing_id],
-            ).map_err(|e| e.to_string())?;
-        }
+        sync_reminder_tags(&mut *conn, &reminder_id, &tag_names)?;
     }
-    
+
     let mut resp: ReminderResponse = reminder.into();
-    resp.tags = get_reminder_tags_internal(get_conn(&db), &reminder_id);
+    resp.tags = get_reminder_tags_internal(get_conn(&db), &reminder_id)?;
     Ok(resp)
 }
 
@@ -512,7 +478,7 @@ pub fn toggle_reminder_completed(db: State<'_, Database>, id: String) -> Result<
     }
     
     repo.update(&reminder).map_err(|e| e.to_string())?;
-    Ok(map_reminder_with_tags(reminder, &db))
+    map_reminder_with_tags(reminder, &db)
 }
 
 #[command]
@@ -581,27 +547,27 @@ pub fn get_all_owners(db: State<'_, Database>) -> Result<Vec<OwnerResponse>, Str
 pub fn search_reminders(db: State<'_, Database>, query: String) -> Result<Vec<ReminderResponse>, String> {
     let repo = ReminderRepository::new(get_conn(&db));
     repo.search(&query)
-        .map(|reminders| map_reminders_with_tags(reminders, &db))
         .map_err(|e| e.to_string())
+        .and_then(|reminders| map_reminders_with_tags(reminders, &db))
 }
 
-fn get_reminder_tags_internal(conn: Arc<Mutex<Connection>>, reminder_id: &str) -> Vec<TagResponse> {
+fn get_reminder_tags_internal(conn: Arc<Mutex<Connection>>, reminder_id: &str) -> Result<Vec<TagResponse>, String> {
     let conn = conn.lock().unwrap();
     let mut stmt = conn.prepare(
         "SELECT t.id, t.name FROM tags t INNER JOIN reminder_tags rt ON t.id = rt.tag_id WHERE rt.reminder_id = ?"
-    ).unwrap();
+    ).map_err(|e| e.to_string())?;
     let rows = stmt.query_map([reminder_id], |row| {
         Ok(TagResponse {
             id: row.get(0)?,
             name: row.get(1)?,
         })
-    }).unwrap();
-    rows.filter_map(|r| r.ok()).collect()
+    }).map_err(|e| e.to_string())?;
+    Ok(rows.filter_map(|r| r.ok()).collect())
 }
 
 #[command]
 pub fn get_reminder_tags(db: State<'_, Database>, reminder_id: String) -> Result<Vec<TagResponse>, String> {
-    Ok(get_reminder_tags_internal(get_conn(&db), &reminder_id))
+    get_reminder_tags_internal(get_conn(&db), &reminder_id)
 }
 
 #[command]

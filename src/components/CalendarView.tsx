@@ -1,13 +1,14 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { ReminderResponse, ListResponse } from '@/types/api';
-import { getDaysInMonth, formatMonthYear, isSameDay, toISODateStr } from '@/utils/dateUtils';
+import { getDaysInMonth, isSameDay, toISODateStr } from '@/utils/dateUtils';
 import { AddReminderModal } from './AddReminderModal';
 
 
 type ViewMode = 'day' | 'week' | 'month' | 'year';
 
 const weekDays = ['一', '二', '三', '四', '五', '六', '日'];
+const weekDaysFromSun = ['日', '一', '二', '三', '四', '五', '六'];
 const timelineHours = Array.from({ length: 13 }, (_, i) => i + 9);
 const HOUR_HEIGHT = 56;
 
@@ -34,32 +35,33 @@ function MiniMonth({ year, month, reminders }: { year: number; month: number; re
     const result: (Date | null)[] = [];
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const startPad = (firstDay.getDay() + 6) % 7;
+    // 从周日开始，周日=0
+    const startPad = firstDay.getDay();
     for (let i = 0; i < startPad; i++) result.push(null);
     for (let i = 1; i <= lastDay.getDate(); i++) result.push(new Date(year, month, i));
     return result;
   }, [year, month]);
 
-  const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+  const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 
   return (
-    <div className="p-2">
-      <div className="text-xs font-semibold text-gray-700 mb-1.5 text-center">{monthNames[month]}</div>
+    <div className="p-3">
+      <div className="text-sm font-semibold text-gray-700 mb-2 text-center">{monthNames[month]}</div>
       <div className="grid grid-cols-7 gap-0">
-          {weekDays.map(d => (
-            <div key={d} className="text-[9px] text-gray-400 text-center h-4 leading-4">{d}</div>
-          ))}
+        {weekDaysFromSun.map(d => (
+          <div key={d} className="text-[10px] text-gray-400 text-center h-5 leading-5">{d}</div>
+        ))}
         {days.map((d, i) => {
           if (!d) return <div key={`e-${i}`} />;
           const hasReminder = getRemindersForDate(reminders, d).length > 0;
           const today = isSameDay(d, new Date());
           return (
-            <div key={i} className="text-center h-5 leading-5 relative text-[10px]">
-              <span className={`inline-block w-4 h-4 leading-4 rounded-full ${today ? 'bg-apple-red text-white' : 'text-gray-600'}`}>
+            <div key={i} className="text-center h-6 leading-6 relative text-xs">
+              <span className={`inline-block w-5 h-5 leading-5 rounded-full ${today ? 'bg-apple-red text-white font-medium' : 'text-gray-600'}`}>
                 {d.getDate()}
               </span>
-              {hasReminder && (
-                <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-2 h-0.5 rounded-full bg-red-500" />
+              {hasReminder && !today && (
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-[2px] rounded-full bg-red-500" />
               )}
             </div>
           );
@@ -70,7 +72,7 @@ function MiniMonth({ year, month, reminders }: { year: number; month: number; re
 }
 
 function TimelineSlot({ hour }: { hour: number }) {
-  const label = hour > 12 ? `${hour - 12}时` : `${hour}时`;
+  const label = `${String(hour).padStart(2, '0')}:00`;
   return (
     <div className="flex border-b border-apple-divider" style={{ height: HOUR_HEIGHT }}>
       <div className="w-14 flex-shrink-0 flex items-center justify-end pr-2">
@@ -426,13 +428,13 @@ interface CalendarViewProps {
     remind_before_value?: number | null;
     remind_before_unit?: string | null;
     tags?: string[];
-  }) => Promise<ReminderResponse | null>;
+  }) => Promise<{ data: ReminderResponse | null; error: string | null }>;
 }
 
 export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteReminder, onCreateReminder }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ReminderResponse[]>([]);
@@ -546,75 +548,78 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
 
   const getTitle = useCallback(() => {
     switch (viewMode) {
-      case 'day': {
-        const ms = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
-        return `${ms[selectedDate.getMonth()]}${selectedDate.getDate()}日`;
-      }
-      case 'week': {
-        const end = new Date(weeksStartMon);
-        end.setDate(end.getDate() + 6);
-        return `${weeksStartMon.getMonth() + 1}月${weeksStartMon.getDate()}日 - ${end.getMonth() + 1}月${end.getDate()}日`;
-      }
-      case 'month': return formatMonthYear(currentDate);
+      case 'day':
+      case 'week':
+        return `${year}年${month + 1}月`;
+      case 'month': return `${year}年${month + 1}月`;
       case 'year': return `${year}年`;
     }
-  }, [viewMode, selectedDate, weeksStartMon, currentDate, year]);
+  }, [viewMode, selectedDate, weeksStartMon, currentDate, year, month]);
 
   const handlePrev = () => navigatePeriod(-1);
   const handleNext = () => navigatePeriod(1);
 
   return (
     <main className="flex-1 h-full flex flex-col">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-5 py-3">
-        <div className="w-[120px] flex items-center">
-          <button
-            onClick={() => { setAddModalDate(''); setAddModalTime(''); setShowAddModal(true); }}
-            className="w-8 h-8 rounded-full bg-apple-blue text-white flex items-center justify-center hover:bg-apple-blue-hover transition-colors shadow-sm active:scale-95"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-          </button>
-        </div>
-
-        <div className="flex items-center bg-gray-100/80 rounded-[10px] p-0.5">
-          {(['day', 'week', 'month', 'year'] as ViewMode[]).map(mode => (
+      {/* Toolbar - 参考图片布局 */}
+      <div className="flex flex-col border-b border-apple-divider">
+        {/* 第一行：添加按钮 + 视图切换 + 搜索 */}
+        <div className="flex items-center justify-between px-5 py-2">
+          <div className="flex items-center gap-2">
             <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              className={`px-3 py-1.5 text-sm font-medium rounded-[8px] transition-all spring-transition ${
-                viewMode === mode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
-              }`}
+              onClick={() => { setAddModalDate(''); setAddModalTime(''); setShowAddModal(true); }}
+              className="w-8 h-8 rounded-full bg-apple-blue text-white flex items-center justify-center hover:bg-apple-blue-hover transition-colors shadow-sm active:scale-95"
             >
-              {{ day: '日', week: '周', month: '月', year: '年' }[mode]}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
             </button>
-          ))}
+          </div>
+
+          <div className="flex items-center bg-gray-100/80 rounded-[10px] p-0.5">
+            {(['day', 'week', 'month', 'year'] as ViewMode[]).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`px-4 py-1.5 text-sm font-medium rounded-[8px] transition-all spring-transition ${
+                  viewMode === mode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                {{ day: '日', week: '周', month: '月', year: '年' }[mode]}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-500 bg-gray-100/80 rounded-[10px] hover:bg-gray-200/80 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <span className="hidden sm:inline">搜索</span>
+            </button>
+          </div>
         </div>
 
-        <div className="w-[120px] flex items-center justify-end gap-1">
-          <button onClick={handlePrev} className="w-7 h-7 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-all active:scale-95">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
-          </button>
-          <button onClick={goToToday} className="px-2.5 py-1 text-sm font-medium text-apple-blue hover:bg-blue-50 rounded-[8px] transition-colors">
+        {/* 第二行：前后切换 + 年月标题 + 今天按钮 */}
+        <div className="flex items-center justify-between px-5 pb-2">
+          <div className="flex items-center gap-2">
+            <button onClick={handlePrev} className="w-7 h-7 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-all active:scale-95">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <button onClick={handleNext} className="w-7 h-7 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-all active:scale-95">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+            <span className="text-xl font-semibold text-gray-900">{getTitle()}</span>
+          </div>
+          <button onClick={goToToday} className="px-3 py-1 text-sm font-medium text-apple-red hover:bg-red-50 rounded-[8px] transition-colors">
             今天
-          </button>
-          <button onClick={handleNext} className="w-7 h-7 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-all active:scale-95">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <polyline points="9 18 15 12 9 6"/>
-            </svg>
-          </button>
-          <span className="text-sm font-semibold text-gray-800 min-w-[80px] ml-1">{getTitle()}</span>
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-500 bg-gray-100/80 rounded-[10px] hover:bg-gray-200/80 transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <span className="hidden sm:inline">搜索</span>
           </button>
         </div>
       </div>
@@ -715,6 +720,7 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
   );
 }
 
+/** 日视图 - 显示一周日期头部 + 选中日期的时间线 */
 function DayView({
   date,
   reminders,
@@ -734,6 +740,18 @@ function DayView({
   const dayTimed = useMemo(() => getRemindersForDate(reminders, date).filter(r => !r.is_all_day), [reminders, date]);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverMinute, setHoverMinute] = useState<number | null>(null);
+
+  // 计算一周日期（周一到周日）
+  const weekDates = useMemo(() => {
+    const start = getWeekStartMon(date);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return d;
+    });
+  }, [date]);
+
+  const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
   const getMinuteFromY = useCallback((clientY: number) => {
     if (!timelineRef.current) return null;
@@ -760,9 +778,18 @@ function DayView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="text-center py-2 border-b border-apple-divider bg-gray-50/50">
-        <span className="text-xs font-semibold text-gray-500">{weekDays[(date.getDay() + 6) % 7]}</span>
-        <span className="text-base font-semibold text-gray-800 ml-2">{date.getDate()}</span>
+      {/* 一周日期头部 */}
+      <div className="flex border-b border-apple-divider bg-gray-50/50">
+        {weekDates.map((d, i) => {
+          const isToday = isSameDay(d, new Date());
+          return (
+            <div key={i} className="flex-1 text-center py-2 border-l border-gray-200">
+              <div className={`text-sm font-medium ${isToday ? 'text-apple-red' : 'text-gray-500'}`}>
+                {d.getDate()} {dayNames[d.getDay()]}
+              </div>
+            </div>
+          );
+        })}
       </div>
       <AllDaySection
         reminders={dayAllDay}
@@ -846,38 +873,52 @@ function WeekView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="grid grid-cols-7 border-b border-apple-divider bg-gray-50/50">
-        {weekDates.map((d, i) => {
-          const isToday = isSameDay(d, new Date());
-          return (
-            <div key={i} className="text-center py-2 border-r border-apple-divider last:border-r-0">
-              <div className={`text-xs font-semibold ${isToday ? 'text-apple-red' : 'text-gray-500'}`}>{weekDays[i]}</div>
-              <div className={`text-base font-semibold ${isToday ? 'text-apple-red' : 'text-gray-800'}`}>{d.getDate()}</div>
-            </div>
-          );
-        })}
+      {/* 日期头部 - 与下方全天/时间线对齐 */}
+      <div className="flex border-b border-apple-divider bg-gray-50/50">
+        <div className="w-14 flex-shrink-0" />
+        <div className="flex-1 grid grid-cols-7">
+          {weekDates.map((d, i) => {
+            const isToday = isSameDay(d, new Date());
+            return (
+              <div key={i} className="text-center py-2 border-l border-gray-200">
+                <div className={`text-xs font-semibold ${isToday ? 'text-apple-red' : 'text-gray-500'}`}>{weekDays[i]}</div>
+                <div className={`text-base font-semibold ${isToday ? 'text-apple-red' : 'text-gray-800'}`}>{d.getDate()}</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
-      <div className="grid grid-cols-7 border-b border-apple-divider bg-gray-50/40">
-        {weekDates.map((d, i) => {
-          const dayAllDay = getRemindersForDate(reminders, d).filter(r => r.is_all_day);
-          return (
-            <div key={i} className="flex items-center gap-1 px-1 overflow-x-auto border-r border-apple-divider last:border-r-0" style={{ height: HOUR_HEIGHT }}>
-              {dayAllDay.map(r => {
-                const color = getListColor(lists, r.list_id);
-                return (
-                  <button key={r.id} onClick={() => onReminderClick(r)}
-                    className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-[4px] bg-white/80 hover:bg-white shadow-sm truncate max-w-full spring-transition"
-                  >
-                    <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ backgroundColor: color }} />
-                    <span className={r.is_completed ? 'text-gray-400 line-through' : 'text-gray-700'}>{r.title}</span>
-                  </button>
-                );
-              })}
-              <div className="flex-1 h-full" onDoubleClick={() => onAllDayDoubleClick(d)} />
-            </div>
-          );
-        })}
+      {/* 全天区域 - 与日视图一致 */}
+      <div
+        className="flex border-b border-apple-divider bg-gray-50/40"
+        style={{ height: HOUR_HEIGHT }}
+        onDoubleClick={() => onAllDayDoubleClick(weekDates[0])}
+      >
+        <div className="w-14 flex-shrink-0 flex items-center justify-end pr-2">
+          <span className="text-xs text-gray-400 font-medium">全天</span>
+        </div>
+        <div className="flex-1 grid grid-cols-7">
+          {weekDates.map((d, i) => {
+            const dayAllDay = getRemindersForDate(reminders, d).filter(r => r.is_all_day);
+            return (
+              <div key={i} className="flex items-center gap-1 overflow-x-auto px-2 border-l border-gray-200" onDoubleClick={() => onAllDayDoubleClick(d)}>
+                {dayAllDay.map(r => {
+                  const color = getListColor(lists, r.list_id);
+                  return (
+                    <button key={r.id} onClick={() => onReminderClick(r)}
+                      className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-white/80 hover:bg-white shadow-sm text-xs transition-colors spring-transition whitespace-nowrap"
+                    >
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                      <span className={r.is_completed ? 'text-gray-400 line-through' : 'text-gray-700'}>{r.title}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
       </div>
+      {/* 时间线区域 - 只保留最左侧时间标签 */}
       <div
         ref={timelineRef}
         className="flex-1 overflow-y-auto relative"
@@ -885,43 +926,49 @@ function WeekView({
         onMouseLeave={handleMouseLeave}
         onDoubleClick={handleDblClick}
       >
-        <div className="grid grid-cols-7 relative" style={{ height: 13 * HOUR_HEIGHT }}>
-          {weekDates.map((d, colIdx) => {
-            const dayTimed = getRemindersForDate(reminders, d).filter(r => !r.is_all_day);
-            return (
-              <div key={colIdx} className="relative border-r border-apple-divider last:border-r-0">
-                {timelineHours.map(hour => (
-                  <TimelineSlot key={hour} hour={hour} />
-                ))}
-                {dayTimed.map(r => {
-                  const hour = r.due_time ? parseInt(r.due_time.split(':')[0]) : 9;
-                  const minute = r.due_time ? parseInt(r.due_time.split(':')[1]) : 0;
-                  const top = (hour - 9) * HOUR_HEIGHT + (minute / 60) * HOUR_HEIGHT;
-                  const height = (BLOCK_MINUTES / 60) * HOUR_HEIGHT;
-                  const color = getListColor(lists, r.list_id);
-                  return (
-                    <div
-                      key={r.id}
-                      className="absolute left-0.5 right-0.5 z-10 cursor-pointer"
-                      style={{ top, height }}
-                      onClick={() => onReminderClick(r)}
-                    >
-                      <div className="h-full rounded-apple-sm border-l-[3px] bg-blue-50/60 border-blue-400 shadow-sm hover:shadow-md transition-shadow spring-transition flex items-center px-1.5" style={{ borderLeftColor: color }}>
-                        <div className="flex items-center gap-1 w-full">
-                          <span className={`flex-1 text-[11px] font-medium truncate leading-tight ${r.is_completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
-                            {r.title}
-                          </span>
-                          {r.due_time && (
-                            <span className="text-[9px] font-medium text-gray-400 flex-shrink-0">{r.due_time}</span>
-                          )}
+        <div className="flex relative" style={{ height: 13 * HOUR_HEIGHT }}>
+          {/* 左侧时间标签列 */}
+          <div className="w-14 flex-shrink-0">
+            {timelineHours.map(hour => (
+              <TimelineSlot key={hour} hour={hour} />
+            ))}
+          </div>
+          {/* 7 天列 */}
+          <div className="flex-1 grid grid-cols-7 relative">
+            {weekDates.map((d, colIdx) => {
+              const dayTimed = getRemindersForDate(reminders, d).filter(r => !r.is_all_day);
+              return (
+                <div key={colIdx} className="relative border-l border-gray-200">
+                  {dayTimed.map(r => {
+                    const hour = r.due_time ? parseInt(r.due_time.split(':')[0]) : 9;
+                    const minute = r.due_time ? parseInt(r.due_time.split(':')[1]) : 0;
+                    const top = (hour - 9) * HOUR_HEIGHT + (minute / 60) * HOUR_HEIGHT;
+                    const height = (BLOCK_MINUTES / 60) * HOUR_HEIGHT;
+                    const color = getListColor(lists, r.list_id);
+                    return (
+                      <div
+                        key={r.id}
+                        className="absolute left-0.5 right-0.5 z-10 cursor-pointer"
+                        style={{ top, height }}
+                        onClick={() => onReminderClick(r)}
+                      >
+                        <div className="h-full rounded-apple-sm border-l-[3px] bg-blue-50/60 border-blue-400 shadow-sm hover:shadow-md transition-shadow spring-transition flex items-center px-1.5" style={{ borderLeftColor: color }}>
+                          <div className="flex items-center gap-1 w-full">
+                            <span className={`flex-1 text-[11px] font-medium truncate leading-tight ${r.is_completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                              {r.title}
+                            </span>
+                            {r.due_time && (
+                              <span className="text-[9px] font-medium text-gray-400 flex-shrink-0">{r.due_time}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
           {hoverInfo !== null && (
             <div className="absolute left-0 right-0 z-30 pointer-events-none" style={{ top: (hoverInfo.minute / 60) * HOUR_HEIGHT }}>
               <div className="flex items-center ml-14">
@@ -959,9 +1006,9 @@ function MonthView({
 }) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="grid grid-cols-7 px-4 py-2 bg-gray-50/50">
+      <div className="grid grid-cols-7 px-4 py-2 bg-gray-50/50 border-b border-apple-divider">
         {weekDays.map(d => (
-          <div key={d} className="text-center text-xs font-semibold text-gray-500 py-1">{d}</div>
+          <div key={d} className="text-center text-xs font-semibold text-gray-500 py-1 border-l border-gray-200 first:border-l-0">{d}</div>
         ))}
       </div>
       <div className="flex-1 grid grid-cols-7 px-4 pb-4 overflow-y-auto auto-rows-fr">
@@ -970,11 +1017,12 @@ function MonthView({
           const isToday = isSameDay(day, today);
           const isSelected = isSameDay(day, selectedDate);
           const dayReminders = getRemindersForDate(reminders, day);
+          const isLastRow = index >= days.length - 7;
           return (
             <div
               key={index}
               onClick={() => onSelectDate(new Date(day))}
-              className={`min-h-[80px] p-2 cursor-pointer transition-all duration-200 spring-transition rounded-[10px] ${
+              className={`min-h-[80px] p-2 cursor-pointer transition-all duration-200 spring-transition border-l border-gray-200 ${index % 7 === 0 ? 'border-l-0' : ''} ${isLastRow ? '' : 'border-b border-gray-200'} ${
                 isSelected ? 'bg-blue-50/90' : 'hover:bg-white/80'
               } ${!isCurrentMonth ? 'opacity-40' : ''}`}
             >
@@ -1015,11 +1063,11 @@ function YearView({
   onMonthClick: (year: number, month: number) => void;
 }) {
   return (
-    <div className="flex-1 overflow-y-auto px-4 pb-4">
-      <div className="grid grid-cols-4 gap-3 h-full">
+    <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="grid grid-cols-4 gap-4">
         {Array.from({ length: 12 }, (_, i) => (
           <button key={i} onClick={() => onMonthClick(year, i)}
-            className="bg-white/80 hover:bg-white rounded-apple-lg shadow-sm border border-apple-divider transition-all spring-transition text-left">
+            className="text-left hover:opacity-80 transition-opacity spring-transition">
             <MiniMonth year={year} month={i} reminders={reminders} />
           </button>
         ))}
