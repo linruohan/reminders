@@ -137,7 +137,7 @@ jobs:
               "text": "Build ${{ github.workflow }} ${{ job.status }}",
               "attachments": [
                 {
-                  "color": "${{ job.status == 'success' ? '#36a64f' : '#ff0000' }}",
+                  "color": "${{ if eq(job.status, 'success') }}#36a64f${{ else }}#ff0000${{ endif }}",
                   "title": "${{ format('Reminders {0}', github.ref_name) }}",
                   "fields": [
                     {"title": "Branch", "value": "${{ github.ref_name }}", "short": true},
