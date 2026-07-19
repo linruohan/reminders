@@ -10,9 +10,46 @@ npm run dev           # Vite frontend dev server only (http://localhost:5173)
 cargo tauri dev       # full app: dev server + Tauri desktop window
 npm run build         # tsc typecheck + vite build (run before cargo tauri build)
 cargo tauri build     # production desktop app bundle
+npm run build:windows # build Windows EXE (frontend + Tauri)
+npm run build:dev     # build development version (debug)
+npm run build:beta    # build beta version
+npm run build:prod    # build production version
 ```
 
 No test / lint / format scripts in package.json. TypeScript strict mode with `noUnusedLocals` and `noUnusedParameters`.
+
+## Git Flow Workflow
+
+### Branch Structure
+- `main` — production releases
+- `develop` — development branch (default)
+- `release/*` — release preparation branches
+- `beta/*` — beta testing branches
+
+### GitHub Actions
+Automatic builds triggered on:
+- Push to `main`, `develop`, `release/**`, `beta/**`
+- Pull request to `main` or `develop`
+- Manual workflow dispatch
+
+### Build Environments
+| Branch Pattern | Environment | Release Type |
+|---------------|-------------|--------------|
+| `main` | production | Full release |
+| `release/**` | production | Full release |
+| `beta/**` | beta | Pre-release |
+| `develop` | development | Dev build |
+
+### Optional GitHub Secrets
+- `WINDOWS_CERTIFICATE` — Base64-encoded Authenticode certificate (.pfx)
+- `WINDOWS_CERTIFICATE_PASSWORD` — Certificate password
+- `SLACK_WEBHOOK` — Slack webhook URL for build notifications
+
+### Local Build Script
+```powershell
+.\scripts\build-windows.ps1 -Branch develop -Version 0.1.0 -Environment development
+.\scripts\build-windows.ps1 -Branch release/0.2.0 -Version 0.2.0 -Environment production
+```
 
 ## Structure
 

@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:windows": "tsc && vite build && cargo tauri build --target x86_64-pc-windows-msvc",
+    "build:dev": "tsc && vite build && cargo tauri build --target x86_64-pc-windows-msvc --debug"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",

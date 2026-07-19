@@ -1,0 +1,154 @@
+name: Build & Release
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'release/**'
+      - 'beta/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Build environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - beta
+          - development
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      BUILD_ENV: ${{ github.event.inputs.environment || contains(github.ref, 'release/') && 'production' || contains(github.ref, 'beta/') && 'beta' || github.ref == 'refs/heads/main' && 'production' || 'development' }}
+      HAS_CERT: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
+      HAS_SLACK: ${{ secrets.SLACK_WEBHOOK != '' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-msvc
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Tauri application (development)
+        if: env.BUILD_ENV == 'development'
+        uses: tauri-apps/tauri-action@v0
+        with:
+          target: x86_64-pc-windows-msvc
+          debug: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Tauri application (beta)
+        if: env.BUILD_ENV == 'beta'
+        uses: tauri-apps/tauri-action@v0
+        with:
+          tagName: ${{ format('beta-{0}', github.ref_name) }}
+          releaseName: ${{ format('Reminders Beta {0}', github.ref_name) }}
+          releaseBody: 'Beta build from CI'
+          releaseDraft: true
+          prerelease: true
+          target: x86_64-pc-windows-msvc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Tauri application (production)
+        if: env.BUILD_ENV == 'production'
+        uses: tauri-apps/tauri-action@v0
+        with:
+          tagName: ${{ format('v{0}', github.ref_name) }}
+          releaseName: ${{ format('Reminders {0}', github.ref_name) }}
+          releaseBody: 'Production release'
+          releaseDraft: false
+          prerelease: false
+          target: x86_64-pc-windows-msvc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup MSVC for signing
+        if: env.HAS_CERT == 'true'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Sign executable with Authenticode
+        if: env.HAS_CERT == 'true'
+        run: |
+          $certBytes = [Convert]::FromBase64String("${{ secrets.WINDOWS_CERTIFICATE }}")
+          $certPath = "$env:TEMP\cert.pfx"
+          [IO.File]::WriteAllBytes($certPath, $certBytes)
+          $signPath = "$env:ProgramFiles (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
+          if (-not (Test-Path $signPath)) {
+              $signPath = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter "signtool.exe" -Recurse | Select-Object -First 1).FullName
+          }
+          & $signPath sign /f $certPath /p "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" /t http://timestamp.digicert.com /v "src-tauri\target\x86_64-pc-windows-msvc\release\reminders.exe"
+          & $signPath sign /f $certPath /p "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" /t http://timestamp.digicert.com /v "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\msi\*.msi"
+          & $signPath sign /f $certPath /p "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}" /t http://timestamp.digicert.com /v "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\*.exe"
+
+      - name: Upload development artifacts
+        if: env.BUILD_ENV == 'development'
+        uses: actions/upload-artifact@v4
+        with:
+          name: reminders-dev
+          path: |
+            src-tauri/target/x86_64-pc-windows-msvc/debug/reminders.exe
+            src-tauri/target/x86_64-pc-windows-msvc/debug/bundle/**/*
+          if-no-files-found: error
+
+      - name: Upload beta artifacts
+        if: env.BUILD_ENV == 'beta'
+        uses: actions/upload-artifact@v4
+        with:
+          name: reminders-beta
+          path: |
+            src-tauri/target/x86_64-pc-windows-msvc/release/reminders.exe
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*
+          if-no-files-found: error
+
+      - name: Send Slack notification
+        if: env.HAS_SLACK == 'true'
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "Build ${{ github.workflow }} ${{ job.status }}",
+              "attachments": [
+                {
+                  "color": "${{ job.status == 'success' ? '#36a64f' : '#ff0000' }}",
+                  "title": "${{ format('Reminders {0}', github.ref_name) }}",
+                  "fields": [
+                    {"title": "Branch", "value": "${{ github.ref_name }}", "short": true},
+                    {"title": "Environment", "value": "${{ env.BUILD_ENV }}", "short": true},
+                    {"title": "Commit", "value": "${{ github.sha }}", "short": true},
+                    {"title": "Actor", "value": "${{ github.actor }}", "short": true}
+                  ],
+                  "footer": "GitHub Actions",
+                  "footer_icon": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
