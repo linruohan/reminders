@@ -17,7 +17,7 @@ function ToastItem({ message, onRemove }: ToastProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onRemove(message.id);
-    }, 3000);
+    }, 3500);
 
     return () => clearTimeout(timer);
   }, [message.id, onRemove]);
@@ -51,7 +51,7 @@ function ToastItem({ message, onRemove }: ToastProps) {
 
   return (
     <div
-      className={`${bgColors[message.type]} text-white px-4 py-3 rounded-[12px] shadow-lg flex items-center gap-3 min-w-[280px] animate-slide-in cursor-pointer hover:opacity-90 transition-opacity spring-transition`}
+      className={`${bgColors[message.type]} text-white px-5 py-3 rounded-[14px] shadow-[0_4px_16px_rgba(0,0,0,0.2)] flex items-center gap-3 min-w-[280px] animate-slide-up cursor-pointer hover:opacity-90 transition-opacity duration-200 spring-transition`}
       onClick={() => onRemove(message.id)}
     >
       <span>{icons[message.type]}</span>
@@ -67,7 +67,7 @@ interface ToastContainerProps {
 
 export function ToastContainer({ messages, onRemove }: ToastContainerProps) {
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+    <div className="fixed bottom-8 right-8 z-50 flex flex-col gap-2">
       {messages.map((msg) => (
         <ToastItem key={msg.id} message={msg} onRemove={onRemove} />
       ))}

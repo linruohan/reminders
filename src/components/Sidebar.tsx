@@ -21,29 +21,29 @@ interface SidebarProps {
 }
 
 const quickFilters = [
-  { id: 'today', label: '今天', icon: 'calendar', bgColor: 'bg-blue-400', iconColor: 'text-blue-600' },
-  { id: 'planned', label: '计划', icon: 'calendarDays', bgColor: 'bg-red-400', iconColor: 'text-red-600' },
-  { id: 'all', label: '全部', icon: 'mail', bgColor: 'bg-gray-600', iconColor: 'text-gray-700' },
-  { id: 'flagged', label: '旗标', icon: 'flag', bgColor: 'bg-orange-400', iconColor: 'text-orange-600' },
-  { id: 'urgent', label: '紧急', icon: 'alert', bgColor: 'bg-pink-400', iconColor: 'text-pink-600' },
-  { id: 'completed', label: '完成', icon: 'check', bgColor: 'bg-gray-400', iconColor: 'text-gray-600' },
+  { id: 'today', label: '今天', icon: 'calendar', color: '#007AFF', gradient: 'from-blue-400 to-blue-500' },
+  { id: 'planned', label: '计划', icon: 'calendarDays', color: '#FF3B30', gradient: 'from-red-400 to-red-500' },
+  { id: 'all', label: '全部', icon: 'mail', color: '#8E8E93', gradient: 'from-gray-400 to-gray-500' },
+  { id: 'flagged', label: '旗标', icon: 'flag', color: '#FF9500', gradient: 'from-orange-400 to-orange-500' },
+  { id: 'urgent', label: '紧急', icon: 'alert', color: '#FF2D55', gradient: 'from-pink-400 to-pink-500' },
+  { id: 'completed', label: '完成', icon: 'check', color: '#C7C7CC', gradient: 'from-gray-300 to-gray-400' },
 ];
 
 function QuickFilterItem({ filter, active, onClick, count }: { filter: typeof quickFilters[0]; active: boolean; onClick: () => void; count: number }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex flex-col items-start px-3 py-2.5 rounded-[14px] transition-all duration-200 spring-transition ${
+      className={`w-full flex flex-col items-start px-3 py-3 rounded-[16px] transition-all duration-300 spring-transition ${
         active
-          ? `${filter.bgColor} shadow-[0_8px_24px_rgba(0,0,0,0.25)] scale-[1.02] border-2 border-black/30`
-          : `${filter.bgColor} shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.15)] hover:scale-[1.02]`
+          ? `bg-gradient-to-br ${filter.gradient} shadow-[0_8px_28px_rgba(0,0,0,0.25)] scale-[1.03]`
+          : `bg-[#F2F2F7] shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] hover:scale-[1.02]`
       }`}
     >
       <div className="flex items-center justify-between w-full mb-1">
-        <Icon name={filter.icon} size={18} className="text-white" />
-        <span className="text-lg font-bold text-white/90 leading-none">{count}</span>
+        <Icon name={filter.icon} size={18} className={active ? "text-white" : "text-gray-700"} />
+        <span className={`text-lg font-bold leading-none ${active ? 'text-white/90' : 'text-gray-600'}`}>{count}</span>
       </div>
-      <span className="text-sm font-semibold text-white">{filter.label}</span>
+      <span className={`text-sm font-semibold ${active ? 'text-white' : 'text-gray-700'}`}>{filter.label}</span>
     </button>
   );
 }
@@ -52,22 +52,22 @@ function ListItem({ list, active, onClick, count }: { list: ListResponse; active
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-[12px] transition-all duration-200 spring-transition ${
+      className={`w-full flex items-center justify-between px-4 py-2.5 rounded-[14px] transition-all duration-250 spring-transition ${
         active
-          ? 'bg-blue-50 text-apple-blue'
-          : 'text-gray-700 hover:bg-white/80'
+          ? 'bg-apple-blue/10 text-apple-blue shadow-[0_2px_8px_rgba(0,122,255,0.12)]'
+          : 'text-gray-700 hover:bg-white/90'
       }`}
     >
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-3">
         <div
-          className="w-5 h-5 rounded-[6px] flex items-center justify-center shadow-sm"
+          className="w-5 h-5 rounded-[8px] flex items-center justify-center shadow-sm"
           style={{ backgroundColor: list.color }}
         >
-          <Icon name="list" size={10} className="text-white" />
+          <Icon name="list" size={11} className="text-white" />
         </div>
         <span className="text-sm font-semibold truncate">{list.name}</span>
       </div>
-      <span className={`text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full ${
+      <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full transition-all ${
         active ? 'bg-apple-blue text-white' : 'bg-gray-100 text-gray-600'
       }`}>
         {count}
@@ -161,24 +161,24 @@ export function Sidebar({
   };
 
   return (
-    <aside className="w-60 h-full flex flex-col border-r border-white/30">
-      <div className="px-3 pt-3">
+    <aside className="w-60 h-full flex flex-col">
+      <div className="px-4 pt-4">
         <div className="relative">
           <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-apple-gray" />
           <input
             type="text"
             placeholder="搜索"
             onChange={handleSearchInput}
-            className="w-full h-9 pl-9 pr-8 bg-white/70 rounded-[12px] text-sm text-gray-900 placeholder-apple-gray focus:ring-2 focus:ring-apple-blue/30 focus:bg-white outline-none border border-white/50 shadow-sm transition-all duration-200 spring-transition"
+            className="w-full h-10 pl-10 pr-10 bg-white/80 rounded-[14px] text-sm text-gray-900 placeholder-apple-gray focus:ring-2 focus:ring-apple-blue/30 focus:bg-white focus:shadow-[0_0_0_3px_rgba(0,122,255,0.1)] outline-none border border-white/60 shadow-sm transition-all duration-250 spring-transition"
           />
           <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-apple-gray bg-gray-100/80 px-1.5 py-0.5 rounded-[4px]">Ctrl+F</kbd>
         </div>
       </div>
 
-      <div className="px-3 py-2">
-        <div className="grid grid-cols-2 gap-1.5">
+      <div className="px-3 py-3">
+        <div className="grid grid-cols-2 gap-2">
           {quickFilters.map((filter, index) => (
-            <div key={filter.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 50}ms` }}>
+            <div key={filter.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 60}ms` }}>
               <QuickFilterItem
                 filter={filter}
                 active={activeFilter === filter.id}
@@ -190,7 +190,7 @@ export function Sidebar({
         </div>
       </div>
 
-      <div className="px-4 py-2 mt-2 flex items-center justify-between">
+      <div className="px-4 py-2 flex items-center justify-between">
         <button
           onClick={() => setListsExpanded(!listsExpanded)}
           className="flex items-center gap-2 text-xs font-semibold text-apple-gray uppercase tracking-wide hover:text-gray-700 transition-colors spring-transition"
@@ -203,7 +203,7 @@ export function Sidebar({
           <button
             onClick={cycleSortOrder}
             title={`切换排序方式（当前：${getSortIndicator()}）`}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-[8px] hover:bg-white/60 transition-colors spring-transition"
+            className="flex items-center gap-1.5 px-2 py-1 rounded-[10px] hover:bg-white/70 transition-all duration-200 spring-transition"
           >
             <Icon name="sort" size={12} className="text-apple-gray" />
             <span className="text-[10px] font-medium text-apple-gray">{getSortIndicator().slice(0, 4)}</span>
@@ -212,9 +212,9 @@ export function Sidebar({
       </div>
 
       {listsExpanded && (
-        <div className="flex-1 overflow-y-auto px-3">
+        <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-0.5">
           {sortedLists.map((list, index) => (
-            <div key={list.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 30}ms` }}>
+            <div key={list.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 40}ms` }}>
               <ListItem
                 list={list}
                 active={activeFilter === `list:${list.id}`}
@@ -229,10 +229,10 @@ export function Sidebar({
       <div className="px-3 py-3">
         <button
           onClick={onAddList}
-          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-[12px] text-apple-blue hover:bg-blue-50/80 transition-all duration-200 spring-transition hover-scale"
+          className="w-full flex items-center gap-2 px-4 py-2.5 rounded-[14px] text-apple-blue hover:bg-blue-50/90 transition-all duration-250 spring-transition hover:scale-[1.02] active:scale-[0.98]"
         >
-          <Icon name="plus" size={14} />
-          <span className="text-sm font-medium">添加列表</span>
+          <Icon name="plus" size={16} />
+          <span className="text-sm font-semibold">添加列表</span>
         </button>
       </div>
     </aside>

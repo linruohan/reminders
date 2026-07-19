@@ -93,48 +93,49 @@ export function App() {
       <AuroraBackground />
       
       <div className="relative z-10 h-full flex flex-col">
-        <div className="flex-1 flex flex-col overflow-hidden glass-card-dark">
-          <TitleBar currentView={currentView} onViewChange={setCurrentView} />
+        <TitleBar currentView={currentView} onViewChange={setCurrentView} />
 
-          {isInitialLoading && currentView === 'reminder' ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="w-8 h-8 border-2 border-apple-blue border-t-transparent rounded-full animate-spin" />
+        {isInitialLoading && currentView === 'reminder' ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="relative">
+              <div className="w-10 h-10 border-3 border-apple-blue border-t-transparent rounded-full animate-spin" />
+              <div className="absolute inset-0 w-10 h-10 border-3 border-apple-blue/30 border-t-transparent rounded-full animate-spin" style={{ animationDuration: '1.5s' }} />
             </div>
-          ) : currentView === 'reminder' ? (
-            <div className="flex-1 flex overflow-hidden">
-              <ReminderPage
-                reminders={reminders}
-                lists={lists}
-                owners={owners}
-                activeFilter={activeFilter}
-                filterCounts={filterCounts}
-                onFilterChange={handleFilterChange}
-                onSearch={handleSearch}
-                onToggleCompleted={handleToggleCompleted}
-                onUpdateReminder={handleUpdateReminder}
-                onDeleteReminder={handleDeleteReminder}
-                onCreateReminder={() => setShowAddModal(true)}
-                onAddList={handleAddListCallback}
-                onEditStart={() => setIsEditing(true)}
-                onEditEnd={() => setIsEditing(false)}
-                onCut={handleCutReminder}
-                onCopy={handleCopyReminder}
-                onPaste={handlePasteReminder}
-                canPaste={clipboard !== null}
-              />
-            </div>
-          ) : (
-            <div className="flex-1 flex overflow-hidden">
-              <CalendarPage
-                reminders={allReminders}
-                lists={lists}
-                onUpdateReminder={handleUpdateReminder}
-                onDeleteReminder={handleDeleteReminder}
-                onCreateReminder={handleCreateReminder}
-              />
-            </div>
-          )}
-        </div>
+          </div>
+        ) : currentView === 'reminder' ? (
+          <div className="flex-1 flex overflow-hidden">
+            <ReminderPage
+              reminders={reminders}
+              lists={lists}
+              owners={owners}
+              activeFilter={activeFilter}
+              filterCounts={filterCounts}
+              onFilterChange={handleFilterChange}
+              onSearch={handleSearch}
+              onToggleCompleted={handleToggleCompleted}
+              onUpdateReminder={handleUpdateReminder}
+              onDeleteReminder={handleDeleteReminder}
+              onCreateReminder={() => setShowAddModal(true)}
+              onAddList={handleAddListCallback}
+              onEditStart={() => setIsEditing(true)}
+              onEditEnd={() => setIsEditing(false)}
+              onCut={handleCutReminder}
+              onCopy={handleCopyReminder}
+              onPaste={handlePasteReminder}
+              canPaste={clipboard !== null}
+            />
+          </div>
+        ) : (
+          <div className="flex-1 flex overflow-hidden">
+            <CalendarPage
+              reminders={allReminders}
+              lists={lists}
+              onUpdateReminder={handleUpdateReminder}
+              onDeleteReminder={handleDeleteReminder}
+              onCreateReminder={handleCreateReminder}
+            />
+          </div>
+        )}
 
         {showAddModal && (
           <AddReminderModal

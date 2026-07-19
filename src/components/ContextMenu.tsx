@@ -69,7 +69,7 @@ export function ContextMenu({
 
   if (!isOpen) return null;
 
-  const menuWidth = 220;
+  const menuWidth = 230;
   const adjustedX = Math.min(x, window.innerWidth - menuWidth - 8);
   const adjustedY = Math.min(y, window.innerHeight - 380);
 
@@ -84,15 +84,15 @@ export function ContextMenu({
     <div className="fixed inset-0 z-50">
       <div
         ref={menuRef}
-        className="absolute bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-scale-in"
+        className="absolute bg-white rounded-[16px] shadow-[0_12px_48px_rgba(0,0,0,0.18)] border border-apple-divider overflow-hidden animate-scale-in"
         style={{ left: adjustedX, top: adjustedY, width: menuWidth }}
       >
         <div className="py-1">
           <button
             onClick={() => { onToggleCompleted(); onClose(); }}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-900 hover:bg-gray-100/90 transition-all duration-150 spring-transition"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
             {isCompleted ? '标记为未完成' : '标记为完成'}
@@ -100,9 +100,9 @@ export function ContextMenu({
 
           <button
             onClick={() => { onShowDetail(); onClose(); }}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-900 hover:bg-gray-100/90 transition-all duration-150 spring-transition"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="16" x2="12" y2="12"/>
               <line x1="12" y1="8" x2="12.01" y2="8"/>
@@ -110,26 +110,26 @@ export function ContextMenu({
             显示简介
           </button>
 
-          <div className="h-px bg-apple-divider my-1" />
+          <div className="h-px bg-apple-divider my-0.5" />
 
           <button
             onClick={() => { onDelete(); onClose(); }}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-500 hover:bg-red-50/60 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50/80 transition-all duration-150 spring-transition"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"/>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
             </svg>
             删除
           </button>
 
-          <div className="h-px bg-apple-divider my-1" />
+          <div className="h-px bg-apple-divider my-0.5" />
 
           <button
             onClick={() => { onCut(); onClose(); }}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-900 hover:bg-gray-100/90 transition-all duration-150 spring-transition"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 17v-4a4 4 0 0 0-4-4H5"/>
               <line x1="9" y1="9" x2="20" y2="20"/>
               <path d="M20 20V10a2 2 0 0 0-2-2h-6"/>
@@ -139,9 +139,9 @@ export function ContextMenu({
 
           <button
             onClick={() => { onCopy(); onClose(); }}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-900 hover:bg-gray-100/90 transition-all duration-150 spring-transition"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
             </svg>
@@ -151,15 +151,15 @@ export function ContextMenu({
           <div className="relative">
             <button 
               onClick={() => setExpandedSubmenu(expandedSubmenu === 'paste' ? null : 'paste')}
-              className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
+              className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-all duration-150 spring-transition ${
                 canPaste 
-                  ? 'text-gray-900 hover:bg-gray-100/80' 
+                  ? 'text-gray-900 hover:bg-gray-100/90' 
                   : 'text-gray-400 cursor-not-allowed'
               }`}
               disabled={!canPaste}
             >
               <span className="flex items-center gap-3">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="12" y="12" width="13" height="13" rx="2" ry="2"/>
                   <path d="M19 12H9a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2z"/>
                 </svg>
@@ -178,10 +178,10 @@ export function ContextMenu({
               </svg>
             </button>
             {expandedSubmenu === 'paste' && canPaste && (
-              <div className="absolute left-full top-0 ml-1 bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-slide-left w-[160px]">
+              <div className="absolute left-full top-0 ml-1 bg-white rounded-[14px] shadow-[0_12px_48px_rgba(0,0,0,0.18)] border border-apple-divider overflow-hidden animate-slide-left w-[170px]">
                 <button
                   onClick={() => { onPaste(null); onClose(); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-900 hover:bg-gray-100/90 transition-all duration-150 spring-transition"
                 >
                   <span className="inline-block w-2 h-2 rounded-full bg-gray-400" />
                   原列表
@@ -190,7 +190,7 @@ export function ContextMenu({
                   <button
                     key={list.id}
                     onClick={() => { onPaste(list.id); onClose(); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-900 hover:bg-gray-100/90 transition-all duration-150 spring-transition"
                   >
                     <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: list.color }} />
                     {list.name}
@@ -200,13 +200,13 @@ export function ContextMenu({
             )}
           </div>
 
-          <div className="h-px bg-apple-divider my-1" />
+          <div className="h-px bg-apple-divider my-0.5" />
 
           <button
             onClick={() => { onSetDueDate(getTomorrowStr()); onClose(); }}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-900 hover:bg-gray-100/90 transition-all duration-150 spring-transition"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
               <line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
@@ -216,10 +216,10 @@ export function ContextMenu({
           <div className="relative">
             <button 
               onClick={() => setExpandedSubmenu(expandedSubmenu === 'move' ? null : 'move')}
-              className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+              className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-gray-900 hover:bg-gray-100/90 transition-all duration-150 spring-transition"
             >
               <span className="flex items-center gap-3">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                   <line x1="9" y1="3" x2="9" y2="21"/>
                   <line x1="15" y1="3" x2="15" y2="21"/>
@@ -239,12 +239,12 @@ export function ContextMenu({
               </svg>
             </button>
             {expandedSubmenu === 'move' && (
-              <div className="absolute left-full top-0 ml-1 bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-slide-left w-[160px]">
+              <div className="absolute left-full top-0 ml-1 bg-white rounded-[14px] shadow-[0_12px_48px_rgba(0,0,0,0.18)] border border-apple-divider overflow-hidden animate-slide-left w-[170px]">
                 {lists.map((list) => (
                   <button
                     key={list.id}
                     onClick={() => { onMoveToList(list.id); onClose(); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-900 hover:bg-gray-100/90 transition-all duration-150 spring-transition"
                   >
                     <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: list.color }} />
                     {list.name}
@@ -257,10 +257,10 @@ export function ContextMenu({
           <div className="relative">
             <button 
               onClick={() => setExpandedSubmenu(expandedSubmenu === 'priority' ? null : 'priority')}
-              className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors"
+              className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-gray-900 hover:bg-gray-100/90 transition-all duration-150 spring-transition"
             >
               <span className="flex items-center gap-3">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="3 11 22 2 13 21 11 13 3 11"/>
                 </svg>
                 优先级
@@ -281,29 +281,29 @@ export function ContextMenu({
               </div>
             </button>
             {expandedSubmenu === 'priority' && (
-              <div className="absolute left-full top-0 ml-1 bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-apple-divider overflow-hidden animate-slide-left w-[140px]">
+              <div className="absolute left-full top-0 ml-1 bg-white rounded-[14px] shadow-[0_12px_48px_rgba(0,0,0,0.18)] border border-apple-divider overflow-hidden animate-slide-left w-[150px]">
                 {(['none', 'low', 'medium', 'high'] as const).map((priority) => (
                   <button
                     key={priority}
                     onClick={() => { onSetPriority(priority); onClose(); }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
+                    className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-all duration-150 spring-transition ${
                       currentPriority === priority
                         ? 'bg-blue-50 text-apple-blue'
-                        : 'text-gray-900 hover:bg-gray-100/80'
+                        : 'text-gray-900 hover:bg-gray-100/90'
                     }`}
                   >
                     {priority === 'high' && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#FF3B30" stroke="#FF3B30" strokeWidth="2">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#FF3B30" stroke="#FF3B30" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                       </svg>
                     )}
                     {priority === 'medium' && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#FF9500" stroke="#FF9500" strokeWidth="2">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#FF9500" stroke="#FF9500" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                       </svg>
                     )}
                     {priority === 'low' && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#007AFF" stroke="#007AFF" strokeWidth="2">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#007AFF" stroke="#007AFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                       </svg>
                     )}
@@ -314,13 +314,13 @@ export function ContextMenu({
             )}
           </div>
 
-          <div className="h-px bg-apple-divider my-1" />
+          <div className="h-px bg-apple-divider my-0.5" />
 
           <button
             onClick={onClose}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors opacity-50 cursor-not-allowed"
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-900 hover:bg-gray-100/90 transition-all duration-150 spring-transition opacity-50 cursor-not-allowed"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
             </svg>
@@ -329,9 +329,9 @@ export function ContextMenu({
 
           <button
             onClick={onClose}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-900 hover:bg-gray-100/80 transition-colors opacity-50 cursor-not-allowed"
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-900 hover:bg-gray-100/90 transition-all duration-150 spring-transition opacity-50 cursor-not-allowed"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
             </svg>
             通知

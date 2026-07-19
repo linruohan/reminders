@@ -151,15 +151,15 @@ export function ReminderList({
   
   return (
     <main className="flex-1 h-full flex flex-col relative">
-      <div className="flex items-start justify-between px-6 pt-6 pb-4">
+      <div className="flex items-start justify-between px-8 pt-6 pb-5">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight text-title">{getTitle()}</h1>
+          <h1 className="text-32 font-bold text-gray-900 tracking-tight text-title">{getTitle()}</h1>
           {completedCount > 0 && (
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1.5">
               <span className="text-sm text-apple-gray">{completedCount}项已完成</span>
               <button
                 onClick={() => setShowCompleted(!showCompleted)}
-                className={`text-sm font-medium cursor-pointer transition-colors spring-transition ${
+                className={`text-sm font-semibold cursor-pointer transition-all duration-200 spring-transition ${
                   showCompleted ? 'text-apple-blue hover:text-[#0066CC]' : 'text-apple-orange hover:text-orange-600'
                 }`}
               >
@@ -168,20 +168,23 @@ export function ReminderList({
             </div>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-2xl font-bold text-apple-orange tracking-tight">{reminders.length}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-36 font-bold text-apple-orange tracking-tight">{reminders.length}</span>
+          <span className="text-sm text-apple-gray mt-2">项</span>
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto px-6 pb-20">
+      <div className="flex-1 overflow-y-auto px-6 pb-24">
           {reminders.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-apple-gray">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <line x1="9" y1="3" x2="9" y2="21"/>
-                <line x1="15" y1="3" x2="15" y2="21"/>
-              </svg>
-              <span className="mt-4 text-base font-medium">没有提醒事项</span>
+              <div className="w-16 h-16 rounded-[24px] bg-[#F2F2F7] flex items-center justify-center mb-4">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="9" y1="3" x2="9" y2="21"/>
+                  <line x1="15" y1="3" x2="15" y2="21"/>
+                </svg>
+              </div>
+              <span className="text-base font-medium">没有提醒事项</span>
             </div>
           ) : (
             <div className="space-y-1">
@@ -215,9 +218,9 @@ export function ReminderList({
 
       <button
         onClick={onCreateReminder}
-        className="absolute bottom-6 right-6 w-10 h-10 rounded-full flex items-center justify-center bg-apple-blue text-white hover:bg-[#0066CC] hover:brightness-105 transition-all duration-200 spring-transition shadow-[0_2px_8px_rgba(0,122,255,0.3)] hover-scale z-30"
+        className="absolute bottom-8 right-8 w-14 h-14 rounded-full flex items-center justify-center bg-apple-blue text-white hover:bg-[#0066CC] hover:brightness-105 transition-all duration-300 spring-transition shadow-[0_4px_16px_rgba(0,122,255,0.4)] hover:shadow-[0_6px_24px_rgba(0,122,255,0.5)] hover:scale-[1.05] active:scale-[0.95]"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"/>
           <line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
