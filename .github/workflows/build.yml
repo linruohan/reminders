@@ -5,8 +5,8 @@ on:
     branches:
       - main
       - develop
-      - 'release/**'
-      - 'beta/**'
+      - "release/**"
+      - "beta/**"
   pull_request:
     branches:
       - main
@@ -14,9 +14,9 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Build environment'
+        description: "Build environment"
         required: true
-        default: 'production'
+        default: "production"
         type: choice
         options:
           - production
@@ -30,7 +30,6 @@ jobs:
       BUILD_ENV: ${{ github.event.inputs.environment || contains(github.ref, 'release/') && 'production' || contains(github.ref, 'beta/') && 'beta' || github.ref == 'refs/heads/main' && 'production' || 'development' }}
       HAS_CERT: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
       HAS_SLACK: ${{ secrets.SLACK_WEBHOOK != '' }}
-      SLACK_COLOR: ${{ contains(job.status, 'success') && '#36a64f' || '#ff0000' }}
 
     steps:
       - name: Checkout code
@@ -42,7 +41,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install frontend dependencies
         run: npm install
@@ -71,7 +70,7 @@ jobs:
         with:
           tagName: ${{ format('beta-{0}', github.ref_name) }}
           releaseName: ${{ format('Reminders Beta {0}', github.ref_name) }}
-          releaseBody: 'Beta build from CI'
+          releaseBody: "Beta build from CI"
           releaseDraft: true
           prerelease: true
           target: x86_64-pc-windows-msvc
@@ -84,7 +83,7 @@ jobs:
         with:
           tagName: ${{ format('v{0}', github.ref_name) }}
           releaseName: ${{ format('Reminders {0}', github.ref_name) }}
-          releaseBody: 'Production release'
+          releaseBody: "Production release"
           releaseDraft: false
           prerelease: false
           target: x86_64-pc-windows-msvc
@@ -138,7 +137,7 @@ jobs:
               "text": "Build ${{ github.workflow }} ${{ job.status }}",
               "attachments": [
                 {
-                  "color": "${{ env.SLACK_COLOR }}",
+                  "color": "#36a64f",
                   "title": "${{ format('Reminders {0}', github.ref_name) }}",
                   "fields": [
                     {"title": "Branch", "value": "${{ github.ref_name }}", "short": true},
