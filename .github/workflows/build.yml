@@ -30,6 +30,7 @@ jobs:
       BUILD_ENV: ${{ github.event.inputs.environment || contains(github.ref, 'release/') && 'production' || contains(github.ref, 'beta/') && 'beta' || github.ref == 'refs/heads/main' && 'production' || 'development' }}
       HAS_CERT: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
       HAS_SLACK: ${{ secrets.SLACK_WEBHOOK != '' }}
+      SLACK_COLOR: ${{ contains(job.status, 'success') && '#36a64f' || '#ff0000' }}
 
     steps:
       - name: Checkout code
@@ -137,7 +138,7 @@ jobs:
               "text": "Build ${{ github.workflow }} ${{ job.status }}",
               "attachments": [
                 {
-                  "color": "${{ if eq(job.status, 'success') }}#36a64f${{ else }}#ff0000${{ endif }}",
+                  "color": "${{ env.SLACK_COLOR }}",
                   "title": "${{ format('Reminders {0}', github.ref_name) }}",
                   "fields": [
                     {"title": "Branch", "value": "${{ github.ref_name }}", "short": true},
