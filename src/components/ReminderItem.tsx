@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
 import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, TimeUnit, Priority, RecurrenceFrequency } from '@/types/api';
 import { formatDate, formatTime, getDateColor } from '@/utils/dateUtils';
+import { buildUpdates } from '@/utils/reminderUpdates';
 import { ReminderDetailModal } from './ReminderDetailModal';
 import { ContextMenu } from './ContextMenu';
 import { recurrenceOptions, remindOptions } from './reminder/formOptions';
@@ -13,53 +14,6 @@ import { ReminderTagsDropdown } from './reminder/ReminderTagsDropdown';
 import { ReminderRepeatDropdown } from './reminder/ReminderRepeatDropdown';
 import { ReminderEndRepeatDropdown } from './reminder/ReminderEndRepeatDropdown';
 import { ReminderListDropdown } from './reminder/ReminderListDropdown';
-
-function buildUpdates(
-  reminder: ReminderResponse,
-  values: Partial<ReminderResponse>,
-): Partial<ReminderResponse> {
-  const updates: Partial<ReminderResponse> = {};
-  if (values.title !== undefined && values.title !== reminder.title) {
-    updates.title = values.title;
-  }
-  if (values.description !== reminder.description) {
-    updates.description = values.description ?? null;
-  }
-  if (values.url !== undefined && values.url !== reminder.url) {
-    updates.url = values.url ?? null;
-  }
-  if (values.due_date !== reminder.due_date) {
-    updates.due_date = values.due_date ?? null;
-  }
-  if (values.due_time !== reminder.due_time) {
-    updates.due_time = values.due_time ?? null;
-  }
-  if (values.is_flagged !== undefined && values.is_flagged !== reminder.is_flagged) {
-    updates.is_flagged = values.is_flagged;
-  }
-  if (values.list_id !== undefined && values.list_id !== reminder.list_id) {
-    updates.list_id = values.list_id ?? null;
-  }
-  if (values.recurrence_frequency !== undefined && values.recurrence_frequency !== reminder.recurrence_frequency) {
-    updates.recurrence_frequency = values.recurrence_frequency ?? null;
-  }
-  if (values.recurrence_interval !== undefined && values.recurrence_interval !== reminder.recurrence_interval) {
-    updates.recurrence_interval = values.recurrence_interval ?? null;
-  }
-  if (values.custom_recurrence_unit !== undefined && values.custom_recurrence_unit !== reminder.custom_recurrence_unit) {
-    updates.custom_recurrence_unit = values.custom_recurrence_unit ?? null;
-  }
-  if (values.recurrence_end_date !== undefined && values.recurrence_end_date !== reminder.recurrence_end_date) {
-    updates.recurrence_end_date = values.recurrence_end_date ?? null;
-  }
-  if (values.remind_before_value !== undefined && values.remind_before_value !== reminder.remind_before_value) {
-    updates.remind_before_value = values.remind_before_value ?? null;
-  }
-  if (values.remind_before_unit !== undefined && values.remind_before_unit !== reminder.remind_before_unit) {
-    updates.remind_before_unit = values.remind_before_unit ?? null;
-  }
-  return updates;
-}
 
 interface ReminderItemProps {
   reminder: ReminderResponse;
@@ -216,35 +170,129 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number } | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const draftRef = useRef<Partial<ReminderResponse>>({});
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  const toRemindFields = useCallback((remindValue: string) => {
+    if (remindValue && remindValue !== 'custom') {
+      const unit = remindValue.slice(-1);
+      const num = parseInt(remindValue.slice(0, -1), 10);
+      const unitMap: Record<string, TimeUnit> = { d: 'days', w: 'weeks', M: 'days' };
+      return {
+        remind_before_value: Number.isFinite(num) ? num : null,
+        remind_before_unit: unitMap[unit] || null,
+      };
+    }
+    if (remindValue === 'custom') {
+      return { remind_before_value: 1, remind_before_unit: 'days' as TimeUnit };
+    }
+    return { remind_before_value: null, remind_before_unit: null };
+  }, []);
+
+  const publishDraft = useCallback((patch: Partial<ReminderResponse>) => {
+    draftRef.current = { ...draftRef.current, ...patch };
+    onChangeRef.current(draftRef.current);
+  }, []);
+
+  // 初始化草稿，保证外部点击保存能读到完整字段
+  useEffect(() => {
+    const initial: Partial<ReminderResponse> = {
+      title: reminder.title,
+      description: reminder.description || null,
+      url: reminder.url || null,
+      due_date: reminder.due_date || null,
+      due_time: reminder.due_time || null,
+      is_flagged: reminder.is_flagged ?? false,
+      list_id: reminder.list_id || null,
+      recurrence_frequency: reminder.recurrence_frequency ?? null,
+      recurrence_interval: reminder.recurrence_frequency === 'custom' ? (reminder.recurrence_interval ?? 1) : null,
+      custom_recurrence_unit: reminder.recurrence_frequency === 'custom' ? (reminder.custom_recurrence_unit ?? 'days') : null,
+      recurrence_end_date: reminder.recurrence_end_date || null,
+      ...toRemindFields(
+        reminder.remind_before_value == null
+          ? ''
+          : (() => {
+              const unitMap: Record<string, string> = { day: 'd', week: 'w', month: 'M', days: 'd', weeks: 'w' };
+              const u = unitMap[reminder.remind_before_unit || ''] || '';
+              return u ? `${reminder.remind_before_value}${u}` : 'custom';
+            })()
+      ),
+    };
+    draftRef.current = initial;
+    onChangeRef.current(initial);
+  }, [reminder, toRemindFields]);
+
+  const closeDropdown = useCallback(() => {
+    setActiveDropdown(null);
+    setDropdownRect(null);
+  }, []);
 
   const toggleDropdown = useCallback((name: string, e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    const rect = e.currentTarget.getBoundingClientRect();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     if (activeDropdown === name) {
-      setActiveDropdown(null);
-      setDropdownRect(null);
+      closeDropdown();
     } else {
       setActiveDropdown(name);
       setDropdownRect({ top: rect.bottom + 4, left: rect.left });
     }
-  }, [activeDropdown]);
+  }, [activeDropdown, closeDropdown]);
 
-  useEffect(() => {
-    onChange({
-      title: editTitle,
-      description: editNotes || null,
-      url: editUrl || null,
-      due_date: editDate || null,
-      due_time: editTime || null,
-      is_flagged: editIsFlagged !== reminder.is_flagged ? editIsFlagged : undefined,
-      list_id: editListId || null,
-      recurrence_frequency: (editRecurrenceFreq || null) as RecurrenceFrequency | null,
-      recurrence_interval: editRecurrenceFreq === 'custom' ? editRecurrenceInterval : null,
-      custom_recurrence_unit: editRecurrenceFreq === 'custom' ? editCustomUnit : null,
-      recurrence_end_date: editRecurrenceEndDate || null,
+  const updateTitle = (value: string) => {
+    setEditTitle(value);
+    publishDraft({ title: value });
+  };
+  const updateNotes = (value: string) => {
+    setEditNotes(value);
+    publishDraft({ description: value || null });
+  };
+  const updateUrl = (value: string) => {
+    setEditUrl(value);
+    publishDraft({ url: value || null });
+  };
+  const updateDate = (value: string) => {
+    setEditDate(value);
+    publishDraft({ due_date: value || null });
+  };
+  const updateTime = (value: string) => {
+    setEditTime(value);
+    publishDraft({ due_time: value || null });
+  };
+  const updateListId = (value: string) => {
+    setEditListId(value);
+    publishDraft({ list_id: value || null });
+  };
+  const updateFlagged = (value: boolean) => {
+    setEditIsFlagged(value);
+    publishDraft({ is_flagged: value });
+  };
+  const updateRecurrenceFreq = (value: string) => {
+    setEditRecurrenceFreq(value);
+    publishDraft({
+      recurrence_frequency: (value || null) as RecurrenceFrequency | null,
+      recurrence_interval: value === 'custom' ? editRecurrenceInterval : null,
+      custom_recurrence_unit: value === 'custom' ? editCustomUnit : null,
     });
-  }, [editTitle, editNotes, editUrl, editDate, editTime, editIsFlagged, editListId, editRecurrenceFreq, editRecurrenceInterval, editCustomUnit, editRecurrenceEndDate, reminder, onChange]);
-  
+  };
+  const updateRecurrenceInterval = (value: number) => {
+    setEditRecurrenceInterval(value);
+    publishDraft({ recurrence_interval: value });
+  };
+  const updateCustomUnit = (value: TimeUnit) => {
+    setEditCustomUnit(value);
+    publishDraft({ custom_recurrence_unit: value });
+  };
+  const updateRecurrenceEndDate = (value: string) => {
+    setEditRecurrenceEndDate(value);
+    publishDraft({ recurrence_end_date: value || null });
+  };
+  const updateRemindValue = (value: string) => {
+    setEditRemindValue(value);
+    publishDraft(toRemindFields(value));
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       titleInputRef.current?.focus();
@@ -252,42 +300,15 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
     }, 50);
     return () => clearTimeout(timer);
   }, []);
-  
+
   const handleSave = useCallback(() => {
-    const values: Partial<ReminderResponse> = {
-      title: editTitle,
-      description: editNotes || null,
-      url: editUrl || null,
-      due_date: editDate || null,
-      due_time: editTime || null,
-      is_flagged: editIsFlagged,
-      list_id: editListId || null,
-      recurrence_frequency: (editRecurrenceFreq || null) as RecurrenceFrequency | null,
-      recurrence_interval: editRecurrenceFreq === 'custom' ? editRecurrenceInterval : null,
-      custom_recurrence_unit: editRecurrenceFreq === 'custom' ? editCustomUnit : null,
-      recurrence_end_date: editRecurrenceEndDate || null,
-    };
-    if (editRemindValue && editRemindValue !== 'custom') {
-      const unit = editRemindValue.slice(-1);
-      const num = parseInt(editRemindValue.slice(0, -1));
-      const unitMap: Record<string, TimeUnit> = { d: 'days', w: 'weeks', M: 'days' };
-      values.remind_before_value = num;
-      values.remind_before_unit = unitMap[unit] || null;
-    } else if (editRemindValue) {
-      values.remind_before_value = 1;
-      values.remind_before_unit = 'days';
-    }
-    const updates = buildUpdates(reminder, values);
+    const updates = buildUpdates(reminder, draftRef.current);
     onSaveAndStopEditing(reminder.id, updates);
-  }, [onSaveAndStopEditing, editTitle, editNotes, editUrl, editDate, editTime, editIsFlagged, editListId, editRecurrenceFreq, editRecurrenceInterval, editCustomUnit, editRecurrenceEndDate, editRemindValue, reminder]);
-  
+  }, [onSaveAndStopEditing, reminder]);
+
   const handleCancel = useCallback(() => {
     onCancelEditing();
   }, [onCancelEditing]);
-  
-  const stopPropagation = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
 
   const handleTagInputChange = useCallback(async (value: string) => {
     setTagInput(value);
@@ -318,9 +339,9 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
         className={`reminder-item relative z-50 px-5 py-4 rounded-[20px] transition-all duration-250 animate-slide-down ${
           reminder.is_completed ? 'bg-gray-50/70' : 'bg-white shadow-[0_4px_16px_rgba(0,0,0,0.08)]'
         }`}
-        onClick={handleSave}
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start gap-4" onClick={stopPropagation}>
+        <div className="flex items-start gap-4">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -390,7 +411,7 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
 
             <div className="border-t border-apple-divider mt-3 mb-3" />
 
-            <div className="flex flex-col gap-2" onClick={stopPropagation}>
+            <div className="flex flex-col gap-2">
               <div className="flex flex-wrap gap-2">
                 <button onClick={(e) => toggleDropdown('date', e)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-700 hover:bg-[#E5E5EA] transition-all duration-200 spring-transition">
@@ -448,27 +469,36 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
       )}
 
       {activeDropdown && dropdownRect && createPortal(
-        <div className="fixed inset-0 z-[9999]" onClick={() => { setActiveDropdown(null); setDropdownRect(null); }}>
-          <div className="absolute" style={{ top: dropdownRect.top, left: dropdownRect.left }} onClick={e => e.stopPropagation()}>
+        <>
+          <div
+            className="fixed inset-0 z-[9999]"
+            onClick={closeDropdown}
+          />
+          <div
+            className="reminder-edit-dropdown fixed z-[10000]"
+            style={{ top: dropdownRect.top, left: dropdownRect.left }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
             {activeDropdown === 'date' && (
               <ReminderDateDropdown
                 editDate={editDate}
                 onDateChange={setEditDate}
-                onClose={() => { setActiveDropdown(null); setDropdownRect(null); }}
+                onClose={closeDropdown}
               />
             )}
             {activeDropdown === 'time' && (
               <ReminderTimeDropdown
                 editTime={editTime}
                 onTimeChange={setEditTime}
-                onClose={() => { setActiveDropdown(null); setDropdownRect(null); }}
+                onClose={closeDropdown}
               />
             )}
             {activeDropdown === 'remind' && (
               <ReminderRemindDropdown
                 editRemindValue={editRemindValue}
                 onRemindChange={setEditRemindValue}
-                onClose={() => { setActiveDropdown(null); setDropdownRect(null); }}
+                onClose={closeDropdown}
               />
             )}
             {activeDropdown === 'tags' && (
@@ -491,14 +521,14 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
                 onFreqChange={setEditRecurrenceFreq}
                 onIntervalChange={setEditRecurrenceInterval}
                 onUnitChange={setEditCustomUnit}
-                onClose={() => { setActiveDropdown(null); setDropdownRect(null); }}
+                onClose={closeDropdown}
               />
             )}
             {activeDropdown === 'endRepeat' && (
               <ReminderEndRepeatDropdown
                 editRecurrenceEndDate={editRecurrenceEndDate}
                 onEndDateChange={setEditRecurrenceEndDate}
-                onClose={() => { setActiveDropdown(null); setDropdownRect(null); }}
+                onClose={closeDropdown}
               />
             )}
             {activeDropdown === 'list' && (
@@ -506,11 +536,11 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
                 editListId={editListId}
                 lists={lists}
                 onListChange={setEditListId}
-                onClose={() => { setActiveDropdown(null); setDropdownRect(null); }}
+                onClose={closeDropdown}
               />
             )}
           </div>
-        </div>,
+        </>,
         document.body
       )}
     </>

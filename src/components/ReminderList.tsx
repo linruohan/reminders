@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
+import { buildUpdates } from '@/utils/reminderUpdates';
 import { ReminderItem } from './ReminderItem';
 
 interface ReminderListProps {
@@ -17,6 +18,32 @@ interface ReminderListProps {
   onCopy: (reminder: ReminderResponse) => void;
   onPaste: (listId: string | null) => void;
   canPaste: boolean;
+}
+
+function isEventInsideEditingUi(e: MouseEvent): boolean {
+  const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+  for (const node of path) {
+    if (!(node instanceof HTMLElement)) continue;
+    if (
+      node.classList.contains('reminder-item-editing') ||
+      node.classList.contains('reminder-edit-dropdown') ||
+      node.classList.contains('date-picker-chip') ||
+      node.classList.contains('time-picker-chip')
+    ) {
+      return true;
+    }
+  }
+
+  const target = e.target;
+  if (target instanceof Element) {
+    return Boolean(
+      target.closest('.reminder-item-editing') ||
+      target.closest('.reminder-edit-dropdown') ||
+      target.closest('.date-picker-chip') ||
+      target.closest('.time-picker-chip')
+    );
+  }
+  return false;
 }
 
 export function ReminderList({
@@ -40,6 +67,13 @@ export function ReminderList({
   const editingValuesRef = useRef<Partial<ReminderResponse>>({});
   const remindersRef = useRef(reminders);
   const onUpdateReminderRef = useRef(onUpdateReminder);
+  const editingIdRef = useRef(editingId);
+  const onEditStartRef = useRef(onEditStart);
+  const onEditEndRef = useRef(onEditEnd);
+
+  editingIdRef.current = editingId;
+  onEditStartRef.current = onEditStart;
+  onEditEndRef.current = onEditEnd;
 
   useEffect(() => {
     remindersRef.current = reminders;
@@ -51,12 +85,12 @@ export function ReminderList({
 
   useEffect(() => {
     if (editingId !== null) {
-      onEditStart();
+      onEditStartRef.current();
     } else {
-      onEditEnd();
+      onEditEndRef.current();
     }
-  }, [editingId, onEditStart, onEditEnd]);
-  
+  }, [editingId]);
+
   const getTitle = () => {
     if (activeFilter.startsWith('list:')) {
       const listId = activeFilter.split(':')[1];
@@ -71,21 +105,38 @@ export function ReminderList({
     };
     return filterMap[activeFilter] || '全部';
   };
-  
-  // 使用 useMemo 缓存 completedCount 计算，避免每次渲染都重新计算
+
   const completedCount = useMemo(() => reminders.filter(r => r.is_completed).length, [reminders]);
-  
-  const handleStartEditing = useCallback((id: string) => {
-    setEditingId(id);
+
+  const commitEditing = useCallback((id: string | null) => {
+    if (!id) return;
+    const reminder = remindersRef.current.find(r => r.id === id);
+    if (reminder) {
+      const updates = buildUpdates(reminder, editingValuesRef.current);
+      if (Object.keys(updates).length > 0) {
+        onUpdateReminderRef.current(id, updates);
+      }
+    }
     editingValuesRef.current = {};
   }, []);
+
+  const handleStartEditing = useCallback((id: string) => {
+    const prev = editingIdRef.current;
+    if (prev && prev !== id) {
+      commitEditing(prev);
+    }
+    setEditingId(id);
+    editingValuesRef.current = {};
+  }, [commitEditing]);
 
   const handleChangeEditing = useCallback((updates: Partial<ReminderResponse>) => {
     editingValuesRef.current = updates;
   }, []);
 
   const handleSaveAndStopEditing = useCallback((id: string, updates: Partial<ReminderResponse>) => {
-    onUpdateReminder(id, updates);
+    if (Object.keys(updates).length > 0) {
+      onUpdateReminder(id, updates);
+    }
     setEditingId(null);
     editingValuesRef.current = {};
   }, [onUpdateReminder]);
@@ -94,62 +145,41 @@ export function ReminderList({
     setEditingId(null);
     editingValuesRef.current = {};
   }, []);
-  
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const isInsideReminderItem = target.closest('.reminder-item');
-      const isInsideDatePicker = target.closest('.date-picker-chip');
-      const isInsideTimePicker = target.closest('.time-picker-chip');
-      if (!isInsideReminderItem && !isInsideDatePicker && !isInsideTimePicker) {
-        const currentEditingId = editingId;
-        if (currentEditingId) {
-          const currentValues = editingValuesRef.current;
-          const currentReminders = remindersRef.current;
-          const currentUpdateFn = onUpdateReminderRef.current;
 
-          const reminder = currentReminders.find(r => r.id === currentEditingId);
-          if (reminder) {
-            const updates: Partial<ReminderResponse> = {};
-            if (currentValues.title !== undefined && currentValues.title !== reminder.title) {
-              updates.title = currentValues.title;
-            }
-            if (currentValues.description !== reminder.description) {
-              updates.description = currentValues.description ?? null;
-            }
-            if (currentValues.due_date !== reminder.due_date) {
-              updates.due_date = currentValues.due_date ?? null;
-            }
-            if (currentValues.due_time !== reminder.due_time) {
-              updates.due_time = currentValues.due_time ?? null;
-            }
-            if (Object.keys(updates).length > 0) {
-              currentUpdateFn(currentEditingId, updates);
-            }
-          }
-        }
-        setEditingId(null);
-        editingValuesRef.current = {};
-      }
+  useEffect(() => {
+    if (!editingId) return;
+
+    // 用 click（而非 mousedown）：等选项 onClick 先更新草稿，再判断是否点在外面
+    // 跳过进入编辑的那一次点击，避免立刻退出
+    let armed = false;
+    const armTimer = window.setTimeout(() => {
+      armed = true;
+    }, 0);
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!armed) return;
+      if (isEventInsideEditingUi(e)) return;
+
+      commitEditing(editingIdRef.current);
+      setEditingId(null);
     };
-    
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         handleCancelEditing();
       }
     };
-    
-    if (editingId) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleKeyDown);
-    }
-    
+
+    document.addEventListener('click', handleClickOutside, true);
+    document.addEventListener('keydown', handleKeyDown);
+
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      window.clearTimeout(armTimer);
+      document.removeEventListener('click', handleClickOutside, true);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [editingId, handleCancelEditing]);
-  
+  }, [editingId, handleCancelEditing, commitEditing]);
+
   return (
     <main className="flex-1 h-full flex flex-col relative">
       <div className="flex items-start justify-between px-8 pt-6 pb-5">
@@ -174,47 +204,46 @@ export function ReminderList({
           <span className="text-sm text-apple-gray mt-2">项</span>
         </div>
       </div>
-      
+
       <div className="flex-1 overflow-y-auto px-6 pb-24">
-          {reminders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-apple-gray">
-              <div className="w-16 h-16 rounded-[24px] bg-[#F2F2F7] flex items-center justify-center mb-4">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="9" y1="3" x2="9" y2="21"/>
-                  <line x1="15" y1="3" x2="15" y2="21"/>
-                </svg>
-              </div>
-              <span className="text-base font-medium">没有提醒事项</span>
+        {reminders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-apple-gray">
+            <div className="w-16 h-16 rounded-[24px] bg-[#F2F2F7] flex items-center justify-center mb-4">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <line x1="9" y1="3" x2="9" y2="21"/>
+                <line x1="15" y1="3" x2="15" y2="21"/>
+              </svg>
             </div>
-          ) : (
-            <div className="space-y-1">
-              {reminders
-                .filter(r => showCompleted || !r.is_completed)
-                .map((reminder, index) => (
-              <div key={reminder.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 30}ms` }}>
-                <ReminderItem
-                  key={reminder.id}
-                  reminder={reminder}
-                  lists={lists}
-                  owners={owners}
-                  isEditing={editingId === reminder.id}
-                  onToggleCompleted={onToggleCompleted}
-                  onDelete={onDeleteReminder}
-                  onStartEditing={handleStartEditing}
-                  onSaveAndStopEditing={handleSaveAndStopEditing}
-                  onCancelEditing={handleCancelEditing}
-                  onChange={handleChangeEditing}
-                  onUpdateReminder={onUpdateReminder}
-                  onCut={onCut}
-                  onCopy={onCopy}
-                  onPaste={onPaste}
-                  canPaste={canPaste}
-                />
-              </div>
-                ))}
-              </div>
-            )}
+            <span className="text-base font-medium">没有提醒事项</span>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {reminders
+              .filter(r => showCompleted || !r.is_completed)
+              .map((reminder, index) => (
+                <div key={reminder.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 30}ms` }}>
+                  <ReminderItem
+                    reminder={reminder}
+                    lists={lists}
+                    owners={owners}
+                    isEditing={editingId === reminder.id}
+                    onToggleCompleted={onToggleCompleted}
+                    onDelete={onDeleteReminder}
+                    onStartEditing={handleStartEditing}
+                    onSaveAndStopEditing={handleSaveAndStopEditing}
+                    onCancelEditing={handleCancelEditing}
+                    onChange={handleChangeEditing}
+                    onUpdateReminder={onUpdateReminder}
+                    onCut={onCut}
+                    onCopy={onCopy}
+                    onPaste={onPaste}
+                    canPaste={canPaste}
+                  />
+                </div>
+              ))}
+          </div>
+        )}
       </div>
 
       <button
