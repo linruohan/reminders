@@ -58,7 +58,7 @@ export function ReminderDetailModal({
     ? owners.find(o => o.id === reminder.owner_id)?.name
     : null;
 
-  const hasRecurrence = reminder.recurrence_frequency && reminder.recurrence_frequency !== '';
+  const hasRecurrence = reminder.recurrence_frequency != null;
   const hasRemind = reminder.remind_before_value != null;
   const hasEndRange = !reminder.is_all_day && (reminder.end_date || reminder.end_time);
   const isCustomRecur = reminder.recurrence_frequency === 'custom';

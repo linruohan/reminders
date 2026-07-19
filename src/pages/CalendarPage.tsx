@@ -1,4 +1,4 @@
-import { CalendarView } from '../components/CalendarView';
+import { CalendarView } from '../components/calendar/CalendarView';
 import type { ReminderResponse, ListResponse } from '../types/api';
 
 interface CalendarPageProps {

@@ -12,6 +12,7 @@ import type {
   CreateOwnerRequest,
   UpdateOwnerRequest,
 } from '@/types/api';
+import { parseInvokeError, type AppError } from '@/types/error';
 
 type LoadingState = Record<string, boolean>;
 type ErrorState = Record<string, string | null>;
@@ -32,9 +33,11 @@ export function useApi() {
       setLoading(prev => ({ ...prev, [key]: false }));
       return result;
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Unknown error';
+      const appError: AppError = parseInvokeError(e);
+      const message = appError.message;
       setLoading(prev => ({ ...prev, [key]: false }));
       setError(prev => ({ ...prev, [key]: message }));
+      console.error(`[${key}] ${appError.type}:`, appError.details || message);
       return null;
     }
   }, []);
@@ -69,9 +72,11 @@ export function useApi() {
       setLoading(prev => ({ ...prev, [key]: false }));
       return { data: result, error: null };
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Unknown error';
+      const appError: AppError = parseInvokeError(e);
+      const message = appError.message;
       setLoading(prev => ({ ...prev, [key]: false }));
       setError(prev => ({ ...prev, [key]: message }));
+      console.error(`[${key}] ${appError.type}:`, appError.details || message);
       return { data: null, error: message };
     }
   }, []);

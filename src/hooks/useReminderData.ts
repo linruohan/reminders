@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useApi } from './useApi';
-import type { ReminderResponse, ListResponse, OwnerResponse, UpdateReminderRequest } from '@/types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse, UpdateReminderRequest, CreateReminderRequest } from '@/types/api';
 import { getTodayStr } from '@/utils/dateUtils';
 
 interface ReminderCache {
@@ -10,8 +10,8 @@ interface ReminderCache {
   };
 }
 
-/** 缓存 TTL，与自动刷新间隔对齐，避免缓存过期但未刷新的空窗期 */
-const CACHE_TTL = 60000;
+/** 缓存 TTL，略大于自动刷新间隔（60s），确保在自动刷新前缓存不会过期 */
+const CACHE_TTL = 65000;
 
 export function useReminderData(showToast?: (type: 'success' | 'error' | 'info', message: string) => void) {
   const {
@@ -162,17 +162,20 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     setActiveFilterLoaded(false);
   }, []);
 
-  /** mutation 后统一失效并重取：搜索态重跑搜索，否则重取 all + 当前过滤器 */
+  /** mutation 后统一失效并重取：搜索态重跑搜索，否则并发重取 all + 当前过滤器 */
   const syncAfterMutation = useCallback(async () => {
     if (searchQuery.trim()) {
       await handleSearch(searchQuery);
       return;
     }
+    // 并发加载 all 和当前过滤器数据，提升响应速度
     if (activeFilter === 'all') {
       await loadReminders('all', true);
     } else {
-      await loadReminders('all', true, true);
-      await loadReminders(activeFilter, true);
+      await Promise.all([
+        loadReminders('all', true, true),
+        loadReminders(activeFilter, true)
+      ]);
     }
   }, [searchQuery, handleSearch, loadReminders, activeFilter]);
 
@@ -209,26 +212,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     }
   }, [deleteReminder, syncAfterMutation, showToast]);
 
-  const handleCreateReminder = useCallback(async (data: {
-    title: string;
-    description?: string | null;
-    url?: string | null;
-    due_date?: string | null;
-    due_time?: string | null;
-    end_date?: string | null;
-    end_time?: string | null;
-    list_id?: string | null;
-    is_all_day?: boolean;
-    is_flagged?: boolean;
-    priority?: string;
-    recurrence_frequency?: string | null;
-    recurrence_interval?: number | null;
-    custom_recurrence_unit?: string | null;
-    recurrence_end_date?: string | null;
-    remind_before_value?: number | null;
-    remind_before_unit?: string | null;
-    tags?: string[];
-  }) => {
+  const handleCreateReminder = useCallback(async (data: CreateReminderRequest) => {
     const result = await createReminder(data);
     if (result.data) {
       await syncAfterMutation();

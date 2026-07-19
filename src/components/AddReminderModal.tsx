@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { ListResponse, TagResponse } from '@/types/api';
+import type { ListResponse, TagResponse, Priority, RecurrenceFrequency, TimeUnit } from '@/types/api';
 import { invoke } from '@tauri-apps/api/core';
 
 interface AddReminderModalProps {
@@ -11,19 +11,19 @@ interface AddReminderModalProps {
     description?: string | null;
     url?: string | null;
     due_date?: string | null;
-    due_time?: string | null;
     end_date?: string | null;
+    due_time?: string | null;
     end_time?: string | null;
     list_id?: string | null;
     is_all_day?: boolean;
     is_flagged?: boolean;
-    priority?: string;
-    recurrence_frequency?: string | null;
+    priority?: Priority;
+    recurrence_frequency?: RecurrenceFrequency | null;
     recurrence_interval?: number | null;
-    custom_recurrence_unit?: string | null;
+    custom_recurrence_unit?: TimeUnit | null;
     recurrence_end_date?: string | null;
     remind_before_value?: number | null;
-    remind_before_unit?: string | null;
+    remind_before_unit?: TimeUnit | null;
     tags?: string[];
   }) => void;
   initialDate?: string;

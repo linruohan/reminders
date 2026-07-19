@@ -3,6 +3,20 @@ export interface TagResponse {
   name: string;
 }
 
+// 优先级类型定义
+export type Priority = "none" | "low" | "medium" | "high";
+
+// 重复频率类型定义
+export type RecurrenceFrequency =
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "yearly"
+  | "custom";
+
+// 时间单位类型定义
+export type TimeUnit = "minutes" | "hours" | "days" | "weeks";
+
 export interface ReminderResponse {
   id: string;
   title: string;
@@ -15,13 +29,13 @@ export interface ReminderResponse {
   is_all_day: boolean;
   is_completed: boolean;
   is_flagged: boolean;
-  priority: string;
-  recurrence_frequency: string | null;
+  priority: Priority;
+  recurrence_frequency: RecurrenceFrequency | null;
   recurrence_interval: number | null;
-  custom_recurrence_unit: string | null;
+  custom_recurrence_unit: TimeUnit | null;
   recurrence_end_date: string | null;
   remind_before_value: number | null;
-  remind_before_unit: string | null;
+  remind_before_unit: TimeUnit | null;
   tags: TagResponse[];
   list_id: string | null;
   owner_id: string | null;
@@ -51,13 +65,13 @@ export interface CreateReminderRequest {
   list_id?: string | null;
   is_all_day?: boolean;
   is_flagged?: boolean;
-  priority?: string;
-  recurrence_frequency?: string | null;
+  priority?: Priority;
+  recurrence_frequency?: RecurrenceFrequency | null;
   recurrence_interval?: number | null;
-  custom_recurrence_unit?: string | null;
+  custom_recurrence_unit?: TimeUnit | null;
   recurrence_end_date?: string | null;
   remind_before_value?: number | null;
-  remind_before_unit?: string | null;
+  remind_before_unit?: TimeUnit | null;
   tags?: string[];
 }
 
@@ -72,16 +86,16 @@ export interface UpdateReminderRequest {
   end_time?: string | null;
   is_completed?: boolean;
   is_flagged?: boolean;
-  priority?: string;
+  priority?: Priority;
   list_id?: string | null;
   owner_id?: string | null;
   is_all_day?: boolean;
-  recurrence_frequency?: string | null;
+  recurrence_frequency?: RecurrenceFrequency | null;
   recurrence_interval?: number | null;
-  custom_recurrence_unit?: string | null;
+  custom_recurrence_unit?: TimeUnit | null;
   recurrence_end_date?: string | null;
   remind_before_value?: number | null;
-  remind_before_unit?: string | null;
+  remind_before_unit?: TimeUnit | null;
   tags?: string[];
 }
 

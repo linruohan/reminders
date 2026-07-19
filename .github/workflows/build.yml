@@ -22,12 +22,20 @@ on:
           - production
           - beta
           - development
+      version:
+        description: "Release version (e.g., 0.1.0)"
+        required: false
+        type: string
+        default: ""
 
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
     env:
       BUILD_ENV: ${{ github.event.inputs.environment || contains(github.ref, 'release/') && 'production' || contains(github.ref, 'beta/') && 'beta' || github.ref == 'refs/heads/main' && 'production' || 'development' }}
+      APP_VERSION: ${{ github.event.inputs.version || '0.1.0' }}
       HAS_CERT: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
       HAS_SLACK: ${{ secrets.SLACK_WEBHOOK != '' }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -69,8 +77,8 @@ jobs:
         if: env.BUILD_ENV == 'beta'
         uses: tauri-apps/tauri-action@v0
         with:
-          tagName: ${{ format('beta-{0}', github.ref_name) }}
-          releaseName: ${{ format('Reminders Beta {0}', github.ref_name) }}
+          tagName: ${{ format('beta-v{0}', env.APP_VERSION) }}
+          releaseName: ${{ format('Reminders Beta v{0}', env.APP_VERSION) }}
           releaseBody: "Beta build from CI"
           releaseDraft: true
           prerelease: true
@@ -82,8 +90,8 @@ jobs:
         if: env.BUILD_ENV == 'production'
         uses: tauri-apps/tauri-action@v0
         with:
-          tagName: ${{ format('v{0}', github.ref_name) }}
-          releaseName: ${{ format('Reminders {0}', github.ref_name) }}
+          tagName: ${{ format('v{0}', env.APP_VERSION) }}
+          releaseName: ${{ format('Reminders v{0}', env.APP_VERSION) }}
           releaseBody: "Production release"
           releaseDraft: false
           prerelease: false

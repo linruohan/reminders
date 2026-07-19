@@ -67,17 +67,57 @@ fn sync_reminder_tags(conn: &mut Connection, reminder_id: &str, tag_names: &[Str
     Ok(())
 }
 
-fn map_reminder_with_tags(reminder: Reminder, db: &State<'_, Database>) -> Result<ReminderResponse, String> {
+/// 获取单个提醒及其标签
+fn get_reminder_with_tags(reminder: Reminder, db: &State<'_, Database>) -> Result<ReminderResponse, String> {
     let mut resp: ReminderResponse = reminder.into();
     resp.tags = get_reminder_tags_internal(get_conn(db), &resp.id)?;
     Ok(resp)
 }
 
+/// 批量获取提醒及其标签，使用 JOIN 查询避免 N+1 问题
 fn map_reminders_with_tags(reminders: Vec<Reminder>, db: &State<'_, Database>) -> Result<Vec<ReminderResponse>, String> {
-    reminders
-        .into_iter()
-        .map(|r| map_reminder_with_tags(r, db))
-        .collect()
+    if reminders.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let conn = get_conn(db);
+    let conn_guard = conn.lock().unwrap();
+
+    // 构建 ID 列表用于 IN 查询
+    let ids: Vec<String> = reminders.iter().map(|r| r.id.to_string()).collect();
+    let placeholders: Vec<&str> = ids.iter().map(|_| "?").collect();
+    let sql = format!(
+        "SELECT rt.reminder_id, t.id, t.name FROM reminder_tags rt \
+         JOIN tags t ON rt.tag_id = t.id \
+         WHERE rt.reminder_id IN ({})",
+        placeholders.join(",")
+    );
+
+    let mut stmt = conn_guard.prepare(&sql).map_err(|e| e.to_string())?;
+    let rows = stmt.query_map(rusqlite::params_from_iter(ids.iter()), |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            TagResponse {
+                id: row.get(1)?,
+                name: row.get(2)?,
+            },
+        ))
+    }).map_err(|e| e.to_string())?;
+
+    // 按 reminder_id 分组标签
+    let mut tags_by_reminder: std::collections::HashMap<String, Vec<TagResponse>> = std::collections::HashMap::new();
+    for row_result in rows {
+        if let Ok((reminder_id, tag)) = row_result {
+            tags_by_reminder.entry(reminder_id).or_default().push(tag);
+        }
+    }
+
+    // 构建响应
+    Ok(reminders.into_iter().map(|r| {
+        let mut resp: ReminderResponse = r.into();
+        resp.tags = tags_by_reminder.remove(&resp.id).unwrap_or_default();
+        resp
+    }).collect())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -298,7 +338,7 @@ pub fn get_reminder_by_id(db: State<'_, Database>, id: String) -> Result<Option<
     let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
     repo.get_by_id(&id)
         .map_err(|e| e.to_string())?
-        .map(|r| map_reminder_with_tags(r, &db))
+        .map(|r| get_reminder_with_tags(r, &db))
         .transpose()
 }
 
@@ -439,13 +479,10 @@ pub fn update_reminder(db: State<'_, Database>, request: UpdateReminderRequest) 
 
     repo.update(&reminder).map_err(|e| e.to_string())?;
 
+    // 同步标签（sync_reminder_tags 内部已包含事务和 DELETE 操作）
     if let Some(tag_names) = request.tags {
         let conn = get_conn(&db);
         let mut conn = conn.lock().unwrap();
-        conn.execute(
-            "DELETE FROM reminder_tags WHERE reminder_id = ?",
-            rusqlite::params![reminder_id],
-        ).map_err(|e| e.to_string())?;
         sync_reminder_tags(&mut *conn, &reminder_id, &tag_names)?;
     }
 
@@ -478,7 +515,7 @@ pub fn toggle_reminder_completed(db: State<'_, Database>, id: String) -> Result<
     }
     
     repo.update(&reminder).map_err(|e| e.to_string())?;
-    map_reminder_with_tags(reminder, &db)
+    get_reminder_with_tags(reminder, &db)
 }
 
 #[command]
