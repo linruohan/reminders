@@ -45,7 +45,7 @@ jobs:
           cache: "npm"
 
       - name: Install frontend dependencies
-        run: npm install
+        run: npm install --registry=https://registry.npmjs.org/
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
