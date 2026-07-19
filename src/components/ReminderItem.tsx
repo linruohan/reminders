@@ -2,10 +2,17 @@ import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
 import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, TimeUnit, Priority, RecurrenceFrequency } from '@/types/api';
-import { formatDate, formatTime, getDateColor, getTodayStr, getTomorrowStr, getWeekendStr, getNextMondayStr, groupedTimes } from '@/utils/dateUtils';
+import { formatDate, formatTime, getDateColor } from '@/utils/dateUtils';
 import { ReminderDetailModal } from './ReminderDetailModal';
 import { ContextMenu } from './ContextMenu';
 import { recurrenceOptions, remindOptions } from './reminder/formOptions';
+import { ReminderDateDropdown } from './reminder/ReminderDateDropdown';
+import { ReminderTimeDropdown } from './reminder/ReminderTimeDropdown';
+import { ReminderRemindDropdown } from './reminder/ReminderRemindDropdown';
+import { ReminderTagsDropdown } from './reminder/ReminderTagsDropdown';
+import { ReminderRepeatDropdown } from './reminder/ReminderRepeatDropdown';
+import { ReminderEndRepeatDropdown } from './reminder/ReminderEndRepeatDropdown';
+import { ReminderListDropdown } from './reminder/ReminderListDropdown';
 
 function buildUpdates(
   reminder: ReminderResponse,
@@ -138,8 +145,12 @@ const ReminderItemViewMode = memo(function ReminderItemViewMode({
               </span>
             )}
             {reminder.tags && reminder.tags.length > 0 && (
-              <span className="text-[13px] text-apple-blue flex items-center gap-0.5">
-                {reminder.tags.map(t => `#${t.name}`).join(' ')}
+              <span className="flex items-center gap-1">
+                {reminder.tags.map(t => (
+                  <span key={t.name} className="inline-flex items-center px-2 py-0.5 bg-apple-blue/10 text-apple-blue text-xs font-medium rounded-full">
+                    #{t.name}
+                  </span>
+                ))}
               </span>
             )}
           </div>
@@ -278,10 +289,11 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
     e.stopPropagation();
   };
 
-  const searchTagsHandler = useCallback(async (q: string) => {
-    if (!q.trim()) { setTagSuggestions([]); setShowTagSuggestions(false); return; }
+  const handleTagInputChange = useCallback(async (value: string) => {
+    setTagInput(value);
+    if (!value.trim()) { setTagSuggestions([]); setShowTagSuggestions(false); return; }
     try {
-      const data = await invoke<TagResponse[]>('search_tags', { query: q.trim() });
+      const data = await invoke<TagResponse[]>('search_tags', { query: value.trim() });
       const filtered = data.filter(t => !editTags.includes(t.name));
       setTagSuggestions(filtered);
       setShowTagSuggestions(filtered.length > 0);
@@ -438,176 +450,64 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
       {activeDropdown && dropdownRect && createPortal(
         <div className="fixed inset-0 z-[9999]" onClick={() => { setActiveDropdown(null); setDropdownRect(null); }}>
           <div className="absolute" style={{ top: dropdownRect.top, left: dropdownRect.left }} onClick={e => e.stopPropagation()}>
-            {/* 日期下拉 */}
             {activeDropdown === 'date' && (
-              <div className="w-max min-w-[140px] bg-white rounded-apple-lg shadow-lg border border-apple-divider py-1">
-                <button onClick={() => { setEditDate(getTodayStr()); setActiveDropdown(null); setDropdownRect(null); }}
-                  className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${editDate === getTodayStr() ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'}`}>今天</button>
-                <button onClick={() => { setEditDate(getTomorrowStr()); setActiveDropdown(null); setDropdownRect(null); }}
-                  className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${editDate === getTomorrowStr() ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'}`}>明天</button>
-                <button onClick={() => { setEditDate(getWeekendStr()); setActiveDropdown(null); setDropdownRect(null); }}
-                  className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${editDate === getWeekendStr() ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'}`}>本周末</button>
-                <button onClick={() => { setEditDate(getNextMondayStr()); setActiveDropdown(null); setDropdownRect(null); }}
-                  className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${editDate === getNextMondayStr() ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'}`}>下周一</button>
-                <div className="border-t border-apple-divider my-1" />
-                <div className="flex items-center gap-2 px-4 py-2">
-                  <span className="text-xs text-gray-400 whitespace-nowrap">指定日期</span>
-                  <input type="date" value={editDate} onChange={e => { setEditDate(e.target.value); setActiveDropdown(null); setDropdownRect(null); }}
-                    className="w-[130px] px-2 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none" />
-                </div>
-                {editDate && (
-                  <button onClick={() => { setEditDate(''); setActiveDropdown(null); setDropdownRect(null); }}
-                    className="block w-full text-left px-4 py-2 text-xs text-red-500 whitespace-nowrap hover:bg-red-50">移除日期</button>
-                )}
-              </div>
+              <ReminderDateDropdown
+                editDate={editDate}
+                onDateChange={setEditDate}
+                onClose={() => { setActiveDropdown(null); setDropdownRect(null); }}
+              />
             )}
-
-            {/* 时间下拉 */}
             {activeDropdown === 'time' && (
-              <div className="w-max min-w-[120px] bg-white rounded-apple-lg shadow-lg border border-apple-divider py-1 max-h-56 overflow-y-auto">
-                {(['上午', '中午', '下午', '晚上', '夜间'] as const).flatMap(period =>
-                  groupedTimes[period]?.map(t => (
-                    <button key={t.value} onClick={() => { setEditTime(t.value); setActiveDropdown(null); setDropdownRect(null); }}
-                      className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${editTime === t.value ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'}`}>
-                      {t.period === '上午' ? '早上' : t.period === '中午' ? '中午' : t.period === '下午' ? '下午' : t.period === '晚上' ? '晚上' : '夜间'} {t.label}
-                    </button>
-                  ))
-                )}
-                <div className="border-t border-apple-divider my-1" />
-                <div className="flex items-center gap-2 px-4 py-2">
-                  <span className="text-xs text-gray-400 whitespace-nowrap">指定时间</span>
-                  <input type="time" value={editTime} onChange={e => { setEditTime(e.target.value); setActiveDropdown(null); setDropdownRect(null); }}
-                    className="w-[110px] px-2 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none" />
-                </div>
-                {editTime && (
-                  <button onClick={() => { setEditTime(''); setActiveDropdown(null); setDropdownRect(null); }}
-                    className="block w-full text-left px-4 py-2 text-xs text-red-500 whitespace-nowrap hover:bg-red-50">移除时间</button>
-                )}
-              </div>
+              <ReminderTimeDropdown
+                editTime={editTime}
+                onTimeChange={setEditTime}
+                onClose={() => { setActiveDropdown(null); setDropdownRect(null); }}
+              />
             )}
-
-            {/* 提醒下拉 */}
             {activeDropdown === 'remind' && (
-              <div className="w-max min-w-[100px] bg-white rounded-apple-lg shadow-lg border border-apple-divider py-1">
-                {remindOptions.map(o => (
-                  <button key={o.value} onClick={() => { setEditRemindValue(o.value); setActiveDropdown(null); setDropdownRect(null); }}
-                    className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${editRemindValue === o.value ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'}`}>{o.label}</button>
-                ))}
-                {editRemindValue === 'custom' && (
-                  <>
-                    <div className="border-t border-apple-divider my-1" />
-                    <div className="flex items-center gap-1.5 px-4 py-2">
-                      <span className="text-xs text-gray-400 whitespace-nowrap">提前</span>
-                      <input type="number" min={1} defaultValue={1}
-                        className="w-12 px-1 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none text-center" />
-                      <select defaultValue="day"
-                        className="px-1 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none">
-                        <option value="hour">小时</option>
-                        <option value="day">天</option>
-                        <option value="week">周</option>
-                        <option value="month">月</option>
-                      </select>
-                    </div>
-                  </>
-                )}
-              </div>
+              <ReminderRemindDropdown
+                editRemindValue={editRemindValue}
+                onRemindChange={setEditRemindValue}
+                onClose={() => { setActiveDropdown(null); setDropdownRect(null); }}
+              />
             )}
-
-            {/* 标签下拉 */}
             {activeDropdown === 'tags' && (
-              <div className="w-max min-w-[150px] bg-white rounded-apple-lg shadow-lg border border-apple-divider p-2">
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {editTags.map(tag => (
-                    <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-apple-blue text-xs rounded-[6px]">
-                      #{tag}
-                      <button onClick={() => removeTag(tag)} className="hover:bg-blue-100 rounded-full p-0.5">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="relative">
-                  <input type="text" value={tagInput} onChange={e => { setTagInput(e.target.value); searchTagsHandler(e.target.value); }}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(tagInput); } }}
-                    placeholder="搜索或添加标签"
-                    className="w-full px-2.5 py-1.5 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none text-gray-500 placeholder-apple-gray" />
-                  {showTagSuggestions && (
-                    <div className="absolute top-full left-0 mt-1 bg-white rounded-apple-lg shadow-lg border border-apple-divider py-1 z-50 w-full">
-                      {tagSuggestions.map(t => (
-                        <button key={t.id} onClick={() => addTag(t.name)}
-                          className="block w-full text-left px-2.5 py-1 text-xs text-gray-700 whitespace-nowrap hover:bg-gray-50">#{t.name}</button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <ReminderTagsDropdown
+                editTags={editTags}
+                tagInput={tagInput}
+                tagSuggestions={tagSuggestions}
+                showTagSuggestions={showTagSuggestions}
+                onTagInputChange={handleTagInputChange}
+                onTagAdd={addTag}
+                onTagRemove={removeTag}
+                onTagInputKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(tagInput); } }}
+              />
             )}
-
-            {/* 重复下拉 */}
             {activeDropdown === 'repeat' && (
-              <div className="w-max min-w-[100px] bg-white rounded-apple-lg shadow-lg border border-apple-divider py-1">
-                {recurrenceOptions.map(o => (
-                  <button key={o.value} onClick={() => { setEditRecurrenceFreq(o.value); setActiveDropdown(null); setDropdownRect(null); }}
-                    className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${editRecurrenceFreq === o.value ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'}`}>{o.label}</button>
-                ))}
-                {editRecurrenceFreq === 'custom' && (
-                  <>
-                    <div className="border-t border-apple-divider my-1" />
-                    <div className="flex items-center gap-1.5 px-4 py-2">
-                      <span className="text-xs text-gray-400 whitespace-nowrap">每</span>
-                      <input type="number" min={1} value={editRecurrenceInterval}
-                        onChange={e => setEditRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))}
-                        className="w-12 px-1 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none text-center" />
-                      <select value={editCustomUnit} onChange={e => setEditCustomUnit(e.target.value as TimeUnit)}
-                        className="px-1 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none">
-                        <option value="hour">小时</option>
-                        <option value="day">天</option>
-                        <option value="week">周</option>
-                        <option value="month">月</option>
-                      </select>
-                    </div>
-                  </>
-                )}
-              </div>
+              <ReminderRepeatDropdown
+                editRecurrenceFreq={editRecurrenceFreq}
+                editRecurrenceInterval={editRecurrenceInterval}
+                editCustomUnit={editCustomUnit}
+                onFreqChange={setEditRecurrenceFreq}
+                onIntervalChange={setEditRecurrenceInterval}
+                onUnitChange={setEditCustomUnit}
+                onClose={() => { setActiveDropdown(null); setDropdownRect(null); }}
+              />
             )}
-
-            {/* 结束重复下拉 */}
             {activeDropdown === 'endRepeat' && (
-              <div className="w-max min-w-[100px] bg-white rounded-apple-lg shadow-lg border border-apple-divider py-1">
-                <button onClick={() => { setEditRecurrenceEndDate(''); setActiveDropdown(null); setDropdownRect(null); }}
-                  className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${!editRecurrenceEndDate ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'}`}>永不</button>
-                <button onClick={() => { if (!editRecurrenceEndDate) setEditRecurrenceEndDate(getTodayStr()); }}
-                  className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${editRecurrenceEndDate ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'}`}>指定日期</button>
-                {editRecurrenceEndDate && (
-                  <>
-                    <div className="border-t border-apple-divider my-1" />
-                    <div className="px-4 py-2">
-                      <input type="date" value={editRecurrenceEndDate} onChange={e => setEditRecurrenceEndDate(e.target.value)}
-                        className="w-[140px] px-2 py-1.5 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none" />
-                    </div>
-                  </>
-                )}
-              </div>
+              <ReminderEndRepeatDropdown
+                editRecurrenceEndDate={editRecurrenceEndDate}
+                onEndDateChange={setEditRecurrenceEndDate}
+                onClose={() => { setActiveDropdown(null); setDropdownRect(null); }}
+              />
             )}
-
-            {/* 列表下拉 */}
             {activeDropdown === 'list' && (
-              <div className="w-max min-w-[100px] bg-white rounded-apple-lg shadow-lg border border-apple-divider py-1">
-                <button onClick={() => { setEditListId(''); setActiveDropdown(null); setDropdownRect(null); }}
-                  className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-2 ${!editListId ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'}`}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                  </svg>
-                  提醒事项
-                </button>
-                {lists.map(list => (
-                  <button key={list.id} onClick={() => { setEditListId(list.id); setActiveDropdown(null); setDropdownRect(null); }}
-                    className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-2 ${editListId === list.id ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'}`}>
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: list.color || '#999' }} />
-                    {list.name}
-                  </button>
-                ))}
-              </div>
+              <ReminderListDropdown
+                editListId={editListId}
+                lists={lists}
+                onListChange={setEditListId}
+                onClose={() => { setActiveDropdown(null); setDropdownRect(null); }}
+              />
             )}
           </div>
         </div>,

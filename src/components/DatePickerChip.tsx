@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { getTodayStr, getTomorrowStr, getWeekendStr, getNextMondayStr, getDateLabel } from '@/utils/dateUtils';
-import { DatePicker } from './DatePicker';
 import { DropdownPortal } from './DropdownPortal';
+import { DatePicker } from './DatePicker';
 
 interface DatePickerChipProps {
   value: string | null;
@@ -98,9 +98,11 @@ export function DatePickerChip({ value, onChange, onClear }: DatePickerChipProps
             <div className="border-t border-apple-divider my-1" />
             <div className="px-3 py-2">
               <DatePicker
-                onSelect={handleDateSelect}
-                onClose={() => setIsOpen(false)}
-                initialDate={value || undefined}
+                value={value || ''}
+                onChange={handleDateSelect}
+                mode="date"
+                placeholder="选择日期"
+                className="w-full"
               />
             </div>
           </div>

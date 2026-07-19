@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { ListResponse } from '@/types/api';
 
 interface FilterCounts {
@@ -111,6 +111,20 @@ export function Sidebar({
 }: SidebarProps) {
   const [listsExpanded, setListsExpanded] = useState(true);
   const [sortOrder, setSortOrder] = useState<SortOrder>('name-asc');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // 实现 Ctrl+F 快捷键聚焦搜索框
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const getListCount = (listId: string) => {
     const found = filterCounts.lists.find(l => l.id === listId);

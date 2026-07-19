@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { ReminderResponse, ListResponse, Priority } from '@/types/api';
+import { DatePicker } from '../DatePicker';
 
 interface EditReminderCardProps {
   reminder: ReminderResponse;
@@ -61,8 +62,6 @@ export function EditReminderCard({
     onClose();
   }, [title, description, url, startDateTime, endDateTime, isAllDay, selectedListId, isFlagged, priority, reminder, onSave, onClose]);
 
-  const chipBase = 'inline-flex items-center gap-1.5 h-8 px-2.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-900';
-
   return (
     <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-white rounded-apple-lg shadow-[0_16px_48px_rgba(0,0,0,0.16)] w-[380px] overflow-hidden animate-scale-in" onClick={e => e.stopPropagation()}>
@@ -93,23 +92,21 @@ export function EditReminderCard({
               className={`px-3 py-1 text-xs rounded-[8px] font-medium ${!isAllDay ? 'bg-apple-blue text-white' : 'bg-[#F2F2F7] text-gray-600'}`}>时间段</button>
           </div>
           <div className="flex flex-col gap-2">
-            <div className={chipBase}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-700">
-                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              <input type={isAllDay ? "date" : "datetime-local"} value={startDateTime} onChange={e => setStartDateTime(e.target.value)}
-                className="bg-transparent border-none outline-none text-[13px] text-gray-700" style={{ width: isAllDay ? '96px' : '170px' }} />
-            </div>
+            <DatePicker
+              value={startDateTime}
+              onChange={setStartDateTime}
+              mode={isAllDay ? 'date' : 'datetime-local'}
+              placeholder={isAllDay ? '选择日期' : '选择开始时间'}
+            />
             {!isAllDay && startDateTime && (
               <div className="flex items-center gap-2 ml-1">
                 <span className="text-xs text-gray-400">至</span>
-                <div className={chipBase}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-700">
-                    <polyline points="9 14 4 9 9 4"/><path d="M4 9h11a4 4 0 0 1 4 4v1"/>
-                  </svg>
-                  <input type="datetime-local" value={endDateTime} onChange={e => setEndDateTime(e.target.value)}
-                    className="bg-transparent border-none outline-none text-[13px] text-gray-700" style={{ width: '170px' }} />
-                </div>
+                <DatePicker
+                  value={endDateTime}
+                  onChange={setEndDateTime}
+                  mode="datetime-local"
+                  placeholder="选择结束时间"
+                />
               </div>
             )}
           </div>

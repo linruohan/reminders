@@ -110,44 +110,6 @@ impl ReminderRepository {
         rows.collect()
     }
 
-    pub fn insert(&self, reminder: &Reminder) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "INSERT INTO reminders (id, title, description, due_date, due_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)",
-            params![
-                reminder.id.to_string(),
-                reminder.title,
-                reminder.description,
-                reminder.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
-                reminder.due_time.map(|t| t.format("%H:%M:%S").to_string()),
-                reminder.end_date.map(|d| d.format("%Y-%m-%d").to_string()),
-                reminder.end_time.map(|t| t.format("%H:%M:%S").to_string()),
-                reminder.is_all_day as i32,
-                reminder.is_completed as i32,
-                reminder.is_flagged as i32,
-                Self::priority_to_str(&reminder.priority),
-                reminder.list_id.map(|id| id.to_string()),
-                reminder.created_at.to_rfc3339(),
-                reminder.updated_at.to_rfc3339(),
-                reminder.url,
-                reminder.completion_date.map(|d| d.to_rfc3339()),
-                reminder.recurrence_frequency,
-                reminder.recurrence_interval,
-                reminder.custom_recurrence_unit,
-                reminder.recurrence_end_date.map(|d| d.format("%Y-%m-%d").to_string()),
-                reminder.remind_before_value,
-                reminder.remind_before_unit,
-                None::<String>,
-                None::<f64>,
-                None::<f64>,
-                None::<f64>,
-                None::<String>,
-                reminder.owner_id.map(|id| id.to_string()),
-            ],
-        )?;
-        Ok(())
-    }
-
     pub fn update(&self, reminder: &Reminder) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         let now = Local::now();

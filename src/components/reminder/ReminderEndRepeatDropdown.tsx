@@ -1,0 +1,54 @@
+import { memo } from 'react';
+import { getTodayStr } from '@/utils/dateUtils';
+import { DatePicker } from '../DatePicker';
+
+interface ReminderEndRepeatDropdownProps {
+  editRecurrenceEndDate: string;
+  onEndDateChange: (date: string) => void;
+  onClose: () => void;
+}
+
+/**
+ * 结束重复日期选择下拉组件
+ * 提供"永不"和"指定日期"选项
+ */
+export const ReminderEndRepeatDropdown = memo(function ReminderEndRepeatDropdown({
+  editRecurrenceEndDate,
+  onEndDateChange,
+  onClose
+}: ReminderEndRepeatDropdownProps) {
+  return (
+    <div className="w-max min-w-[100px] bg-white rounded-apple-lg shadow-lg border border-apple-divider py-1">
+      <button
+        onClick={() => { onEndDateChange(''); onClose(); }}
+        className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
+          !editRecurrenceEndDate ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'
+        }`}
+      >
+        永不
+      </button>
+      <button
+        onClick={() => { if (!editRecurrenceEndDate) onEndDateChange(getTodayStr()); }}
+        className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
+          editRecurrenceEndDate ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'
+        }`}
+      >
+        指定日期
+      </button>
+      {editRecurrenceEndDate && (
+        <>
+          <div className="border-t border-apple-divider my-1" />
+          <div className="px-4 py-2">
+            <DatePicker
+              value={editRecurrenceEndDate}
+              onChange={onEndDateChange}
+              mode="date"
+              placeholder="选择日期"
+              className="w-[140px]"
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+});

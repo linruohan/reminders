@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { ListResponse, TagResponse, Priority, RecurrenceFrequency, TimeUnit } from '@/types/api';
 import { invoke } from '@tauri-apps/api/core';
+import { recurrenceOptions, remindOptions, priorityOptions, parseRemindValue } from './reminder/formOptions';
+import { DatePicker } from './DatePicker';
 
 interface AddReminderModalProps {
   lists: ListResponse[];
@@ -28,54 +30,10 @@ interface AddReminderModalProps {
   }) => void;
   initialDate?: string;
   initialTime?: string;
+  showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
-const recurrenceOptions = [
-  { value: '', label: '永不' },
-  { value: 'hourly', label: '每小时' },
-  { value: 'daily', label: '每天' },
-  { value: 'weekdays', label: '工作日' },
-  { value: 'weekends', label: '周末' },
-  { value: 'weekly', label: '每周' },
-  { value: 'biweekly', label: '每2周' },
-  { value: 'monthly', label: '每月' },
-  { value: 'bimonthly', label: '每2个月' },
-  { value: 'quarterly', label: '每3个月' },
-  { value: 'semiannual', label: '每6个月' },
-  { value: 'yearly', label: '每年' },
-  { value: 'custom', label: '自定义' },
-];
-
-const remindOptions = [
-  { value: '', label: '无' },
-  { value: '1d', label: '1天前' },
-  { value: '2d', label: '2天前' },
-  { value: '1w', label: '1周前' },
-  { value: '2w', label: '2周前' },
-  { value: '1M', label: '1个月前' },
-  { value: '2M', label: '2个月前' },
-  { value: '3M', label: '3个月前' },
-  { value: '6M', label: '6个月前' },
-  { value: 'custom', label: '自定义' },
-];
-
-function parseRemindValue(value: string): { remind_before_value: number | null; remind_before_unit: TimeUnit | null } {
-  if (!value) return { remind_before_value: null, remind_before_unit: null };
-  if (value === 'custom') return { remind_before_value: null, remind_before_unit: null };
-  const unit = value.slice(-1);
-  const num = parseInt(value.slice(0, -1));
-  const unitMap: Record<string, TimeUnit> = { d: 'days', w: 'weeks', M: 'days' };
-  return { remind_before_value: num, remind_before_unit: unitMap[unit] || null };
-}
-
-const priorityOptions = [
-  { value: 'none', label: '无' },
-  { value: 'low', label: '低' },
-  { value: 'medium', label: '中' },
-  { value: 'high', label: '高' },
-];
-
-export function AddReminderModal({ lists, initialListId, onClose, onSubmit, initialDate, initialTime }: AddReminderModalProps) {
+export function AddReminderModal({ lists, initialListId, onClose, onSubmit, initialDate, initialTime, showToast }: AddReminderModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
@@ -99,6 +57,7 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [showRecurrenceDropdown, setShowRecurrenceDropdown] = useState(false);
   const [showRemindDropdown, setShowRemindDropdown] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
@@ -118,8 +77,45 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
     return { date: parts[0], time: parts[1] || '' };
   }
 
-  const handleSubmit = useCallback(() => {
-    if (!title.trim()) return;
+  /** 验证 URL 格式 */
+  function isValidUrl(str: string): boolean {
+    if (!str.trim()) return true; // 空值允许
+    try {
+      const url = new URL(str);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
+  /** 验证日期范围：结束日期应晚于或等于开始日期 */
+  function isValidDateRange(start: string, end: string): boolean {
+    if (!start || !end) return true; // 任一为空则允许
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    return endDate >= startDate;
+  }
+
+  const handleSubmit = useCallback(async () => {
+    // 验证标题
+    if (!title.trim()) {
+      showToast?.('error', '标题不能为空');
+      return;
+    }
+
+    // 验证 URL 格式
+    if (url.trim() && !isValidUrl(url)) {
+      showToast?.('error', 'URL 格式无效，请输入 http:// 或 https:// 开头的链接');
+      return;
+    }
+
+    // 验证日期范围
+    if (startDateTime && endDateTime && !isValidDateRange(startDateTime, endDateTime)) {
+      showToast?.('error', '结束日期不能早于开始日期');
+      return;
+    }
+
+    setIsSubmitting(true);
 
     let remindData: { remind_before_value: number | null; remind_before_unit: TimeUnit | null };
     if (remindValue === 'custom') {
@@ -131,26 +127,30 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
     const start = splitDateTime(startDateTime);
     const end = splitDateTime(endDateTime);
 
-    onSubmit({
-      title: title.trim(),
-      description: description.trim() || null,
-      url: url.trim() || null,
-      due_date: start?.date || null,
-      due_time: isAllDay || !start?.time ? null : start.time,
-      end_date: end?.date || null,
-      end_time: isAllDay || !end?.time ? null : end.time,
-      list_id: selectedListId || null,
-      is_all_day: isAllDay,
-      is_flagged: isFlagged,
-      priority: priority as Priority,
-      recurrence_frequency: (recurrenceFreq || null) as RecurrenceFrequency | null,
-      recurrence_interval: recurrenceFreq === 'custom' ? recurrenceInterval : null,
-      custom_recurrence_unit: (recurrenceFreq === 'custom' ? customUnit : null) as TimeUnit | null,
-      recurrence_end_date: showEndRepeat && recurrenceEndDate ? recurrenceEndDate : null,
-      ...remindData,
-      tags: tags.length > 0 ? tags : undefined,
-    });
-  }, [title, description, url, startDateTime, endDateTime, isAllDay, selectedListId, isFlagged, priority, recurrenceFreq, recurrenceInterval, customUnit, showEndRepeat, recurrenceEndDate, remindValue, customRemindNum, customRemindUnit, tags, onSubmit]);
+    try {
+      onSubmit({
+        title: title.trim(),
+        description: description.trim() || null,
+        url: url.trim() || null,
+        due_date: start?.date || null,
+        due_time: isAllDay || !start?.time ? null : start.time,
+        end_date: end?.date || null,
+        end_time: isAllDay || !end?.time ? null : end.time,
+        list_id: selectedListId || null,
+        is_all_day: isAllDay,
+        is_flagged: isFlagged,
+        priority: priority as Priority,
+        recurrence_frequency: (recurrenceFreq || null) as RecurrenceFrequency | null,
+        recurrence_interval: recurrenceFreq === 'custom' ? recurrenceInterval : null,
+        custom_recurrence_unit: (recurrenceFreq === 'custom' ? customUnit : null) as TimeUnit | null,
+        recurrence_end_date: showEndRepeat && recurrenceEndDate ? recurrenceEndDate : null,
+        ...remindData,
+        tags: tags.length > 0 ? tags : undefined,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [title, description, url, startDateTime, endDateTime, isAllDay, selectedListId, isFlagged, priority, recurrenceFreq, recurrenceInterval, customUnit, showEndRepeat, recurrenceEndDate, remindValue, customRemindNum, customRemindUnit, tags, onSubmit, showToast]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -239,9 +239,15 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
           <span className="text-sm font-semibold text-gray-900">新建提醒事项</span>
           <button
             onClick={handleSubmit}
-            disabled={!title.trim()}
-            className="text-sm font-semibold text-apple-blue disabled:text-apple-gray disabled:opacity-50 transition-opacity spring-transition"
+            disabled={!title.trim() || isSubmitting}
+            className="text-sm font-semibold text-apple-blue disabled:text-apple-gray disabled:opacity-50 transition-opacity spring-transition flex items-center gap-1.5"
           >
+            {isSubmitting && (
+              <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+              </svg>
+            )}
             完成
           </button>
         </div>
@@ -301,44 +307,22 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
           </div>
 
           <div className="flex flex-col gap-2">
-            <div className={`${chipBase}`}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-700">
-                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              <input
-                type={isAllDay ? "date" : "datetime-local"}
-                value={startDateTime}
-                onChange={(e) => setStartDateTime(e.target.value)}
-                className="bg-transparent border-none outline-none text-[13px] text-gray-700"
-                style={{ width: isAllDay ? '96px' : '170px' }}
-              />
-              {startDateTime && (
-                <button onClick={() => setStartDateTime('')} className="ml-0.5 hover:bg-gray-200 rounded-full p-0.5">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              )}
-            </div>
+            <DatePicker
+              value={startDateTime}
+              onChange={setStartDateTime}
+              mode={isAllDay ? 'date' : 'datetime-local'}
+              placeholder={isAllDay ? '选择日期' : '选择开始时间'}
+            />
 
             {!isAllDay && startDateTime && (
               <div className="flex items-center gap-2 ml-1">
                 <span className="text-xs text-gray-400">至</span>
-                <div className={`${chipBase}`}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-700">
-                    <polyline points="9 14 4 9 9 4"/><path d="M4 9h11a4 4 0 0 1 4 4v1"/>
-                  </svg>
-                  <input
-                    type="datetime-local"
-                    value={endDateTime}
-                    onChange={(e) => setEndDateTime(e.target.value)}
-                    className="bg-transparent border-none outline-none text-[13px] text-gray-700"
-                    style={{ width: '170px' }}
-                  />
-                  {endDateTime && (
-                    <button onClick={() => setEndDateTime('')} className="ml-0.5 hover:bg-gray-200 rounded-full p-0.5">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
-                  )}
-                </div>
+                <DatePicker
+                  value={endDateTime}
+                  onChange={setEndDateTime}
+                  mode="datetime-local"
+                  placeholder="选择结束时间"
+                />
               </div>
             )}
           </div>
@@ -415,11 +399,11 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
                   <span className="text-xs text-gray-500">结束重复</span>
                 </label>
                 {showEndRepeat && (
-                  <input
-                    type="date"
+                  <DatePicker
                     value={recurrenceEndDate}
-                    onChange={(e) => setRecurrenceEndDate(e.target.value)}
-                    className="px-2 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none"
+                    onChange={setRecurrenceEndDate}
+                    mode="date"
+                    placeholder="选择结束日期"
                   />
                 )}
               </div>
@@ -520,10 +504,10 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {tags.map(tag => (
-                  <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-apple-blue text-xs rounded-[6px]">
+                  <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 bg-apple-blue/10 text-apple-blue text-xs font-medium rounded-full transition-all hover:bg-apple-blue/15">
                     #{tag}
-                    <button onClick={() => removeTag(tag)} className="hover:bg-blue-100 rounded-full p-0.5">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    <button onClick={() => removeTag(tag)} className="hover:bg-apple-blue/20 rounded-full p-0.5 transition-colors">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                   </span>
                 ))}

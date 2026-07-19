@@ -34,10 +34,9 @@ fn parse_priority(s: &str) -> Priority {
     }
 }
 
-/// 在事务中同步提醒的标签：先清空现有关联，再按名称 upsert 标签并重建关联。
-/// 使用事务保证原子性，避免中途失败留下脏数据。
-fn sync_reminder_tags(conn: &mut Connection, reminder_id: &str, tag_names: &[String]) -> Result<(), String> {
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
+/// 在已有事务中同步标签（不创建新事务）
+/// 使用 UPSERT 模式避免竞态条件，保证数据一致性
+fn sync_reminder_tags_in_tx(tx: &rusqlite::Transaction, reminder_id: &str, tag_names: &[String]) -> Result<(), String> {
     tx.execute(
         "DELETE FROM reminder_tags WHERE reminder_id = ?",
         rusqlite::params![reminder_id],
@@ -63,7 +62,6 @@ fn sync_reminder_tags(conn: &mut Connection, reminder_id: &str, tag_names: &[Str
         )
         .map_err(|e| e.to_string())?;
     }
-    tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -398,14 +396,58 @@ pub fn create_reminder(db: State<'_, Database>, request: CreateReminderRequest) 
     reminder.remind_before_unit = request.remind_before_unit;
 
     let reminder_id = reminder.id.to_string();
-    let repo = ReminderRepository::new(get_conn(&db));
-    repo.insert(&reminder).map_err(|e| e.to_string())?;
-
+    let conn = get_conn(&db);
+    let mut conn_guard = conn.lock().unwrap();
+    
+    // 使用事务保证原子性：主表插入 + 标签同步
+    let tx = conn_guard.transaction().map_err(|e| e.to_string())?;
+    
+    // 插入主表
+    tx.execute(
+        "INSERT INTO reminders (id, title, description, due_date, due_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)",
+        rusqlite::params![
+            reminder.id.to_string(),
+            reminder.title,
+            reminder.description,
+            reminder.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
+            reminder.due_time.map(|t| t.format("%H:%M:%S").to_string()),
+            reminder.end_date.map(|d| d.format("%Y-%m-%d").to_string()),
+            reminder.end_time.map(|t| t.format("%H:%M:%S").to_string()),
+            reminder.is_all_day as i32,
+            reminder.is_completed as i32,
+            reminder.is_flagged as i32,
+            match reminder.priority {
+                Priority::None => "none",
+                Priority::High => "high",
+                Priority::Medium => "medium",
+                Priority::Low => "low",
+            },
+            reminder.list_id.map(|id| id.to_string()),
+            reminder.created_at.to_rfc3339(),
+            reminder.updated_at.to_rfc3339(),
+            reminder.url,
+            reminder.completion_date.map(|d| d.to_rfc3339()),
+            reminder.recurrence_frequency,
+            reminder.recurrence_interval,
+            reminder.custom_recurrence_unit,
+            reminder.recurrence_end_date.map(|d| d.format("%Y-%m-%d").to_string()),
+            reminder.remind_before_value,
+            reminder.remind_before_unit,
+            None::<String>,
+            None::<f64>,
+            None::<f64>,
+            None::<f64>,
+            None::<String>,
+            reminder.owner_id.map(|id| id.to_string()),
+        ],
+    ).map_err(|e| e.to_string())?;
+    
+    // 同步标签（在事务中）
     if let Some(tag_names) = request.tags {
-        let conn = get_conn(&db);
-        let mut conn = conn.lock().unwrap();
-        sync_reminder_tags(&mut *conn, &reminder_id, &tag_names)?;
+        sync_reminder_tags_in_tx(&tx, &reminder_id, &tag_names)?;
     }
+    
+    tx.commit().map_err(|e| e.to_string())?;
 
     let mut resp: ReminderResponse = reminder.into();
     resp.tags = get_reminder_tags_internal(get_conn(&db), &reminder_id)?;
@@ -477,14 +519,56 @@ pub fn update_reminder(db: State<'_, Database>, request: UpdateReminderRequest) 
         reminder.remind_before_unit = if rbu.is_empty() { None } else { Some(rbu) };
     }
 
-    repo.update(&reminder).map_err(|e| e.to_string())?;
-
-    // 同步标签（sync_reminder_tags 内部已包含事务和 DELETE 操作）
+    // 使用事务保证原子性：更新主表 + 同步标签
+    let conn = get_conn(&db);
+    let mut conn_guard = conn.lock().unwrap();
+    let tx = conn_guard.transaction().map_err(|e| e.to_string())?;
+    
+    // 更新主表
+    tx.execute(
+        "UPDATE reminders SET title = ?1, description = ?2, due_date = ?3, due_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, location_address = ?21, location_latitude = ?22, location_longitude = ?23, location_radius = ?24, location_proximity = ?25, owner_id = ?26 WHERE id = ?27",
+        rusqlite::params![
+            reminder.title,
+            reminder.description,
+            reminder.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
+            reminder.due_time.map(|t| t.format("%H:%M:%S").to_string()),
+            reminder.end_date.map(|d| d.format("%Y-%m-%d").to_string()),
+            reminder.end_time.map(|t| t.format("%H:%M:%S").to_string()),
+            reminder.is_all_day as i32,
+            reminder.is_completed as i32,
+            reminder.is_flagged as i32,
+            match reminder.priority {
+                Priority::None => "none",
+                Priority::High => "high",
+                Priority::Medium => "medium",
+                Priority::Low => "low",
+            },
+            reminder.list_id.map(|id| id.to_string()),
+            Local::now().to_rfc3339(),
+            reminder.url,
+            reminder.completion_date.map(|d| d.to_rfc3339()),
+            reminder.recurrence_frequency,
+            reminder.recurrence_interval,
+            reminder.custom_recurrence_unit,
+            reminder.recurrence_end_date.map(|d| d.format("%Y-%m-%d").to_string()),
+            reminder.remind_before_value,
+            reminder.remind_before_unit,
+            None::<String>,
+            None::<f64>,
+            None::<f64>,
+            None::<f64>,
+            None::<String>,
+            reminder.owner_id.map(|id| id.to_string()),
+            reminder.id.to_string(),
+        ],
+    ).map_err(|e| e.to_string())?;
+    
+    // 同步标签（在事务中）
     if let Some(tag_names) = request.tags {
-        let conn = get_conn(&db);
-        let mut conn = conn.lock().unwrap();
-        sync_reminder_tags(&mut *conn, &reminder_id, &tag_names)?;
+        sync_reminder_tags_in_tx(&tx, &reminder_id, &tag_names)?;
     }
+    
+    tx.commit().map_err(|e| e.to_string())?;
 
     let mut resp: ReminderResponse = reminder.into();
     resp.tags = get_reminder_tags_internal(get_conn(&db), &reminder_id)?;

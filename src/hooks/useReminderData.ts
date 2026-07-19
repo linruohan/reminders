@@ -31,6 +31,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     updateOwner,
     deleteOwner,
     isLoading,
+    error,
   } = useApi();
 
   const [reminders, setReminders] = useState<ReminderResponse[]>([]);
@@ -184,9 +185,10 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     if (result) {
       await syncAfterMutation();
     } else {
-      showToast?.('error', '更新提醒状态失败');
+      const errorMsg = error[`toggle_reminder_${id}`] || '更新提醒状态失败';
+      showToast?.('error', errorMsg);
     }
-  }, [toggleReminderCompleted, syncAfterMutation, showToast]);
+  }, [toggleReminderCompleted, syncAfterMutation, showToast, error]);
 
   const handleUpdateReminder = useCallback(async (id: string, updates: Partial<ReminderResponse>) => {
     const { tags: tagObjs, ...rest } = updates;
@@ -199,18 +201,20 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     if (result) {
       await syncAfterMutation();
     } else {
-      showToast?.('error', '更新提醒失败');
+      const errorMsg = error[`update_reminder_${id}`] || '更新提醒失败';
+      showToast?.('error', errorMsg);
     }
-  }, [updateReminder, syncAfterMutation, showToast]);
+  }, [updateReminder, syncAfterMutation, showToast, error]);
 
   const handleDeleteReminder = useCallback(async (id: string) => {
     const success = await deleteReminder(id);
     if (success) {
       await syncAfterMutation();
     } else {
-      showToast?.('error', '删除提醒失败');
+      const errorMsg = error[`delete_reminder_${id}`] || '删除提醒失败';
+      showToast?.('error', errorMsg);
     }
-  }, [deleteReminder, syncAfterMutation, showToast]);
+  }, [deleteReminder, syncAfterMutation, showToast, error]);
 
   const handleCreateReminder = useCallback(async (data: CreateReminderRequest) => {
     const result = await createReminder(data);
@@ -236,50 +240,55 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
         setActiveFilter('all');
       }
     } else {
-      showToast?.('error', '删除列表失败');
+      const errorMsg = error[`delete_list_${id}`] || '删除列表失败';
+      showToast?.('error', errorMsg);
     }
     return success;
-  }, [deleteList, activeFilter, loadLists, showToast]);
+  }, [deleteList, activeFilter, loadLists, showToast, error]);
 
   const handleUpdateList = useCallback(async (id: string, updates: Partial<ListResponse>) => {
     const result = await updateList({ id, ...updates });
     if (result) {
       await loadLists();
     } else {
-      showToast?.('error', '更新列表失败');
+      const errorMsg = error[`update_list_${id}`] || '更新列表失败';
+      showToast?.('error', errorMsg);
     }
     return result;
-  }, [updateList, loadLists, showToast]);
+  }, [updateList, loadLists, showToast, error]);
 
   const handleUpdateOwner = useCallback(async (id: string, updates: Partial<OwnerResponse>) => {
     const result = await updateOwner({ id, ...updates });
     if (result) {
       await loadOwners();
     } else {
-      showToast?.('error', '更新所有者失败');
+      const errorMsg = error[`update_owner_${id}`] || '更新所有者失败';
+      showToast?.('error', errorMsg);
     }
     return result;
-  }, [updateOwner, loadOwners, showToast]);
+  }, [updateOwner, loadOwners, showToast, error]);
 
   const handleAddOwner = useCallback(async (name: string) => {
     const result = await createOwner({ name });
     if (result) {
       await loadOwners();
     } else {
-      showToast?.('error', '创建所有者失败');
+      const errorMsg = error['create_owner'] || '创建所有者失败';
+      showToast?.('error', errorMsg);
     }
     return result;
-  }, [createOwner, loadOwners, showToast]);
+  }, [createOwner, loadOwners, showToast, error]);
 
   const handleDeleteOwner = useCallback(async (id: string) => {
     const success = await deleteOwner(id);
     if (success) {
       await loadOwners();
     } else {
-      showToast?.('error', '删除所有者失败');
+      const errorMsg = error[`delete_owner_${id}`] || '删除所有者失败';
+      showToast?.('error', errorMsg);
     }
     return success;
-  }, [deleteOwner, loadOwners, showToast]);
+  }, [deleteOwner, loadOwners, showToast, error]);
 
   const handleCutReminder = useCallback((reminder: ReminderResponse) => {
     setClipboard({ action: 'cut', reminder });

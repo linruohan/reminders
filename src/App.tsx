@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { TitleBar } from './components/TitleBar';
 import { ReminderPage } from './pages/ReminderPage';
 import { CalendarPage } from './pages/CalendarPage';
@@ -80,13 +80,19 @@ export function App() {
     }
   }, [handleAddList, showToast]);
 
+  // 使用 useRef 存储 refreshData，避免定时器因依赖变化而重复创建
+  const refreshDataRef = useRef(refreshData);
+  useEffect(() => {
+    refreshDataRef.current = refreshData;
+  }, [refreshData]);
+
   useEffect(() => {
     const interval = setInterval(() => {
-      refreshData();
+      refreshDataRef.current();
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [refreshData]);
+  }, []);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-apple-bg overflow-hidden relative">

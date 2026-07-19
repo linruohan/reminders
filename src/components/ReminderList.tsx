@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
 import { ReminderItem } from './ReminderItem';
 
@@ -72,7 +72,8 @@ export function ReminderList({
     return filterMap[activeFilter] || '全部';
   };
   
-  const completedCount = reminders.filter(r => r.is_completed).length;
+  // 使用 useMemo 缓存 completedCount 计算，避免每次渲染都重新计算
+  const completedCount = useMemo(() => reminders.filter(r => r.is_completed).length, [reminders]);
   
   const handleStartEditing = useCallback((id: string) => {
     setEditingId(id);
