@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { remindOptions } from './formOptions';
 
 interface ReminderRemindDropdownProps {
@@ -16,6 +16,16 @@ export const ReminderRemindDropdown = memo(function ReminderRemindDropdown({
   onRemindChange,
   onClose
 }: ReminderRemindDropdownProps) {
+  const [customNum, setCustomNum] = useState(1);
+  const [customUnit, setCustomUnit] = useState('days');
+
+  const handleCustomConfirm = () => {
+    const unitMap: Record<string, string> = { hours: 'h', days: 'd', weeks: 'w', months: 'M', years: 'y' };
+    const suffix = unitMap[customUnit] || 'd';
+    onRemindChange(`${customNum}${suffix}`);
+    onClose();
+  };
+
   return (
     <div className="w-max min-w-[100px] bg-white rounded-apple-lg shadow-lg border border-apple-divider py-1">
       {remindOptions.map(o => (
@@ -37,18 +47,27 @@ export const ReminderRemindDropdown = memo(function ReminderRemindDropdown({
             <input
               type="number"
               min={1}
-              defaultValue={1}
+              value={customNum}
+              onChange={e => setCustomNum(Math.max(1, parseInt(e.target.value) || 1))}
               className="w-12 px-1 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none text-center"
             />
             <select
-              defaultValue="day"
+              value={customUnit}
+              onChange={e => setCustomUnit(e.target.value)}
               className="px-1 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none"
             >
-              <option value="hour">小时</option>
-              <option value="day">天</option>
-              <option value="week">周</option>
-              <option value="month">月</option>
+              <option value="hours">小时</option>
+              <option value="days">天</option>
+              <option value="weeks">周</option>
+              <option value="months">月</option>
+              <option value="years">年</option>
             </select>
+            <button
+              onClick={handleCustomConfirm}
+              className="px-2 py-1 text-xs bg-apple-blue text-white rounded-[8px] hover:bg-[#0066CC] transition-colors"
+            >
+              确定
+            </button>
           </div>
         </>
       )}

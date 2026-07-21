@@ -22,7 +22,9 @@ fn parse_date(s: &str) -> Option<NaiveDate> {
 }
 
 fn parse_time(s: &str) -> Option<NaiveTime> {
-    NaiveTime::parse_from_str(s, "%H:%M").ok()
+    NaiveTime::parse_from_str(s, "%H:%M:%S")
+        .or_else(|_| NaiveTime::parse_from_str(s, "%H:%M"))
+        .ok()
 }
 
 fn parse_priority(s: &str) -> Priority {
@@ -157,9 +159,9 @@ impl From<Reminder> for ReminderResponse {
             description: r.description,
             url: r.url,
             due_date: r.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
-            due_time: r.due_time.map(|t| t.format("%H:%M").to_string()),
+            due_time: r.due_time.map(|t| t.format("%H:%M:%S").to_string()),
             end_date: r.end_date.map(|d| d.format("%Y-%m-%d").to_string()),
-            end_time: r.end_time.map(|t| t.format("%H:%M").to_string()),
+            end_time: r.end_time.map(|t| t.format("%H:%M:%S").to_string()),
             is_all_day: r.is_all_day,
             is_completed: r.is_completed,
             is_flagged: r.is_flagged,
@@ -448,6 +450,7 @@ pub fn create_reminder(db: State<'_, Database>, request: CreateReminderRequest) 
     }
     
     tx.commit().map_err(|e| e.to_string())?;
+    drop(conn_guard);
 
     let mut resp: ReminderResponse = reminder.into();
     resp.tags = get_reminder_tags_internal(get_conn(&db), &reminder_id)?;
@@ -507,14 +510,18 @@ pub fn update_reminder(db: State<'_, Database>, request: UpdateReminderRequest) 
     if let Some(rf) = request.recurrence_frequency {
         reminder.recurrence_frequency = if rf.is_empty() { None } else { Some(rf) };
     }
-    reminder.recurrence_interval = request.recurrence_interval;
+    if let Some(ri) = request.recurrence_interval {
+        reminder.recurrence_interval = Some(ri);
+    }
     if let Some(cru) = request.custom_recurrence_unit {
         reminder.custom_recurrence_unit = if cru.is_empty() { None } else { Some(cru) };
     }
     if let Some(s) = request.recurrence_end_date {
         reminder.recurrence_end_date = if s.is_empty() { None } else { parse_date(&s) };
     }
-    reminder.remind_before_value = request.remind_before_value;
+    if let Some(rbv) = request.remind_before_value {
+        reminder.remind_before_value = Some(rbv);
+    }
     if let Some(rbu) = request.remind_before_unit {
         reminder.remind_before_unit = if rbu.is_empty() { None } else { Some(rbu) };
     }
@@ -569,6 +576,7 @@ pub fn update_reminder(db: State<'_, Database>, request: UpdateReminderRequest) 
     }
     
     tx.commit().map_err(|e| e.to_string())?;
+    drop(conn_guard);
 
     let mut resp: ReminderResponse = reminder.into();
     resp.tags = get_reminder_tags_internal(get_conn(&db), &reminder_id)?;

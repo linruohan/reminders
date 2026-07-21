@@ -45,12 +45,12 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
   const [priority, setPriority] = useState('none');
   const [recurrenceFreq, setRecurrenceFreq] = useState('');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
-  const [customUnit, setCustomUnit] = useState('day');
+  const [customUnit, setCustomUnit] = useState('days');
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [showEndRepeat, setShowEndRepeat] = useState(false);
   const [remindValue, setRemindValue] = useState('');
   const [customRemindNum, setCustomRemindNum] = useState(1);
-  const [customRemindUnit, setCustomRemindUnit] = useState('minute');
+  const [customRemindUnit, setCustomRemindUnit] = useState('minutes');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [tagSuggestions, setTagSuggestions] = useState<TagResponse[]>([]);
@@ -377,11 +377,11 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
                   onChange={(e) => setCustomUnit(e.target.value)}
                   className="px-2 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none"
                 >
-                  <option value="hour">小时</option>
-                  <option value="day">天</option>
-                  <option value="week">周</option>
-                  <option value="month">个月</option>
-                  <option value="year">年</option>
+                  <option value="hours">小时</option>
+                  <option value="days">天</option>
+                  <option value="weeks">周</option>
+                  <option value="months">个月</option>
+                  <option value="years">年</option>
                 </select>
                 <span className="text-xs text-gray-500">重复</span>
               </div>
@@ -460,11 +460,11 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
                   onChange={(e) => setCustomRemindUnit(e.target.value)}
                   className="px-2 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none"
                 >
-                  <option value="minute">分钟</option>
-                  <option value="hour">小时</option>
-                  <option value="day">天</option>
-                  <option value="week">周</option>
-                  <option value="month">个月</option>
+                  <option value="minutes">分钟</option>
+                  <option value="hours">小时</option>
+                  <option value="days">天</option>
+                  <option value="weeks">周</option>
+                  <option value="months">个月</option>
                 </select>
                 <span className="text-xs text-gray-500">前</span>
               </div>

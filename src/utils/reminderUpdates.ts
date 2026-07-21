@@ -45,5 +45,17 @@ export function buildUpdates(
   if (values.remind_before_unit !== undefined && values.remind_before_unit !== reminder.remind_before_unit) {
     updates.remind_before_unit = values.remind_before_unit ?? null;
   }
+  if (values.priority !== undefined && values.priority !== reminder.priority) {
+    updates.priority = values.priority;
+  }
+  if (values.end_date !== undefined && values.end_date !== reminder.end_date) {
+    updates.end_date = values.end_date ?? null;
+  }
+  if (values.end_time !== undefined && values.end_time !== reminder.end_time) {
+    updates.end_time = values.end_time ?? null;
+  }
+  if (values.is_all_day !== undefined && values.is_all_day !== reminder.is_all_day) {
+    updates.is_all_day = values.is_all_day;
+  }
   return updates;
 }

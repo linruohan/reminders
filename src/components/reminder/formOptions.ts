@@ -45,6 +45,6 @@ export function parseRemindValue(value: string): { remind_before_value: number |
   if (value === 'custom') return { remind_before_value: null, remind_before_unit: null };
   const unit = value.slice(-1);
   const num = parseInt(value.slice(0, -1));
-  const unitMap: Record<string, TimeUnit> = { d: 'days', w: 'weeks', M: 'days' };
+  const unitMap: Record<string, TimeUnit> = { d: 'days', w: 'weeks', M: 'months' };
   return { remind_before_value: num, remind_before_unit: unitMap[unit] || null };
 }

@@ -15,7 +15,7 @@ export type RecurrenceFrequency =
   | "custom";
 
 // 时间单位类型定义
-export type TimeUnit = "minutes" | "hours" | "days" | "weeks";
+export type TimeUnit = "minutes" | "hours" | "days" | "weeks" | "months" | "years";
 
 export interface ReminderResponse {
   id: string;

@@ -55,10 +55,11 @@ export const ReminderRepeatDropdown = memo(function ReminderRepeatDropdown({
               onChange={e => onUnitChange(e.target.value as TimeUnit)}
               className="px-1 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none"
             >
-              <option value="hour">小时</option>
-              <option value="day">天</option>
-              <option value="week">周</option>
-              <option value="month">月</option>
+              <option value="hours">小时</option>
+              <option value="days">天</option>
+              <option value="weeks">周</option>
+              <option value="months">月</option>
+              <option value="years">年</option>
             </select>
           </div>
         </>
