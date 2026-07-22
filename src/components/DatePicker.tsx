@@ -1,5 +1,6 @@
 import { useState, useRef, memo, useCallback } from 'react';
 import { CalendarPicker } from './CalendarPicker';
+import { TimePicker } from './TimePicker';
 import { DropdownPortal } from './DropdownPortal';
 
 type DatePickerMode = 'date' | 'time' | 'datetime-local';
@@ -27,9 +28,29 @@ function formatDisplayDate(dateStr: string): string {
 }
 
 /**
- * 统一的日期选择器组件
+ * 格式化时间显示文本
+ */
+function formatDisplayTime(timeStr: string): string {
+  if (!timeStr) return '';
+  const parts = timeStr.split(':');
+  const hour = parseInt(parts[0]);
+  const minute = parseInt(parts[1]);
+  const mm = minute.toString().padStart(2, '0');
+  
+  if (hour < 12) {
+    return `上午 ${hour === 0 ? 12 : hour}:${mm}`;
+  } else if (hour === 12) {
+    return `下午 12:${mm}`;
+  } else {
+    return `下午 ${hour - 12}:${mm}`;
+  }
+}
+
+/**
+ * 统一的日期时间选择器组件
  * date 模式使用自定义 Apple 风格日历弹窗
- * time / datetime-local 模式使用原生输入框
+ * time 模式使用自定义 Apple 风格时间选择器
+ * datetime-local 模式结合日期和时间选择
  */
 export const DatePicker = memo(function DatePicker({
   value,
@@ -42,8 +63,8 @@ export const DatePicker = memo(function DatePicker({
 }: DatePickerProps) {
   const [isFocused, setIsFocused] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
-  const timeInputRef = useRef<HTMLInputElement>(null);
 
   const getDefaultPlaceholder = () => {
     switch (mode) {
@@ -64,13 +85,24 @@ export const DatePicker = memo(function DatePicker({
   }, [onChange]);
 
   const handleCalendarChange = useCallback((dateStr: string) => {
-    onChange(dateStr);
+    if (mode === 'datetime-local') {
+      const timePart = value.includes('T') ? value.split('T')[1] : '09:00';
+      onChange(`${dateStr}T${timePart}`);
+    } else {
+      onChange(dateStr);
+    }
     setShowCalendar(false);
-  }, [onChange]);
+  }, [onChange, mode, value]);
 
-  const handleTimeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.value);
-  }, [onChange]);
+  const handleTimeChange = useCallback((timeStr: string) => {
+    if (mode === 'datetime-local') {
+      const datePart = value.includes('T') ? value.split('T')[0] : '';
+      onChange(`${datePart}T${timeStr}`);
+    } else {
+      onChange(timeStr);
+    }
+    setShowTimePicker(false);
+  }, [onChange, mode, value]);
 
   const defaultIcon = (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -96,9 +128,12 @@ export const DatePicker = memo(function DatePicker({
       <div className="relative" ref={triggerRef}>
         <div
           className={`inline-flex items-center gap-2 px-3 py-2 bg-[#F2F2F7] rounded-[10px] transition-all duration-200 spring-transition cursor-pointer ${
-            isFocused ? 'ring-2 ring-apple-blue/30 bg-white' : 'hover:bg-[#E5E5EA]'
+            isFocused || showCalendar ? 'ring-2 ring-apple-blue/30 bg-white' : 'hover:bg-[#E5E5EA]'
           } ${className}`}
           onClick={() => setShowCalendar(!showCalendar)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          tabIndex={0}
         >
           <span className="text-gray-500 flex-shrink-0">
             {icon || defaultIcon}
@@ -123,7 +158,7 @@ export const DatePicker = memo(function DatePicker({
         <DropdownPortal
           triggerRef={triggerRef}
           isOpen={showCalendar}
-          onClose={() => setShowCalendar(false)}
+          onClose={() => { setShowCalendar(false); setIsFocused(false); }}
           minWidth={260}
         >
           <div
@@ -133,7 +168,7 @@ export const DatePicker = memo(function DatePicker({
             <CalendarPicker
               value={value}
               onChange={handleCalendarChange}
-              onClose={() => setShowCalendar(false)}
+              onClose={() => { setShowCalendar(false); setIsFocused(false); }}
             />
           </div>
         </DropdownPortal>
@@ -141,85 +176,99 @@ export const DatePicker = memo(function DatePicker({
     );
   }
 
-  // time 模式：原生时间输入框
+  // time 模式：自定义时间选择器
   if (mode === 'time') {
+    const displayText = value ? formatDisplayTime(value) : (placeholder || getDefaultPlaceholder());
+
     return (
-      <div
-        className={`relative inline-flex items-center gap-2 px-3 py-2 bg-[#F2F2F7] rounded-[10px] transition-all duration-200 spring-transition ${
-          isFocused ? 'ring-2 ring-apple-blue/30 bg-white' : 'hover:bg-[#E5E5EA]'
-        } ${className}`}
-      >
-        <span className="text-gray-500 flex-shrink-0">
-          {icon || timeIcon}
-        </span>
-        <input
-          ref={timeInputRef}
-          type="time"
-          value={value}
-          onChange={handleTimeChange}
+      <div className="relative" ref={triggerRef}>
+        <div
+          className={`inline-flex items-center gap-2 px-3 py-2 bg-[#F2F2F7] rounded-[10px] transition-all duration-200 spring-transition cursor-pointer ${
+            isFocused || showTimePicker ? 'ring-2 ring-apple-blue/30 bg-white' : 'hover:bg-[#E5E5EA]'
+          } ${className}`}
+          onClick={() => setShowTimePicker(!showTimePicker)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className="bg-transparent border-none outline-none text-[13px] text-gray-700 flex-1 min-w-0 cursor-pointer time-input"
-          style={{ width: '80px' }}
-        />
-        {!value && (
-          <span className="text-[13px] text-apple-gray pointer-events-none absolute left-9">
-            {placeholder || getDefaultPlaceholder()}
+          tabIndex={0}
+        >
+          <span className="text-gray-500 flex-shrink-0">
+            {icon || timeIcon}
           </span>
-        )}
-        {showClear && value && (
-          <button
-            onClick={handleClear}
-            className="ml-0.5 hover:bg-gray-200 rounded-full p-0.5 transition-colors flex-shrink-0"
-            aria-label="清除"
+          <span className={`text-[13px] flex-1 min-w-0 ${value ? 'text-gray-700' : 'text-apple-gray'}`}>
+            {displayText}
+          </span>
+          {showClear && value && (
+            <button
+              onClick={handleClear}
+              className="ml-0.5 hover:bg-gray-200 rounded-full p-0.5 transition-colors flex-shrink-0"
+              aria-label="清除"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
+
+        <DropdownPortal
+          triggerRef={triggerRef}
+          isOpen={showTimePicker}
+          onClose={() => { setShowTimePicker(false); setIsFocused(false); }}
+          minWidth={200}
+        >
+          <div
+            className="bg-white rounded-apple-lg shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider animate-scale-in overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
           >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        )}
+            <TimePicker
+              value={value}
+              onChange={handleTimeChange}
+              onClose={() => { setShowTimePicker(false); setIsFocused(false); }}
+            />
+          </div>
+        </DropdownPortal>
       </div>
     );
   }
 
-  // datetime-local 模式：日期触发 + 时间输入
+  // datetime-local 模式：日期触发 + 时间选择
+  const datePart = value.includes('T') ? value.split('T')[0] : '';
+  const timePart = value.includes('T') ? value.split('T')[1] : '';
+
   return (
     <div className="relative" ref={triggerRef}>
       <div
         className={`inline-flex items-center gap-2 px-3 py-2 bg-[#F2F2F7] rounded-[10px] transition-all duration-200 spring-transition ${
-          isFocused ? 'ring-2 ring-apple-blue/30 bg-white' : 'hover:bg-[#E5E5EA]'
+          isFocused || showCalendar || showTimePicker ? 'ring-2 ring-apple-blue/30 bg-white' : 'hover:bg-[#E5E5EA]'
         } ${className}`}
       >
         {/* 日期部分 - 点击弹出日历 */}
         <button
           type="button"
-          onClick={() => setShowCalendar(!showCalendar)}
-          className="flex items-center gap-1.5 text-[13px] text-gray-700 hover:text-gray-900 transition-colors flex-shrink-0"
+          onClick={() => { setShowCalendar(true); setShowTimePicker(false); }}
+          className="flex items-center gap-1.5 text-[13px] hover:text-gray-900 transition-colors flex-shrink-0"
         >
           <span className="text-gray-500">{icon || defaultIcon}</span>
-          <span className={value ? 'text-gray-700' : 'text-apple-gray'}>
-            {value ? formatDisplayDate(value.split('T')[0]) : (placeholder || getDefaultPlaceholder())}
+          <span className={datePart ? 'text-gray-700' : 'text-apple-gray'}>
+            {datePart ? formatDisplayDate(datePart) : (placeholder || getDefaultPlaceholder())}
           </span>
         </button>
 
-        {/* 时间部分 - 原生输入 */}
-        {value && (
+        {/* 时间部分 - 点击弹出时间选择器 */}
+        {datePart && (
           <>
             <span className="text-gray-300">|</span>
-            <input
-              ref={timeInputRef}
-              type="time"
-              value={value.includes('T') ? value.split('T')[1] : ''}
-              onChange={(e) => {
-                const datePart = value.split('T')[0] || '';
-                onChange(`${datePart}T${e.target.value}`);
-              }}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              className="bg-transparent border-none outline-none text-[13px] text-gray-700 cursor-pointer time-input"
-              style={{ width: '80px' }}
-            />
+            <button
+              type="button"
+              onClick={() => { setShowTimePicker(true); setShowCalendar(false); }}
+              className="flex items-center gap-1 text-[13px] text-gray-700 hover:text-gray-900 transition-colors flex-shrink-0"
+            >
+              <span className="text-gray-500">{timeIcon}</span>
+              <span className={timePart ? 'text-gray-700' : 'text-apple-gray'}>
+                {timePart ? formatDisplayTime(timePart) : '选择时间'}
+              </span>
+            </button>
           </>
         )}
 
@@ -237,10 +286,11 @@ export const DatePicker = memo(function DatePicker({
         )}
       </div>
 
+      {/* 日历弹窗 */}
       <DropdownPortal
         triggerRef={triggerRef}
         isOpen={showCalendar}
-        onClose={() => setShowCalendar(false)}
+        onClose={() => { setShowCalendar(false); setIsFocused(false); }}
         minWidth={260}
       >
         <div
@@ -248,13 +298,28 @@ export const DatePicker = memo(function DatePicker({
           onClick={(e) => e.stopPropagation()}
         >
           <CalendarPicker
-            value={value ? value.split('T')[0] : ''}
-            onChange={(dateStr) => {
-              const timePart = value.includes('T') ? value.split('T')[1] : '09:00';
-              onChange(`${dateStr}T${timePart}`);
-              setShowCalendar(false);
-            }}
-            onClose={() => setShowCalendar(false)}
+            value={datePart}
+            onChange={handleCalendarChange}
+            onClose={() => { setShowCalendar(false); setIsFocused(false); }}
+          />
+        </div>
+      </DropdownPortal>
+
+      {/* 时间弹窗 */}
+      <DropdownPortal
+        triggerRef={triggerRef}
+        isOpen={showTimePicker}
+        onClose={() => { setShowTimePicker(false); setIsFocused(false); }}
+        minWidth={200}
+      >
+        <div
+          className="bg-white rounded-apple-lg shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider animate-scale-in overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <TimePicker
+            value={timePart}
+            onChange={handleTimeChange}
+            onClose={() => { setShowTimePicker(false); setIsFocused(false); }}
           />
         </div>
       </DropdownPortal>

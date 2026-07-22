@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { getTodayStr, getTomorrowStr, getWeekendStr, getNextMondayStr, getDateLabel } from '@/utils/dateUtils';
 import { DropdownPortal } from './DropdownPortal';
-import { DatePicker } from './DatePicker';
+import { CalendarPicker } from './CalendarPicker';
 
 interface DatePickerChipProps {
   value: string | null;
@@ -62,10 +62,10 @@ export function DatePickerChip({ value, onChange, onClear }: DatePickerChipProps
         triggerRef={triggerRef}
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
-        minWidth={200}
+        minWidth={260}
       >
         <div
-          className="bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider animate-scale-in overflow-hidden"
+          className="bg-white rounded-apple-lg shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider animate-scale-in overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="p-1">
@@ -96,15 +96,11 @@ export function DatePickerChip({ value, onChange, onClear }: DatePickerChipProps
               </button>
             ))}
             <div className="border-t border-apple-divider my-1" />
-            <div className="px-3 py-2">
-              <DatePicker
-                value={value || ''}
-                onChange={handleDateSelect}
-                mode="date"
-                placeholder="选择日期"
-                className="w-full"
-              />
-            </div>
+            <CalendarPicker
+              value={value || ''}
+              onChange={handleDateSelect}
+              onClose={() => setIsOpen(false)}
+            />
           </div>
         </div>
       </DropdownPortal>

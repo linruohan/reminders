@@ -1,5 +1,4 @@
 import { memo } from 'react';
-import { getTodayStr } from '@/utils/dateUtils';
 import { DatePicker } from '../DatePicker';
 
 interface ReminderEndRepeatDropdownProps {
@@ -18,18 +17,18 @@ export const ReminderEndRepeatDropdown = memo(function ReminderEndRepeatDropdown
   onClose
 }: ReminderEndRepeatDropdownProps) {
   return (
-    <div className="w-max min-w-[100px] bg-white rounded-apple-lg shadow-lg border border-apple-divider py-1">
+    <div className="w-max min-w-[140px] bg-white rounded-apple-lg shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider py-1">
       <button
         onClick={() => { onEndDateChange(''); onClose(); }}
-        className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
+        className={`block w-full text-left px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
           !editRecurrenceEndDate ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'
         }`}
       >
         永不
       </button>
       <button
-        onClick={() => { if (!editRecurrenceEndDate) onEndDateChange(getTodayStr()); }}
-        className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
+        onClick={() => { if (!editRecurrenceEndDate) onEndDateChange(new Date().toISOString().split('T')[0]); }}
+        className={`block w-full text-left px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
           editRecurrenceEndDate ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'
         }`}
       >
@@ -38,13 +37,13 @@ export const ReminderEndRepeatDropdown = memo(function ReminderEndRepeatDropdown
       {editRecurrenceEndDate && (
         <>
           <div className="border-t border-apple-divider my-1" />
-          <div className="px-4 py-2">
+          <div className="px-3 py-2">
             <DatePicker
               value={editRecurrenceEndDate}
               onChange={onEndDateChange}
               mode="date"
               placeholder="选择日期"
-              className="w-[140px]"
+              className="w-full"
             />
           </div>
         </>

@@ -1,6 +1,7 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { formatTime, suggestedTimes, groupedTimes } from '@/utils/dateUtils';
+import { useState, useCallback, useRef } from 'react';
+import { formatTime } from '@/utils/dateUtils';
 import { DropdownPortal } from './DropdownPortal';
+import { TimePicker } from './TimePicker';
 
 interface TimePickerChipProps {
   value: string | null;
@@ -11,16 +12,7 @@ interface TimePickerChipProps {
 
 export function TimePickerChip({ value, onChange, onClear, onDateRequired }: TimePickerChipProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      setInputValue(value ? formatTime(value) : '');
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [isOpen, value]);
 
   const handleOpen = useCallback(() => {
     onDateRequired();
@@ -31,21 +23,6 @@ export function TimePickerChip({ value, onChange, onClear, onDateRequired }: Tim
     onChange(timeValue);
     setIsOpen(false);
   }, [onChange]);
-
-  const handleInputKeyDown = useCallback((e: React.KeyboardEvent) => {
-    e.stopPropagation();
-    if (e.key === 'Escape') {
-      setIsOpen(false);
-      return;
-    }
-    if (e.key === 'Enter') {
-      const match = suggestedTimes.find(
-        (t) => t.label === inputValue.trim() || t.value === inputValue.trim()
-      );
-      if (match) handleTimeSelect(match.value);
-      else setIsOpen(false);
-    }
-  }, [inputValue, handleTimeSelect]);
 
   return (
     <div className="relative time-picker-chip" ref={triggerRef}>
@@ -59,21 +36,9 @@ export function TimePickerChip({ value, onChange, onClear, onDateRequired }: Tim
           <circle cx="12" cy="12" r="10"/>
           <polyline points="12 6 12 12 16 14"/>
         </svg>
-        {isOpen ? (
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={handleInputKeyDown}
-            className="w-[72px] bg-[#B3D7FF] text-gray-900 text-[13px] font-medium outline-none rounded-[4px] px-0.5 selection:bg-[#007AFF] selection:text-white"
-          />
-        ) : (
-          <span className={value ? 'text-gray-900' : 'text-apple-gray'}>
-            {value ? formatTime(value) : '添加时间'}
-          </span>
-        )}
+        <span className={value ? 'text-gray-900' : 'text-apple-gray'}>
+          {value ? formatTime(value) : '添加时间'}
+        </span>
         {(value || isOpen) && (
           <button
             type="button"
@@ -99,35 +64,14 @@ export function TimePickerChip({ value, onChange, onClear, onDateRequired }: Tim
         minWidth={220}
       >
         <div
-          className="bg-white rounded-[12px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider animate-scale-in overflow-hidden"
+          className="bg-white rounded-apple-lg shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-apple-divider animate-scale-in overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
-          {Object.entries(groupedTimes).map(([period, times]) => (
-            <div key={period}>
-              <div className="px-3 pt-2.5 pb-1 text-[11px] font-semibold text-apple-gray">
-                {period}
-              </div>
-              <div className="grid grid-cols-5 gap-1 px-2 pb-1.5">
-                {times.map((time) => (
-                  <button
-                    key={time.value}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTimeSelect(time.value);
-                    }}
-                    className={`h-8 text-xs font-medium rounded-[6px] transition-all ${
-                      value === time.value
-                        ? 'bg-apple-blue text-white shadow-sm'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {time.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
+          <TimePicker
+            value={value || ''}
+            onChange={handleTimeSelect}
+            onClose={() => setIsOpen(false)}
+          />
         </div>
       </DropdownPortal>
     </div>
