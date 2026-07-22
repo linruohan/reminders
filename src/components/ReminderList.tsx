@@ -101,7 +101,9 @@ export function ReminderList({
       planned: '计划',
       overdue: '已逾期',
       all: '全部',
-      completed: '已完成',
+      flagged: '旗标',
+      urgent: '紧急',
+      completed: '完成',
     };
     return filterMap[activeFilter] || '全部';
   };

@@ -350,11 +350,11 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     const todayStr = getTodayStr();
     return {
       all: allReminders.length,
-      today: allReminders.filter(r => !r.is_completed && r.created_date === todayStr).length,
-      planned: allReminders.filter(r => !r.is_completed && r.created_date !== null).length,
+      today: allReminders.filter(r => !r.is_completed && (r.created_date === null || r.created_date <= todayStr)).length,
+      planned: allReminders.filter(r => !r.is_completed && r.created_date !== null && r.created_date > todayStr).length,
       completed: allReminders.filter(r => r.is_completed).length,
       urgent: allReminders.filter(r => !r.is_completed && r.priority === 'high').length,
-      flagged: allReminders.filter(r => !r.is_completed && (r.is_flagged || r.priority === 'high' || r.priority === 'medium')).length,
+      flagged: allReminders.filter(r => !r.is_completed && r.is_flagged).length,
       lists: lists.map(list => ({
         id: list.id,
         count: allReminders.filter(r => r.list_id === list.id).length,

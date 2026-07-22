@@ -45,17 +45,19 @@ impl ReminderRepository {
         let today = Local::now().date_naive();
         let conn = self.conn.lock().unwrap();
         let date_str = today.format("%Y-%m-%d").to_string();
-        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE due_date = ? AND is_completed = 0 ORDER BY created_at DESC");
+        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE (created_date IS NULL OR created_date <= ?) AND is_completed = 0 ORDER BY created_at DESC");
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([date_str], Self::row_to_reminder)?;
         rows.collect()
     }
 
     pub fn get_planned(&self) -> Result<Vec<Reminder>> {
+        let today = Local::now().date_naive();
         let conn = self.conn.lock().unwrap();
-        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE due_date IS NOT NULL AND is_completed = 0 ORDER BY created_at DESC");
+        let date_str = today.format("%Y-%m-%d").to_string();
+        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE created_date IS NOT NULL AND created_date > ? AND is_completed = 0 ORDER BY created_at DESC");
         let mut stmt = conn.prepare(&query)?;
-        let rows = stmt.query_map([], Self::row_to_reminder)?;
+        let rows = stmt.query_map([date_str], Self::row_to_reminder)?;
         rows.collect()
     }
 
@@ -95,7 +97,7 @@ impl ReminderRepository {
 
     pub fn get_flagged(&self) -> Result<Vec<Reminder>> {
         let conn = self.conn.lock().unwrap();
-        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE (is_flagged = 1 OR priority IN ('high', 'medium')) AND is_completed = 0 ORDER BY created_at DESC");
+        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE is_flagged = 1 AND is_completed = 0 ORDER BY created_at DESC");
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([], Self::row_to_reminder)?;
         rows.collect()
