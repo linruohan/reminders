@@ -17,7 +17,6 @@ interface AddReminderModalProps {
     due_time?: string | null;
     end_time?: string | null;
     list_id?: string | null;
-    is_all_day?: boolean;
     is_flagged?: boolean;
     priority?: Priority;
     recurrence_frequency?: RecurrenceFrequency | null;
@@ -46,7 +45,6 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, show
     return `${y}-${m}-${d}T${h}:${min}`;
   });
   const [endDateTime, setEndDateTime] = useState('');
-  const [isAllDay, setIsAllDay] = useState(false);
   const [selectedListId, setSelectedListId] = useState<string>(initialListId || '');
   const [isFlagged, setIsFlagged] = useState(false);
   const [priority, setPriority] = useState('none');
@@ -139,9 +137,8 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, show
         description: description.trim() || null,
         url: url.trim() || null,
         end_date: end?.date || null,
-        end_time: isAllDay || !end?.time ? null : end.time,
+        end_time: end?.time || null,
         list_id: selectedListId || null,
-        is_all_day: isAllDay,
         is_flagged: isFlagged,
         priority: priority as Priority,
         recurrence_frequency: (recurrenceFreq || null) as RecurrenceFrequency | null,
@@ -154,7 +151,7 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, show
     } finally {
       setIsSubmitting(false);
     }
-  }, [title, description, url, startDateTime, endDateTime, isAllDay, selectedListId, isFlagged, priority, recurrenceFreq, recurrenceInterval, customUnit, showEndRepeat, recurrenceEndDate, remindValue, customRemindNum, customRemindUnit, tags, onSubmit, showToast]);
+  }, [title, description, url, startDateTime, endDateTime, selectedListId, isFlagged, priority, recurrenceFreq, recurrenceInterval, customUnit, showEndRepeat, recurrenceEndDate, remindValue, customRemindNum, customRemindUnit, tags, onSubmit, showToast]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -295,26 +292,11 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, show
             <span className="text-sm font-semibold text-gray-700">截止日期</span>
           </div>
 
-          <div className="flex items-center gap-2 mb-3">
-            <button
-              onClick={() => { setIsAllDay(true); setEndDateTime(''); }}
-              className={`px-3 py-1 text-xs rounded-[8px] font-medium transition-colors ${isAllDay ? 'bg-apple-blue text-white' : 'bg-[#F2F2F7] text-gray-600'}`}
-            >
-              全天
-            </button>
-            <button
-              onClick={() => setIsAllDay(false)}
-              className={`px-3 py-1 text-xs rounded-[8px] font-medium transition-colors ${!isAllDay ? 'bg-apple-blue text-white' : 'bg-[#F2F2F7] text-gray-600'}`}
-            >
-              指定时间
-            </button>
-          </div>
-
           <DatePicker
             value={endDateTime}
             onChange={setEndDateTime}
-            mode={isAllDay ? 'date' : 'datetime-local'}
-            placeholder={isAllDay ? '选择截止日期' : '选择截止时间'}
+            mode="datetime-local"
+            placeholder="选择截止时间"
           />
 
           {/* 重复 */}
