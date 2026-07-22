@@ -56,6 +56,23 @@ button:focus {
   color: #1D1D1F;
 }
 
+/* 时间输入框样式美化 */
+.time-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.5;
+  filter: grayscale(100%);
+  transition: opacity 0.2s;
+}
+
+.time-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.8;
+}
+
+/* 隐藏原生日期输入框的日历图标（已用自定义日历替代） */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  display: none;
+}
+
 @layer components {
   .aurora-bg {
     position: fixed;

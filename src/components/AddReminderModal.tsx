@@ -28,16 +28,23 @@ interface AddReminderModalProps {
     remind_before_unit?: TimeUnit | null;
     tags?: string[];
   }) => void;
-  initialDate?: string;
-  initialTime?: string;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
-export function AddReminderModal({ lists, initialListId, onClose, onSubmit, initialDate, initialTime, showToast }: AddReminderModalProps) {
+export function AddReminderModal({ lists, initialListId, onClose, onSubmit, showToast }: AddReminderModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
-  const [startDateTime, setStartDateTime] = useState(initialDate && initialTime ? `${initialDate}T${initialTime}` : initialDate || '');
+  /** 开始时间自动设为当前时间，用户无需修改 */
+  const [startDateTime] = useState(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const h = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${d}T${h}:${min}`;
+  });
   const [endDateTime, setEndDateTime] = useState('');
   const [isAllDay, setIsAllDay] = useState(false);
   const [selectedListId, setSelectedListId] = useState<string>(initialListId || '');
@@ -111,7 +118,7 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
 
     // 验证日期范围
     if (startDateTime && endDateTime && !isValidDateRange(startDateTime, endDateTime)) {
-      showToast?.('error', '结束日期不能早于开始日期');
+      showToast?.('error', '截止日期不能早于创建日期');
       return;
     }
 
@@ -124,7 +131,6 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
       remindData = parseRemindValue(remindValue);
     }
 
-    const start = splitDateTime(startDateTime);
     const end = splitDateTime(endDateTime);
 
     try {
@@ -132,8 +138,6 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
         title: title.trim(),
         description: description.trim() || null,
         url: url.trim() || null,
-        due_date: start?.date || null,
-        due_time: isAllDay || !start?.time ? null : start.time,
         end_date: end?.date || null,
         end_time: isAllDay || !end?.time ? null : end.time,
         list_id: selectedListId || null,
@@ -281,14 +285,14 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
             className="w-full mt-0.5 text-[13px] text-apple-blue placeholder-apple-gray bg-transparent border-none outline-none"
           />
 
-          {/* 时间范围 */}
+          {/* 截止日期 */}
           <div className="border-t border-apple-divider mt-3 mb-3" />
 
           <div className="flex items-center gap-2 mb-3">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
-            <span className="text-sm font-semibold text-gray-700">时间范围</span>
+            <span className="text-sm font-semibold text-gray-700">截止日期</span>
           </div>
 
           <div className="flex items-center gap-2 mb-3">
@@ -302,30 +306,16 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, init
               onClick={() => setIsAllDay(false)}
               className={`px-3 py-1 text-xs rounded-[8px] font-medium transition-colors ${!isAllDay ? 'bg-apple-blue text-white' : 'bg-[#F2F2F7] text-gray-600'}`}
             >
-              时间段
+              指定时间
             </button>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <DatePicker
-              value={startDateTime}
-              onChange={setStartDateTime}
-              mode={isAllDay ? 'date' : 'datetime-local'}
-              placeholder={isAllDay ? '选择日期' : '选择开始时间'}
-            />
-
-            {!isAllDay && startDateTime && (
-              <div className="flex items-center gap-2 ml-1">
-                <span className="text-xs text-gray-400">至</span>
-                <DatePicker
-                  value={endDateTime}
-                  onChange={setEndDateTime}
-                  mode="datetime-local"
-                  placeholder="选择结束时间"
-                />
-              </div>
-            )}
-          </div>
+          <DatePicker
+            value={endDateTime}
+            onChange={setEndDateTime}
+            mode={isAllDay ? 'date' : 'datetime-local'}
+            placeholder={isAllDay ? '选择截止日期' : '选择截止时间'}
+          />
 
           {/* 重复 */}
           <div className="border-t border-apple-divider mt-3 pt-3">

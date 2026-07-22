@@ -15,15 +15,21 @@ export type RecurrenceFrequency =
   | "custom";
 
 // 时间单位类型定义
-export type TimeUnit = "minutes" | "hours" | "days" | "weeks" | "months" | "years";
+export type TimeUnit =
+  | "minutes"
+  | "hours"
+  | "days"
+  | "weeks"
+  | "months"
+  | "years";
 
 export interface ReminderResponse {
   id: string;
   title: string;
   description: string | null;
   url: string | null;
-  due_date: string | null;
-  due_time: string | null;
+  created_date: string | null;
+  created_time: string | null;
   end_date: string | null;
   end_time: string | null;
   is_all_day: boolean;
@@ -58,8 +64,6 @@ export interface CreateReminderRequest {
   title: string;
   description?: string | null;
   url?: string | null;
-  due_date?: string | null;
-  due_time?: string | null;
   end_date?: string | null;
   end_time?: string | null;
   list_id?: string | null;
@@ -80,8 +84,6 @@ export interface UpdateReminderRequest {
   title?: string;
   description?: string | null;
   url?: string | null;
-  due_date?: string | null;
-  due_time?: string | null;
   end_date?: string | null;
   end_time?: string | null;
   is_completed?: boolean;

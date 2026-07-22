@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { ReminderResponse, ListResponse, CreateReminderRequest, Priority, RecurrenceFrequency, TimeUnit } from '@/types/api';
-import { getDaysInMonth, toISODateStr } from '@/utils/dateUtils';
+import { getDaysInMonth } from '@/utils/dateUtils';
 import { AddReminderModal } from '../AddReminderModal';
 import { DayView } from './DayView';
 import { WeekView } from './WeekView';
@@ -29,8 +29,6 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ReminderResponse[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addModalDate, setAddModalDate] = useState<string>('');
-  const [addModalTime, setAddModalTime] = useState<string>('');
   const [editReminder, setEditReminder] = useState<ReminderResponse | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -66,8 +64,8 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
   }, []);
 
   const handleSearchSelect = useCallback((r: ReminderResponse) => {
-    if (r.due_date) {
-      const d = new Date(r.due_date);
+    if (r.created_date) {
+      const d = new Date(r.created_date);
       setCurrentDate(d);
       setSelectedDate(d);
       if (viewMode === 'year') {
@@ -79,15 +77,11 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
     setEditReminder(r);
   }, [viewMode]);
 
-  const handleDoubleClickTimeline = useCallback((hour: number, minute: number, date: Date) => {
-    setAddModalDate(toISODateStr(date));
-    setAddModalTime(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+  const handleDoubleClickTimeline = useCallback((_hour: number, _minute: number, _date: Date) => {
     setShowAddModal(true);
   }, []);
 
-  const handleAllDayDoubleClick = useCallback((date: Date) => {
-    setAddModalDate(toISODateStr(date));
-    setAddModalTime('09:00');
+  const handleAllDayDoubleClick = useCallback((_date: Date) => {
     setShowAddModal(true);
   }, []);
 
@@ -95,8 +89,6 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
     title: string;
     description?: string | null;
     url?: string | null;
-    due_date?: string | null;
-    due_time?: string | null;
     end_date?: string | null;
     end_time?: string | null;
     list_id?: string | null;
@@ -163,7 +155,7 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
         <div className="flex items-center justify-between px-5 py-2">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { setAddModalDate(''); setAddModalTime(''); setShowAddModal(true); }}
+              onClick={() => { setShowAddModal(true); }}
               className="w-8 h-8 rounded-full bg-apple-blue text-white flex items-center justify-center hover:bg-apple-blue-hover transition-colors shadow-sm active:scale-95"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -275,8 +267,6 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
           lists={lists}
           onClose={() => setShowAddModal(false)}
           onSubmit={handleAddSubmit}
-          initialDate={addModalDate || undefined}
-          initialTime={addModalTime || undefined}
         />
       )}
 

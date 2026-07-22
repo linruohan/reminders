@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
 import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, TimeUnit, Priority, RecurrenceFrequency } from '@/types/api';
-import { formatDate, formatTime, getDateColor } from '@/utils/dateUtils';
+import { formatDate, formatTime } from '@/utils/dateUtils';
 import { buildUpdates } from '@/utils/reminderUpdates';
 import { ReminderDetailModal } from './ReminderDetailModal';
 import { ContextMenu } from './ContextMenu';
@@ -85,14 +85,14 @@ const ReminderItemViewMode = memo(function ReminderItemViewMode({
                 {reminder.description}
               </span>
             )}
-            {reminder.due_date && (
-              <span className={`text-[13px] font-medium flex items-center gap-1 ${getDateColor(reminder.due_date)}`}>
+            {reminder.created_date && (
+              <span className="text-[13px] font-medium flex items-center gap-1 text-apple-gray">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                   <line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
-                {formatDate(reminder.due_date)}
-                {reminder.due_time && <> {formatTime(reminder.due_time)}</>}
+                {formatDate(reminder.created_date)}
+                {reminder.created_time && <> {formatTime(reminder.created_time)}</>}
                 {reminder.end_date && (
                   <> - {formatDate(reminder.end_date)}{reminder.end_time && <> {formatTime(reminder.end_time)}</>}</>
                 )}
@@ -148,8 +148,6 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const [editTitle, setEditTitle] = useState(reminder.title);
   const [editNotes, setEditNotes] = useState(reminder.description || '');
   const [editUrl, setEditUrl] = useState(reminder.url || '');
-  const [editDate, setEditDate] = useState(reminder.due_date || '');
-  const [editTime, setEditTime] = useState(reminder.due_time || '');
   const [editEndDate, setEditEndDate] = useState(reminder.end_date || '');
   const [editEndTime, setEditEndTime] = useState(reminder.end_time || '');
   const [editIsAllDay, setEditIsAllDay] = useState(reminder.is_all_day ?? false);
@@ -205,8 +203,6 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
       title: reminder.title,
       description: reminder.description || null,
       url: reminder.url || null,
-      due_date: reminder.due_date || null,
-      due_time: reminder.due_time || null,
       end_date: reminder.end_date || null,
       end_time: reminder.end_time || null,
       is_all_day: reminder.is_all_day ?? false,
@@ -259,14 +255,6 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const updateUrl = (value: string) => {
     setEditUrl(value);
     publishDraft({ url: value || null });
-  };
-  const updateDate = (value: string) => {
-    setEditDate(value);
-    publishDraft({ due_date: value || null });
-  };
-  const updateTime = (value: string) => {
-    setEditTime(value);
-    publishDraft({ due_time: value || null });
   };
   const updateListId = (value: string) => {
     setEditListId(value);
@@ -438,25 +426,15 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
 
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={(e) => toggleDropdown('date', e)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-700 hover:bg-[#E5E5EA] transition-all duration-200 spring-transition">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  {editDate ? formatDate(editDate) : '日期'}
-                </button>
-                <button type="button" onClick={(e) => toggleDropdown('time', e)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-700 hover:bg-[#E5E5EA] transition-all duration-200 spring-transition">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  {editTime ? formatTime(editTime) : '时间'}
-                </button>
                 <button type="button" onClick={(e) => toggleDropdown('endDate', e)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-700 hover:bg-[#E5E5EA] transition-all duration-200 spring-transition">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-                  {editEndDate ? `至${formatDate(editEndDate)}` : '结束日期'}
+                  {editEndDate ? `至${formatDate(editEndDate)}` : '截止日期'}
                 </button>
                 <button type="button" onClick={(e) => toggleDropdown('endTime', e)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-700 hover:bg-[#E5E5EA] transition-all duration-200 spring-transition">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
-                  {editEndTime ? `至${formatTime(editEndTime)}` : '结束时间'}
+                  {editEndTime ? `至${formatTime(editEndTime)}` : '截止时间'}
                 </button>
                 <button type="button" onClick={() => updateIsAllDay(!editIsAllDay)}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-[13px] font-medium transition-all duration-200 spring-transition ${editIsAllDay ? 'bg-apple-blue/10 text-apple-blue' : 'bg-[#F2F2F7] text-gray-700 hover:bg-[#E5E5EA]'}`}>
@@ -524,20 +502,6 @@ const ReminderItemEditMode = memo(function ReminderItemEditMode({
           style={{ top: dropdownRect.top, left: dropdownRect.left }}
           onClick={(e) => e.stopPropagation()}
         >
-          {activeDropdown === 'date' && (
-            <ReminderDateDropdown
-              editDate={editDate}
-              onDateChange={updateDate}
-              onClose={closeDropdown}
-            />
-          )}
-          {activeDropdown === 'time' && (
-            <ReminderTimeDropdown
-              editTime={editTime}
-              onTimeChange={updateTime}
-              onClose={closeDropdown}
-            />
-          )}
           {activeDropdown === 'endDate' && (
             <ReminderDateDropdown
               editDate={editEndDate}
@@ -663,7 +627,7 @@ export const ReminderItem = memo(function ReminderItem({
   };
 
   const handleSetDueDate = (date: string) => {
-    onUpdateReminder(reminder.id, { due_date: date });
+    onUpdateReminder(reminder.id, { created_date: date });
   };
 
   const handleShowDetail = useCallback(() => setShowDetail(true), []);

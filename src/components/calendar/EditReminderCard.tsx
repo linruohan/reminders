@@ -20,9 +20,6 @@ export function EditReminderCard({
   const [title, setTitle] = useState(reminder.title);
   const [description, setDescription] = useState(reminder.description || '');
   const [url, setUrl] = useState(reminder.url || '');
-  const [startDateTime, setStartDateTime] = useState(
-    reminder.due_date && reminder.due_time ? `${reminder.due_date}T${reminder.due_time}` : reminder.due_date || ''
-  );
   const [endDateTime, setEndDateTime] = useState(
     reminder.end_date && reminder.end_time ? `${reminder.end_date}T${reminder.end_time}` : reminder.end_date || ''
   );
@@ -45,13 +42,10 @@ export function EditReminderCard({
 
   const handleSave = useCallback(() => {
     const updates: Partial<ReminderResponse> = {};
-    const start = splitDateTime(startDateTime);
     const end = splitDateTime(endDateTime);
     if (title !== reminder.title) updates.title = title;
     if ((description || null) !== reminder.description) updates.description = description || null;
     if ((url || null) !== reminder.url) updates.url = url || null;
-    if ((start?.date || null) !== reminder.due_date) updates.due_date = start?.date || null;
-    if ((isAllDay || !start?.time ? null : start.time) !== reminder.due_time) updates.due_time = isAllDay ? null : (start?.time || null);
     if ((end?.date || null) !== reminder.end_date) updates.end_date = end?.date || null;
     if ((isAllDay ? null : (end?.time || null)) !== reminder.end_time) updates.end_time = isAllDay ? null : (end?.time || null);
     if (isAllDay !== reminder.is_all_day) updates.is_all_day = isAllDay;
@@ -60,7 +54,7 @@ export function EditReminderCard({
     if (priority !== reminder.priority) updates.priority = priority;
     onSave(reminder.id, updates);
     onClose();
-  }, [title, description, url, startDateTime, endDateTime, isAllDay, selectedListId, isFlagged, priority, reminder, onSave, onClose]);
+  }, [title, description, url, endDateTime, isAllDay, selectedListId, isFlagged, priority, reminder, onSave, onClose]);
 
   return (
     <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50" onClick={onClose}>
@@ -89,27 +83,14 @@ export function EditReminderCard({
             <button onClick={() => { setIsAllDay(true); setEndDateTime(''); }}
               className={`px-3 py-1 text-xs rounded-[8px] font-medium ${isAllDay ? 'bg-apple-blue text-white' : 'bg-[#F2F2F7] text-gray-600'}`}>全天</button>
             <button onClick={() => setIsAllDay(false)}
-              className={`px-3 py-1 text-xs rounded-[8px] font-medium ${!isAllDay ? 'bg-apple-blue text-white' : 'bg-[#F2F2F7] text-gray-600'}`}>时间段</button>
+              className={`px-3 py-1 text-xs rounded-[8px] font-medium ${!isAllDay ? 'bg-apple-blue text-white' : 'bg-[#F2F2F7] text-gray-600'}`}>指定时间</button>
           </div>
-          <div className="flex flex-col gap-2">
-            <DatePicker
-              value={startDateTime}
-              onChange={setStartDateTime}
-              mode={isAllDay ? 'date' : 'datetime-local'}
-              placeholder={isAllDay ? '选择日期' : '选择开始时间'}
-            />
-            {!isAllDay && startDateTime && (
-              <div className="flex items-center gap-2 ml-1">
-                <span className="text-xs text-gray-400">至</span>
-                <DatePicker
-                  value={endDateTime}
-                  onChange={setEndDateTime}
-                  mode="datetime-local"
-                  placeholder="选择结束时间"
-                />
-              </div>
-            )}
-          </div>
+          <DatePicker
+            value={endDateTime}
+            onChange={setEndDateTime}
+            mode={isAllDay ? 'date' : 'datetime-local'}
+            placeholder={isAllDay ? '选择截止日期' : '选择截止时间'}
+          />
           <div className="mt-3 pt-3 border-t border-apple-divider">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-gray-500">列表</span>

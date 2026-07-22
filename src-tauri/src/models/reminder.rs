@@ -41,8 +41,8 @@ pub struct Reminder {
     pub title: String,
     pub description: Option<String>,
     pub url: Option<String>,
-    pub due_date: Option<NaiveDate>,
-    pub due_time: Option<NaiveTime>,
+    pub created_date: Option<NaiveDate>,
+    pub created_time: Option<NaiveTime>,
     pub end_date: Option<NaiveDate>,
     pub end_time: Option<NaiveTime>,
     pub is_all_day: bool,
@@ -79,8 +79,8 @@ impl Reminder {
             title,
             description: None,
             url: None,
-            due_date: None,
-            due_time: None,
+            created_date: None,
+            created_time: None,
             end_date: None,
             end_time: None,
             is_all_day: false,
@@ -107,14 +107,14 @@ impl Reminder {
         self
     }
 
-    pub fn with_due_date(mut self, due_date: NaiveDate) -> Self {
-        self.due_date = Some(due_date);
+    pub fn with_created_date(mut self, created_date: NaiveDate) -> Self {
+        self.created_date = Some(created_date);
         self.is_all_day = true;
         self
     }
 
-    pub fn with_due_time(mut self, due_time: NaiveTime) -> Self {
-        self.due_time = Some(due_time);
+    pub fn with_created_time(mut self, created_time: NaiveTime) -> Self {
+        self.created_time = Some(created_time);
         self.is_all_day = false;
         self
     }

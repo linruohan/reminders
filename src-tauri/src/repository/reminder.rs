@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::models::reminder::{Priority, Reminder};
 
-const REMINDER_FIELDS: &str = "id, title, description, due_date, due_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id";
+const REMINDER_FIELDS: &str = "id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id";
 
 pub struct ReminderRepository {
     conn: Arc<Mutex<Connection>>,
@@ -114,12 +114,12 @@ impl ReminderRepository {
         let conn = self.conn.lock().unwrap();
         let now = Local::now();
         conn.execute(
-            "UPDATE reminders SET title = ?1, description = ?2, due_date = ?3, due_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, location_address = ?21, location_latitude = ?22, location_longitude = ?23, location_radius = ?24, location_proximity = ?25, owner_id = ?26 WHERE id = ?27",
+            "UPDATE reminders SET title = ?1, description = ?2, created_date = ?3, created_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, location_address = ?21, location_latitude = ?22, location_longitude = ?23, location_radius = ?24, location_proximity = ?25, owner_id = ?26 WHERE id = ?27",
             params![
                 reminder.title,
                 reminder.description,
-                reminder.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
-                reminder.due_time.map(|t| t.format("%H:%M:%S").to_string()),
+                reminder.created_date.map(|d| d.format("%Y-%m-%d").to_string()),
+                reminder.created_time.map(|t| t.format("%H:%M:%S").to_string()),
                 reminder.end_date.map(|d| d.format("%Y-%m-%d").to_string()),
                 reminder.end_time.map(|t| t.format("%H:%M:%S").to_string()),
                 reminder.is_all_day as i32,
@@ -158,13 +158,13 @@ impl ReminderRepository {
         let id_str: String = row.get("id")?;
         let id = Uuid::parse_str(&id_str).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
 
-        let due_date_str: Option<String> = row.get("due_date")?;
-        let due_date = due_date_str
+        let created_date_str: Option<String> = row.get("created_date")?;
+        let created_date = created_date_str
             .as_deref()
             .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok());
 
-        let due_time_str: Option<String> = row.get("due_time")?;
-        let due_time = due_time_str
+        let created_time_str: Option<String> = row.get("created_time")?;
+        let created_time = created_time_str
             .as_deref()
             .and_then(|s| NaiveTime::parse_from_str(s, "%H:%M:%S").ok());
 
@@ -216,8 +216,8 @@ impl ReminderRepository {
             title: row.get("title")?,
             description: row.get("description")?,
             url,
-            due_date,
-            due_time,
+            created_date,
+            created_time,
             end_date,
             end_time,
             is_all_day: is_all_day != 0,

@@ -103,15 +103,14 @@ export function ReminderDetailModal({
             </a>
           )}
 
-          {reminder.due_date && (
-            <div className="flex items-center gap-2 mt-3 text-sm text-apple-orange">
+          {reminder.created_date && (
+            <div className="flex items-center gap-2 mt-3 text-sm text-apple-gray">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10"/>
                 <polyline points="12 6 12 12 16 14"/>
               </svg>
               <span>
-                {formatDate(reminder.due_date)}{reminder.due_time ? ' ' + formatTime(reminder.due_time) : ''}
-                {reminder.is_all_day && ' (全天)'}
+                创建于 {formatDate(reminder.created_date)}{reminder.created_time ? ' ' + formatTime(reminder.created_time) : ''}
               </span>
             </div>
           )}

@@ -33,8 +33,8 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
             description TEXT,
-            due_date TEXT,
-            due_time TEXT,
+            created_date TEXT,
+            created_time TEXT,
             end_date TEXT,
             end_time TEXT,
             is_all_day INTEGER NOT NULL DEFAULT 0,
@@ -90,7 +90,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
         [],
     )?;
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_reminders_due_date ON reminders(due_date)",
+        "CREATE INDEX IF NOT EXISTS idx_reminders_created_date ON reminders(created_date)",
         [],
     )?;
     conn.execute(
@@ -98,7 +98,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
         [],
     )?;
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_reminders_due_date_completed ON reminders(due_date, is_completed)",
+        "CREATE INDEX IF NOT EXISTS idx_reminders_created_date_completed ON reminders(created_date, is_completed)",
         [],
     )?;
     conn.execute(
@@ -207,6 +207,16 @@ fn migrate_schema(conn: &Connection) -> Result<()> {
         "ALTER TABLE reminders ADD COLUMN remind_before_unit TEXT",
     )?;
 
+    // 重命名 due_date/due_time → created_date/created_time
+    // 语义变更：创建时自动记录，用户不再手动设置
+    let cols = table_columns(conn, "reminders")?;
+    if cols.iter().any(|c| c == "due_date") && !cols.iter().any(|c| c == "created_date") {
+        conn.execute("ALTER TABLE reminders RENAME COLUMN due_date TO created_date", [])?;
+    }
+    if cols.iter().any(|c| c == "due_time") && !cols.iter().any(|c| c == "created_time") {
+        conn.execute("ALTER TABLE reminders RENAME COLUMN due_time TO created_time", [])?;
+    }
+
     Ok(())
 }
 
@@ -260,7 +270,7 @@ pub fn insert_initial_data(conn: &Connection) -> Result<()> {
         let today = Local::now().date_naive().format("%Y-%m-%d").to_string();
 
         conn.execute(
-            "INSERT INTO reminders (id, title, description, due_date, due_time, is_completed, priority, list_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO reminders (id, title, description, created_date, created_time, is_completed, priority, list_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 Uuid::new_v4().to_string(),
                 "买酸奶",
@@ -275,7 +285,7 @@ pub fn insert_initial_data(conn: &Connection) -> Result<()> {
             ),
         )?;
         conn.execute(
-            "INSERT INTO reminders (id, title, description, due_date, due_time, is_completed, priority, list_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO reminders (id, title, description, created_date, created_time, is_completed, priority, list_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 Uuid::new_v4().to_string(),
                 "完成项目设计",
@@ -290,7 +300,7 @@ pub fn insert_initial_data(conn: &Connection) -> Result<()> {
             ),
         )?;
         conn.execute(
-            "INSERT INTO reminders (id, title, description, due_date, due_time, is_completed, priority, list_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO reminders (id, title, description, created_date, created_time, is_completed, priority, list_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 Uuid::new_v4().to_string(),
                 "参加会议",

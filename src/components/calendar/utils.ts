@@ -8,7 +8,7 @@ export const BLOCK_MINUTES = 30;
 
 export function getRemindersForDate(reminders: ReminderResponse[], date: Date): ReminderResponse[] {
   const targetDate = toISODateStr(date);
-  return reminders.filter(r => r.due_date === targetDate);
+  return reminders.filter(r => r.created_date === targetDate);
 }
 
 export function getWeekStartMon(date: Date): Date {

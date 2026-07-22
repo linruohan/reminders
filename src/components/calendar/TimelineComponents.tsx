@@ -77,8 +77,8 @@ export function ReminderBlock({
   listColor: string;
   onClick: (reminder: ReminderResponse) => void;
 }) {
-  const hour = reminder.due_time ? parseInt(reminder.due_time.split(':')[0]) : 9;
-  const minute = reminder.due_time ? parseInt(reminder.due_time.split(':')[1]) : 0;
+  const hour = reminder.created_time ? parseInt(reminder.created_time.split(':')[0]) : 9;
+  const minute = reminder.created_time ? parseInt(reminder.created_time.split(':')[1]) : 0;
   const top = (hour - 9) * HOUR_HEIGHT + (minute / 60) * HOUR_HEIGHT;
   const height = (30 / 60) * HOUR_HEIGHT;
 
@@ -93,8 +93,8 @@ export function ReminderBlock({
           <span className={`flex-1 text-xs font-medium truncate ${reminder.is_completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
             {reminder.title}
           </span>
-          {reminder.due_time && (
-            <span className="text-[10px] font-medium text-gray-400 flex-shrink-0">{reminder.due_time}</span>
+          {reminder.created_time && (
+            <span className="text-[10px] font-medium text-gray-400 flex-shrink-0">{reminder.created_time}</span>
           )}
         </div>
       </div>

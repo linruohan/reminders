@@ -15,11 +15,11 @@ export function buildUpdates(
   if (values.url !== undefined && values.url !== reminder.url) {
     updates.url = values.url ?? null;
   }
-  if (values.due_date !== reminder.due_date) {
-    updates.due_date = values.due_date ?? null;
+  if (values.created_date !== reminder.created_date) {
+    updates.created_date = values.created_date ?? null;
   }
-  if (values.due_time !== reminder.due_time) {
-    updates.due_time = values.due_time ?? null;
+  if (values.created_time !== reminder.created_time) {
+    updates.created_time = values.created_time ?? null;
   }
   if (values.is_flagged !== undefined && values.is_flagged !== reminder.is_flagged) {
     updates.is_flagged = values.is_flagged;

@@ -132,8 +132,8 @@ pub struct ReminderResponse {
     pub title: String,
     pub description: Option<String>,
     pub url: Option<String>,
-    pub due_date: Option<String>,
-    pub due_time: Option<String>,
+    pub created_date: Option<String>,
+    pub created_time: Option<String>,
     pub end_date: Option<String>,
     pub end_time: Option<String>,
     pub is_all_day: bool,
@@ -158,8 +158,8 @@ impl From<Reminder> for ReminderResponse {
             title: r.title,
             description: r.description,
             url: r.url,
-            due_date: r.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
-            due_time: r.due_time.map(|t| t.format("%H:%M:%S").to_string()),
+            created_date: r.created_date.map(|d| d.format("%Y-%m-%d").to_string()),
+            created_time: r.created_time.map(|t| t.format("%H:%M:%S").to_string()),
             end_date: r.end_date.map(|d| d.format("%Y-%m-%d").to_string()),
             end_time: r.end_time.map(|t| t.format("%H:%M:%S").to_string()),
             is_all_day: r.is_all_day,
@@ -189,8 +189,6 @@ pub struct CreateReminderRequest {
     pub title: String,
     pub description: Option<String>,
     pub url: Option<String>,
-    pub due_date: Option<String>,
-    pub due_time: Option<String>,
     pub end_date: Option<String>,
     pub end_time: Option<String>,
     pub list_id: Option<String>,
@@ -214,8 +212,6 @@ pub struct UpdateReminderRequest {
     pub title: Option<String>,
     pub description: Option<String>,
     pub url: Option<String>,
-    pub due_date: Option<String>,
-    pub due_time: Option<String>,
     pub end_date: Option<String>,
     pub end_time: Option<String>,
     pub is_completed: Option<bool>,
@@ -346,13 +342,10 @@ pub fn get_reminder_by_id(db: State<'_, Database>, id: String) -> Result<Option<
 pub fn create_reminder(db: State<'_, Database>, request: CreateReminderRequest) -> Result<ReminderResponse, String> {
     let mut reminder = Reminder::new(request.title);
 
-    if let Some(d) = request.due_date.as_deref().and_then(parse_date) {
-        reminder = reminder.with_due_date(d);
-    }
-
-    if let Some(t) = request.due_time.as_deref().and_then(parse_time) {
-        reminder = reminder.with_due_time(t);
-    }
+    // 自动填充创建日期和时间
+    let now = Local::now();
+    reminder.created_date = Some(now.date_naive());
+    reminder.created_time = Some(now.time());
 
     if let Some(desc) = request.description {
         reminder = reminder.with_description(desc);
@@ -400,19 +393,19 @@ pub fn create_reminder(db: State<'_, Database>, request: CreateReminderRequest) 
     let reminder_id = reminder.id.to_string();
     let conn = get_conn(&db);
     let mut conn_guard = conn.lock().unwrap();
-    
+
     // 使用事务保证原子性：主表插入 + 标签同步
     let tx = conn_guard.transaction().map_err(|e| e.to_string())?;
-    
+
     // 插入主表
     tx.execute(
-        "INSERT INTO reminders (id, title, description, due_date, due_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)",
+        "INSERT INTO reminders (id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)",
         rusqlite::params![
             reminder.id.to_string(),
             reminder.title,
             reminder.description,
-            reminder.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
-            reminder.due_time.map(|t| t.format("%H:%M:%S").to_string()),
+            reminder.created_date.map(|d| d.format("%Y-%m-%d").to_string()),
+            reminder.created_time.map(|t| t.format("%H:%M:%S").to_string()),
             reminder.end_date.map(|d| d.format("%Y-%m-%d").to_string()),
             reminder.end_time.map(|t| t.format("%H:%M:%S").to_string()),
             reminder.is_all_day as i32,
@@ -476,12 +469,6 @@ pub fn update_reminder(db: State<'_, Database>, request: UpdateReminderRequest) 
     if let Some(url) = request.url {
         reminder.url = if url.is_empty() { None } else { Some(url) };
     }
-    if let Some(s) = request.due_date {
-        reminder.due_date = if s.is_empty() { None } else { parse_date(&s) };
-    }
-    if let Some(s) = request.due_time {
-        reminder.due_time = if s.is_empty() { None } else { parse_time(&s) };
-    }
     if let Some(s) = request.end_date {
         reminder.end_date = if s.is_empty() { None } else { parse_date(&s) };
     }
@@ -533,12 +520,12 @@ pub fn update_reminder(db: State<'_, Database>, request: UpdateReminderRequest) 
     
     // 更新主表
     tx.execute(
-        "UPDATE reminders SET title = ?1, description = ?2, due_date = ?3, due_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, location_address = ?21, location_latitude = ?22, location_longitude = ?23, location_radius = ?24, location_proximity = ?25, owner_id = ?26 WHERE id = ?27",
+        "UPDATE reminders SET title = ?1, description = ?2, created_date = ?3, created_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, location_address = ?21, location_latitude = ?22, location_longitude = ?23, location_radius = ?24, location_proximity = ?25, owner_id = ?26 WHERE id = ?27",
         rusqlite::params![
             reminder.title,
             reminder.description,
-            reminder.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
-            reminder.due_time.map(|t| t.format("%H:%M:%S").to_string()),
+            reminder.created_date.map(|d| d.format("%Y-%m-%d").to_string()),
+            reminder.created_time.map(|t| t.format("%H:%M:%S").to_string()),
             reminder.end_date.map(|d| d.format("%Y-%m-%d").to_string()),
             reminder.end_time.map(|t| t.format("%H:%M:%S").to_string()),
             reminder.is_all_day as i32,

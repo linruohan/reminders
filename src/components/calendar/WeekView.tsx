@@ -124,8 +124,8 @@ export function WeekView({
               return (
                 <div key={colIdx} className="relative border-l border-gray-200">
                   {dayTimed.map(r => {
-                    const hour = r.due_time ? parseInt(r.due_time.split(':')[0]) : 9;
-                    const minute = r.due_time ? parseInt(r.due_time.split(':')[1]) : 0;
+                    const hour = r.created_time ? parseInt(r.created_time.split(':')[0]) : 9;
+                    const minute = r.created_time ? parseInt(r.created_time.split(':')[1]) : 0;
                     const top = (hour - 9) * HOUR_HEIGHT + (minute / 60) * HOUR_HEIGHT;
                     const height = (30 / 60) * HOUR_HEIGHT;
                     const color = getListColor(lists, r.list_id);
@@ -141,8 +141,8 @@ export function WeekView({
                             <span className={`flex-1 text-[11px] font-medium truncate leading-tight ${r.is_completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
                               {r.title}
                             </span>
-                            {r.due_time && (
-                              <span className="text-[9px] font-medium text-gray-400 flex-shrink-0">{r.due_time}</span>
+                            {r.created_time && (
+                              <span className="text-[9px] font-medium text-gray-400 flex-shrink-0">{r.created_time}</span>
                             )}
                           </div>
                         </div>
