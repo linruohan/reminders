@@ -21,21 +21,6 @@ pub enum RecurrenceFrequency {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum LocationProximity {
-    Arriving,
-    Leaving,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct LocationTrigger {
-    pub address: String,
-    pub latitude: Option<f64>,
-    pub longitude: Option<f64>,
-    pub radius: f64,
-    pub proximity: LocationProximity,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Reminder {
     pub id: Uuid,
     pub title: String,
@@ -56,7 +41,6 @@ pub struct Reminder {
     pub recurrence_end_date: Option<NaiveDate>,
     pub remind_before_value: Option<i32>,
     pub remind_before_unit: Option<String>,
-    pub location: Option<LocationTrigger>,
     pub owner_id: Option<Uuid>,
     pub list_id: Option<Uuid>,
     pub created_at: DateTime<Local>,
@@ -94,7 +78,6 @@ impl Reminder {
             recurrence_end_date: None,
             remind_before_value: None,
             remind_before_unit: None,
-            location: None,
             owner_id: None,
             list_id: None,
             created_at: now,

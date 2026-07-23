@@ -52,11 +52,6 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             recurrence_end_date TEXT,
             remind_before_value INTEGER,
             remind_before_unit TEXT,
-            location_address TEXT,
-            location_latitude REAL,
-            location_longitude REAL,
-            location_radius REAL,
-            location_proximity TEXT,
             owner_id TEXT,
             FOREIGN KEY (list_id) REFERENCES reminder_lists(id) ON DELETE SET NULL,
             FOREIGN KEY (owner_id) REFERENCES owners(id) ON DELETE SET NULL
@@ -153,26 +148,6 @@ fn migrate_schema(conn: &Connection) -> Result<()> {
     add_column(
         "recurrence_interval",
         "ALTER TABLE reminders ADD COLUMN recurrence_interval INTEGER",
-    )?;
-    add_column(
-        "location_address",
-        "ALTER TABLE reminders ADD COLUMN location_address TEXT",
-    )?;
-    add_column(
-        "location_latitude",
-        "ALTER TABLE reminders ADD COLUMN location_latitude REAL",
-    )?;
-    add_column(
-        "location_longitude",
-        "ALTER TABLE reminders ADD COLUMN location_longitude REAL",
-    )?;
-    add_column(
-        "location_radius",
-        "ALTER TABLE reminders ADD COLUMN location_radius REAL",
-    )?;
-    add_column(
-        "location_proximity",
-        "ALTER TABLE reminders ADD COLUMN location_proximity TEXT",
     )?;
     add_column(
         "owner_id",

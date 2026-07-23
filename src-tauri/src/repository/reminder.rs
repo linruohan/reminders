@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::models::reminder::{Priority, Reminder};
 
-const REMINDER_FIELDS: &str = "id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id";
+const REMINDER_FIELDS: &str = "id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, owner_id";
 
 pub struct ReminderRepository {
     conn: Arc<Mutex<Connection>>,
@@ -130,7 +130,7 @@ impl ReminderRepository {
         let conn = self.conn.lock().unwrap();
         let now = Local::now();
         conn.execute(
-            "UPDATE reminders SET title = ?1, description = ?2, created_date = ?3, created_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, location_address = ?21, location_latitude = ?22, location_longitude = ?23, location_radius = ?24, location_proximity = ?25, owner_id = ?26 WHERE id = ?27",
+            "UPDATE reminders SET title = ?1, description = ?2, created_date = ?3, created_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, owner_id = ?21 WHERE id = ?22",
             params![
                 reminder.title,
                 reminder.description,
@@ -152,11 +152,6 @@ impl ReminderRepository {
                 reminder.recurrence_end_date.map(|d| d.format("%Y-%m-%d").to_string()),
                 reminder.remind_before_value,
                 reminder.remind_before_unit,
-                None::<String>,
-                None::<f64>,
-                None::<f64>,
-                None::<f64>,
-                None::<String>,
                 reminder.owner_id.map(|id| id.to_string()),
                 reminder.id.to_string(),
             ],
@@ -247,7 +242,6 @@ impl ReminderRepository {
             recurrence_end_date,
             remind_before_value: row.get("remind_before_value").unwrap_or(None),
             remind_before_unit: row.get("remind_before_unit").unwrap_or(None),
-            location: None,
             owner_id,
             list_id,
             created_at,

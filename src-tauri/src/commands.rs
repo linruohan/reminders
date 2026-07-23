@@ -400,7 +400,7 @@ pub fn create_reminder(db: State<'_, Database>, request: CreateReminderRequest) 
 
     // 插入主表
     tx.execute(
-        "INSERT INTO reminders (id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)",
+        "INSERT INTO reminders (id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, owner_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)",
         rusqlite::params![
             reminder.id.to_string(),
             reminder.title,
@@ -429,11 +429,6 @@ pub fn create_reminder(db: State<'_, Database>, request: CreateReminderRequest) 
             reminder.recurrence_end_date.map(|d| d.format("%Y-%m-%d").to_string()),
             reminder.remind_before_value,
             reminder.remind_before_unit,
-            None::<String>,
-            None::<f64>,
-            None::<f64>,
-            None::<f64>,
-            None::<String>,
             reminder.owner_id.map(|id| id.to_string()),
         ],
     ).map_err(|e| e.to_string())?;
@@ -521,7 +516,7 @@ pub fn update_reminder(db: State<'_, Database>, request: UpdateReminderRequest) 
     
     // 更新主表
     tx.execute(
-        "UPDATE reminders SET title = ?1, description = ?2, created_date = ?3, created_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, location_address = ?21, location_latitude = ?22, location_longitude = ?23, location_radius = ?24, location_proximity = ?25, owner_id = ?26 WHERE id = ?27",
+        "UPDATE reminders SET title = ?1, description = ?2, created_date = ?3, created_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, owner_id = ?21 WHERE id = ?22",
         rusqlite::params![
             reminder.title,
             reminder.description,
@@ -548,11 +543,6 @@ pub fn update_reminder(db: State<'_, Database>, request: UpdateReminderRequest) 
             reminder.recurrence_end_date.map(|d| d.format("%Y-%m-%d").to_string()),
             reminder.remind_before_value,
             reminder.remind_before_unit,
-            None::<String>,
-            None::<f64>,
-            None::<f64>,
-            None::<f64>,
-            None::<String>,
             reminder.owner_id.map(|id| id.to_string()),
             reminder.id.to_string(),
         ],
@@ -622,7 +612,7 @@ pub fn toggle_reminder_completed(db: State<'_, Database>, id: String) -> Result<
 
 fn insert_reminder_row(tx: &rusqlite::Transaction, reminder: &Reminder) -> Result<(), String> {
     tx.execute(
-        "INSERT INTO reminders (id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)",
+        "INSERT INTO reminders (id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, owner_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)",
         rusqlite::params![
             reminder.id.to_string(),
             reminder.title,
@@ -651,11 +641,6 @@ fn insert_reminder_row(tx: &rusqlite::Transaction, reminder: &Reminder) -> Resul
             reminder.recurrence_end_date.map(|d| d.format("%Y-%m-%d").to_string()),
             reminder.remind_before_value,
             reminder.remind_before_unit,
-            None::<String>,
-            None::<f64>,
-            None::<f64>,
-            None::<f64>,
-            None::<String>,
             reminder.owner_id.map(|id| id.to_string()),
         ],
     )
