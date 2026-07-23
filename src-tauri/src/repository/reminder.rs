@@ -5,6 +5,7 @@ use rusqlite::{params, Connection, OptionalExtension, Result, Row};
 use uuid::Uuid;
 
 use crate::models::reminder::{Priority, Reminder};
+use super::lock_conn;
 
 const REMINDER_FIELDS: &str = "id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, owner_id";
 
@@ -18,7 +19,7 @@ impl ReminderRepository {
     }
 
     pub fn get_all(&self) -> Result<Vec<Reminder>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let query = format!("SELECT {REMINDER_FIELDS} FROM reminders ORDER BY created_at DESC");
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([], Self::row_to_reminder)?;
@@ -26,7 +27,7 @@ impl ReminderRepository {
     }
 
     pub fn get_by_id(&self, id: &Uuid) -> Result<Option<Reminder>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE id = ?");
         let mut stmt = conn.prepare(&query)?;
         stmt.query_row([id.to_string()], Self::row_to_reminder)
@@ -34,7 +35,7 @@ impl ReminderRepository {
     }
 
     pub fn get_by_list_id(&self, list_id: &Uuid) -> Result<Vec<Reminder>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE list_id = ? ORDER BY created_at DESC");
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([list_id.to_string()], Self::row_to_reminder)?;
@@ -43,7 +44,7 @@ impl ReminderRepository {
 
     pub fn get_today(&self) -> Result<Vec<Reminder>> {
         let today = Local::now().date_naive();
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let date_str = today.format("%Y-%m-%d").to_string();
         // 今天：截止日期恰好为今天（无截止日期不纳入；逾期见 get_overdue）
         let query = format!(
@@ -56,7 +57,7 @@ impl ReminderRepository {
 
     pub fn get_planned(&self) -> Result<Vec<Reminder>> {
         let today = Local::now().date_naive();
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let date_str = today.format("%Y-%m-%d").to_string();
         let query = format!(
             "SELECT {REMINDER_FIELDS} FROM reminders WHERE end_date IS NOT NULL AND end_date > ? AND is_completed = 0 ORDER BY created_at DESC"
@@ -67,7 +68,7 @@ impl ReminderRepository {
     }
 
     pub fn get_active(&self) -> Result<Vec<Reminder>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE is_completed = 0 ORDER BY created_at DESC");
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([], Self::row_to_reminder)?;
@@ -75,7 +76,7 @@ impl ReminderRepository {
     }
 
     pub fn get_completed(&self) -> Result<Vec<Reminder>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE is_completed = 1 ORDER BY created_at DESC");
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([], Self::row_to_reminder)?;
@@ -84,7 +85,7 @@ impl ReminderRepository {
 
     pub fn get_overdue(&self) -> Result<Vec<Reminder>> {
         let today = Local::now().date_naive();
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let date_str = today.format("%Y-%m-%d").to_string();
         let query = format!(
             "SELECT {REMINDER_FIELDS} FROM reminders WHERE end_date IS NOT NULL AND end_date < ? AND is_completed = 0 ORDER BY created_at DESC"
@@ -95,7 +96,7 @@ impl ReminderRepository {
     }
 
     pub fn get_urgent(&self) -> Result<Vec<Reminder>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE priority = 'high' AND is_completed = 0 ORDER BY created_at DESC");
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([], Self::row_to_reminder)?;
@@ -103,7 +104,7 @@ impl ReminderRepository {
     }
 
     pub fn get_flagged(&self) -> Result<Vec<Reminder>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE is_flagged = 1 AND is_completed = 0 ORDER BY created_at DESC");
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([], Self::row_to_reminder)?;
@@ -111,7 +112,7 @@ impl ReminderRepository {
     }
 
     pub fn search(&self, query: &str) -> Result<Vec<Reminder>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let like_query = format!("%{}%", query);
         let query_sql = format!(
             "SELECT {REMINDER_FIELDS} FROM reminders WHERE id IN ( \
@@ -127,7 +128,7 @@ impl ReminderRepository {
     }
 
     pub fn update(&self, reminder: &Reminder) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let now = Local::now();
         conn.execute(
             "UPDATE reminders SET title = ?1, description = ?2, created_date = ?3, created_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, owner_id = ?21 WHERE id = ?22",
@@ -160,7 +161,7 @@ impl ReminderRepository {
     }
 
     pub fn delete(&self, id: &Uuid) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         conn.execute("DELETE FROM reminders WHERE id = ?", [id.to_string()])?;
         Ok(())
     }

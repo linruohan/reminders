@@ -80,12 +80,13 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
 
     migrate_schema(conn)?;
 
+    // 查询主路径：end_date / list / 完成态 / 旗标 / 优先级
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_reminders_list_id ON reminders(list_id)",
+        "CREATE INDEX IF NOT EXISTS idx_reminders_end_date_completed ON reminders(end_date, is_completed)",
         [],
     )?;
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_reminders_created_date ON reminders(created_date)",
+        "CREATE INDEX IF NOT EXISTS idx_reminders_list_completed ON reminders(list_id, is_completed)",
         [],
     )?;
     conn.execute(
@@ -93,11 +94,11 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
         [],
     )?;
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_reminders_created_date_completed ON reminders(created_date, is_completed)",
+        "CREATE INDEX IF NOT EXISTS idx_reminders_flagged_completed ON reminders(is_flagged, is_completed)",
         [],
     )?;
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_reminders_list_completed ON reminders(list_id, is_completed)",
+        "CREATE INDEX IF NOT EXISTS idx_reminders_priority_completed ON reminders(priority, is_completed)",
         [],
     )?;
 
@@ -219,10 +220,40 @@ fn migrate_schema(conn: &Connection) -> Result<()> {
         )?;
     }
 
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_reminders_end_date ON reminders(end_date)",
-        [],
-    )?;
+    // 一次性：丢弃以 created_date 为主的旧索引，改为 end_date 复合索引
+    let index_cleanup_done: bool = conn
+        .query_row(
+            "SELECT 1 FROM schema_migrations WHERE id = 'indexes_end_date_v1'",
+            [],
+            |_| Ok(true),
+        )
+        .unwrap_or(false);
+    if !index_cleanup_done {
+        for idx in [
+            "idx_reminders_created_date",
+            "idx_reminders_created_date_completed",
+            "idx_reminders_list_id",
+            "idx_reminders_end_date",
+        ] {
+            conn.execute(&format!("DROP INDEX IF EXISTS {idx}"), [])?;
+        }
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_reminders_end_date_completed ON reminders(end_date, is_completed)",
+            [],
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_reminders_flagged_completed ON reminders(is_flagged, is_completed)",
+            [],
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_reminders_priority_completed ON reminders(priority, is_completed)",
+            [],
+        )?;
+        conn.execute(
+            "INSERT INTO schema_migrations (id, applied_at) VALUES ('indexes_end_date_v1', datetime('now'))",
+            [],
+        )?;
+    }
 
     Ok(())
 }

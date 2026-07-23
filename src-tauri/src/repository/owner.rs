@@ -4,6 +4,7 @@ use rusqlite::{params, Connection, OptionalExtension, Result, Row};
 use uuid::Uuid;
 
 use crate::models::owner::Owner;
+use super::lock_conn;
 
 pub struct OwnerRepository {
     conn: Arc<Mutex<Connection>>,
@@ -15,14 +16,14 @@ impl OwnerRepository {
     }
 
     pub fn get_all(&self) -> Result<Vec<Owner>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let mut stmt = conn.prepare("SELECT id, name, color FROM owners ORDER BY name")?;
         let rows = stmt.query_map([], Self::row_to_owner)?;
         rows.collect()
     }
 
     pub fn insert(&self, owner: &Owner) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         conn.execute(
             "INSERT INTO owners (id, name, color) VALUES (?, ?, ?)",
             params![owner.id.to_string(), owner.name, owner.color],
@@ -31,13 +32,13 @@ impl OwnerRepository {
     }
 
     pub fn delete(&self, id: &Uuid) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         conn.execute("DELETE FROM owners WHERE id = ?", [id.to_string()])?;
         Ok(())
     }
 
     pub fn update(&self, owner: &Owner) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         conn.execute(
             "UPDATE owners SET name = ?, color = ? WHERE id = ?",
             params![owner.name, owner.color, owner.id.to_string()],
@@ -46,7 +47,7 @@ impl OwnerRepository {
     }
 
     pub fn get_by_id(&self, id: &Uuid) -> Result<Option<Owner>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let mut stmt = conn.prepare("SELECT id, name, color FROM owners WHERE id = ?")?;
         stmt.query_row([id.to_string()], Self::row_to_owner)
             .optional()

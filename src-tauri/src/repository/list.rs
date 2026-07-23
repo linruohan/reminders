@@ -4,6 +4,7 @@ use rusqlite::{params, Connection, OptionalExtension, Result, Row};
 use uuid::Uuid;
 
 use crate::models::reminder::ReminderList;
+use super::lock_conn;
 
 pub struct ListRepository {
     conn: Arc<Mutex<Connection>>,
@@ -15,14 +16,14 @@ impl ListRepository {
     }
 
     pub fn get_all(&self) -> Result<Vec<ReminderList>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let mut stmt = conn.prepare("SELECT id, name, color, icon FROM reminder_lists ORDER BY name")?;
         let rows = stmt.query_map([], Self::row_to_list)?;
         rows.collect()
     }
 
     pub fn insert(&self, list: &ReminderList) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         conn.execute(
             "INSERT INTO reminder_lists (id, name, color, icon) VALUES (?, ?, ?, ?)",
             params![list.id.to_string(), list.name, list.color, list.icon],
@@ -31,13 +32,13 @@ impl ListRepository {
     }
 
     pub fn delete(&self, id: &Uuid) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         conn.execute("DELETE FROM reminder_lists WHERE id = ?", [id.to_string()])?;
         Ok(())
     }
 
     pub fn update(&self, list: &ReminderList) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         conn.execute(
             "UPDATE reminder_lists SET name = ?, color = ?, icon = ? WHERE id = ?",
             params![list.name, list.color, list.icon, list.id.to_string()],
@@ -46,7 +47,7 @@ impl ListRepository {
     }
 
     pub fn get_by_id(&self, id: &Uuid) -> Result<Option<ReminderList>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = lock_conn(&self.conn)?;
         let mut stmt = conn.prepare("SELECT id, name, color, icon FROM reminder_lists WHERE id = ?")?;
         stmt.query_row([id.to_string()], Self::row_to_list)
             .optional()
