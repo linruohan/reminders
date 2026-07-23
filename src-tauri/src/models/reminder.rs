@@ -4,8 +4,8 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum Priority {
-    None,
     #[default]
+    None,
     Medium,
     Low,
     High,

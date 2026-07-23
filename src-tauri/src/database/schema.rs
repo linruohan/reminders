@@ -217,6 +217,38 @@ fn migrate_schema(conn: &Connection) -> Result<()> {
         conn.execute("ALTER TABLE reminders RENAME COLUMN due_time TO created_time", [])?;
     }
 
+    // 一次性：将迁移前存于 created_* 的截止日期回填到 end_*
+    conn.execute(
+        r#"CREATE TABLE IF NOT EXISTS schema_migrations (
+            id TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        )"#,
+        [],
+    )?;
+    let backfill_done: bool = conn
+        .query_row(
+            "SELECT 1 FROM schema_migrations WHERE id = 'backfill_end_date_from_created'",
+            [],
+            |_| Ok(true),
+        )
+        .unwrap_or(false);
+    if !backfill_done {
+        conn.execute(
+            "UPDATE reminders SET end_date = created_date, end_time = created_time \
+             WHERE end_date IS NULL AND created_date IS NOT NULL",
+            [],
+        )?;
+        conn.execute(
+            "INSERT INTO schema_migrations (id, applied_at) VALUES ('backfill_end_date_from_created', datetime('now'))",
+            [],
+        )?;
+    }
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_reminders_end_date ON reminders(end_date)",
+        [],
+    )?;
+
     Ok(())
 }
 

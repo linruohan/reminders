@@ -50,6 +50,8 @@ export function App() {
     handleDeleteReminder,
     handleCreateReminder,
     handleAddList,
+    handleUpdateList,
+    handleDeleteList,
     handleCutReminder,
     handleCopyReminder,
     handlePasteReminder,
@@ -80,6 +82,20 @@ export function App() {
     }
   }, [handleAddList, showToast]);
 
+  const handleRenameList = useCallback(async (id: string, name: string) => {
+    const result = await handleUpdateList(id, { name });
+    if (result) {
+      showToast('success', '列表已重命名');
+    }
+  }, [handleUpdateList, showToast]);
+
+  const handleDeleteListCallback = useCallback(async (id: string) => {
+    const success = await handleDeleteList(id);
+    if (success) {
+      showToast('success', '列表已删除');
+    }
+  }, [handleDeleteList, showToast]);
+
   // 使用 useRef 存储 refreshData，避免定时器因依赖变化而重复创建
   const refreshDataRef = useRef(refreshData);
   useEffect(() => {
@@ -92,6 +108,18 @@ export function App() {
     }, 60000);
 
     return () => clearInterval(interval);
+  }, []);
+
+  // Ctrl+N 新建提醒；Ctrl+F 由 Sidebar 处理
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        setShowAddModal(true);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
 
   return (
@@ -123,6 +151,8 @@ export function App() {
               onDeleteReminder={handleDeleteReminder}
               onCreateReminder={() => setShowAddModal(true)}
               onAddList={handleAddListCallback}
+              onRenameList={handleRenameList}
+              onDeleteList={handleDeleteListCallback}
               onEditStart={() => setIsEditing(true)}
               onEditEnd={() => setIsEditing(false)}
               onCut={handleCutReminder}

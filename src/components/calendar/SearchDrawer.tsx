@@ -74,8 +74,12 @@ export function SearchDrawer({
                     {r.title}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
-                    {r.created_date && <span className="text-[11px] text-gray-400">{r.created_date}</span>}
-                    {r.created_time && <span className="text-[11px] text-apple-gray">{r.created_time}</span>}
+                    {(r.end_date ?? r.created_date) && (
+                      <span className="text-[11px] text-gray-400">{r.end_date ?? r.created_date}</span>
+                    )}
+                    {(r.end_time ?? r.created_time) && (
+                      <span className="text-[11px] text-apple-gray">{r.end_time ?? r.created_time}</span>
+                    )}
                   </div>
                 </div>
               </div>

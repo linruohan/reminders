@@ -59,13 +59,14 @@ cargo tauri build
 reminders/
 ├── src/                    # 前端代码
 │   ├── components/         # React 组件
-│   │   ├── Header.tsx      # 顶部导航栏
+│   │   ├── TitleBar.tsx    # 顶部标题栏
 │   │   ├── Sidebar.tsx     # 侧边栏
 │   │   ├── ReminderList.tsx # 提醒列表
-│   │   ├── CalendarView.tsx # 日历视图
+│   │   ├── calendar/       # 日历视图
 │   │   └── AddReminderModal.tsx # 添加提醒模态框
 │   ├── hooks/              # 自定义 Hooks
-│   │   └── useApi.ts       # Tauri API 调用 Hook
+│   │   ├── useApi.ts       # Tauri API 调用
+│   │   └── useReminderData.ts # 数据层 / 缓存
 │   ├── types/              # TypeScript 类型定义
 │   │   └── api.ts          # API 响应类型
 │   ├── App.tsx             # 主应用组件
@@ -75,20 +76,13 @@ reminders/
 │   ├── src/
 │   │   ├── commands.rs     # Tauri 命令定义
 │   │   ├── database/       # 数据库相关
-│   │   │   ├── connection.rs # 数据库连接
-│   │   │   ├── schema.rs   # 数据库 schema
-│   │   │   └── mod.rs
 │   │   ├── models/         # 数据模型
-│   │   │   ├── reminder.rs # 提醒模型
-│   │   │   ├── owner.rs    # 负责人模型
-│   │   │   └── mod.rs
+│   │   ├── repository/     # 数据访问层
 │   │   └── main.rs         # 应用入口
-│   ├── Cargo.toml          # Rust 依赖配置
-│   └── tauri.conf.json     # Tauri 配置
-├── index.html              # HTML 模板
-├── package.json            # 前端依赖配置
-├── tailwind.config.js      # Tailwind CSS 配置
-└── vite.config.ts          # Vite 配置
+│   ├── Cargo.toml
+│   └── tauri.conf.json
+├── package.json
+└── vite.config.ts
 ```
 
 ## 功能特性
@@ -96,12 +90,13 @@ reminders/
 - ✅ 提醒事项列表管理
 - ✅ 添加/编辑/删除提醒
 - ✅ 标记完成/未完成
-- ✅ 日期和时间设置
+- ✅ 截止日期和时间设置（`end_date` / `end_time`）
 - ✅ 优先级设置
-- ✅ 分类列表管理
-- ✅ 负责人管理
+- ✅ 分类列表管理（右键重命名/删除）
+- ✅ 负责人分配
 - ✅ 日历视图
-- ✅ 快速筛选（今日、计划、逾期、已完成）
+- ✅ 快速筛选（今日、计划、逾期、旗标、已完成）
+- ⏳ 重复 / 提前提醒：可保存元数据，调度执行尚未实现
 
 ## 快捷键
 

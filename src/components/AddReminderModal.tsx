@@ -12,9 +12,7 @@ interface AddReminderModalProps {
     title: string;
     description?: string | null;
     url?: string | null;
-    due_date?: string | null;
     end_date?: string | null;
-    due_time?: string | null;
     end_time?: string | null;
     list_id?: string | null;
     is_flagged?: boolean;

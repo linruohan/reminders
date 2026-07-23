@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useApi } from './useApi';
 import type { ReminderResponse, ListResponse, OwnerResponse, UpdateReminderRequest, CreateReminderRequest } from '@/types/api';
-import { getTodayStr } from '@/utils/dateUtils';
+import { isDueToday, isOverdue, isPlanned } from '@/utils/reminderDates';
 
 interface ReminderCache {
   [filter: string]: {
@@ -99,7 +99,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
         setCachedReminders(filter, data);
       }
     } catch {
-      // 加载失败时静默处理，避免控制台噪音
+      showToast?.('error', '加载提醒失败');
     } finally {
       if (filter === 'all') {
         setAllDataLoaded(true);
@@ -107,7 +107,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
         setActiveFilterLoaded(true);
       }
     }
-  }, [getReminders, getRemindersByList, getCachedReminders, setCachedReminders]);
+  }, [getReminders, getRemindersByList, getCachedReminders, setCachedReminders, showToast]);
 
   /** 处理搜索查询 */
   const handleSearch = useCallback(async (query: string) => {
@@ -122,9 +122,9 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
         setReminders(data);
       }
     } catch {
-      // 搜索失败时静默处理
+      showToast?.('error', '搜索失败');
     }
-  }, [searchReminders, activeFilter, loadReminders]);
+  }, [searchReminders, activeFilter, loadReminders, showToast]);
 
   const loadRemindersRef = useRef<typeof loadReminders>(loadReminders);
 
@@ -207,13 +207,18 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
   }, [updateReminder, syncAfterMutation, showToast, error]);
 
   const handleDeleteReminder = useCallback(async (id: string) => {
+    if (!window.confirm('确定删除此提醒事项？')) {
+      return false;
+    }
     const success = await deleteReminder(id);
     if (success) {
       await syncAfterMutation();
+      showToast?.('success', '提醒已删除');
     } else {
       const errorMsg = error[`delete_reminder_${id}`] || '删除提醒失败';
       showToast?.('error', errorMsg);
     }
+    return success;
   }, [deleteReminder, syncAfterMutation, showToast, error]);
 
   const handleCreateReminder = useCallback(async (data: CreateReminderRequest) => {
@@ -317,6 +322,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
       recurrence_end_date: clipboard.reminder.recurrence_end_date,
       remind_before_value: clipboard.reminder.remind_before_value,
       remind_before_unit: clipboard.reminder.remind_before_unit,
+      tags: clipboard.reminder.tags?.map(t => t.name) ?? [],
     };
     
     const result = await createReminder(newReminderData);
@@ -347,11 +353,11 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
 
   /** 基于全量数据计算各过滤器计数，避免用当前过滤器数据误算 */
   const filterCounts = useMemo(() => {
-    const todayStr = getTodayStr();
     return {
       all: allReminders.length,
-      today: allReminders.filter(r => !r.is_completed && (r.created_date === null || r.created_date <= todayStr)).length,
-      planned: allReminders.filter(r => !r.is_completed && r.created_date !== null && r.created_date > todayStr).length,
+      today: allReminders.filter(isDueToday).length,
+      planned: allReminders.filter(isPlanned).length,
+      overdue: allReminders.filter(isOverdue).length,
       completed: allReminders.filter(r => r.is_completed).length,
       urgent: allReminders.filter(r => !r.is_completed && r.priority === 'high').length,
       flagged: allReminders.filter(r => !r.is_completed && r.is_flagged).length,

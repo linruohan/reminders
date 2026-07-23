@@ -6,6 +6,7 @@ interface FilterCounts {
   all: number;
   today: number;
   planned: number;
+  overdue: number;
   completed: number;
   urgent: number;
   flagged: number;
@@ -25,6 +26,8 @@ interface ReminderPageProps {
   onDeleteReminder: (id: string) => void;
   onCreateReminder: () => void;
   onAddList: () => void;
+  onRenameList?: (id: string, name: string) => void;
+  onDeleteList?: (id: string) => void;
   onEditStart: () => void;
   onEditEnd: () => void;
   onCut: (reminder: ReminderResponse) => void;
@@ -46,6 +49,8 @@ export function ReminderPage({
   onDeleteReminder,
   onCreateReminder,
   onAddList,
+  onRenameList,
+  onDeleteList,
   onEditStart,
   onEditEnd,
   onCut,
@@ -62,6 +67,8 @@ export function ReminderPage({
         onFilterChange={onFilterChange}
         onSearch={onSearch}
         onAddList={onAddList}
+        onRenameList={onRenameList}
+        onDeleteList={onDeleteList}
       />
       
       <ReminderList

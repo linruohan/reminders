@@ -5,6 +5,7 @@ interface FilterCounts {
   all: number;
   today: number;
   planned: number;
+  overdue: number;
   completed: number;
   urgent: number;
   flagged: number;
@@ -18,6 +19,8 @@ interface SidebarProps {
   onFilterChange: (filter: string) => void;
   onSearch: (query: string) => void;
   onAddList: () => void;
+  onRenameList?: (id: string, name: string) => void;
+  onDeleteList?: (id: string) => void;
 }
 
 const quickFilters = [
@@ -25,7 +28,7 @@ const quickFilters = [
   { id: 'planned', label: '计划', icon: 'calendarDays', color: '#FF3B30', gradient: 'linear-gradient(135deg, #F87171, #EF4444)' },
   { id: 'all', label: '全部', icon: 'mail', color: '#8E8E93', gradient: 'linear-gradient(135deg, #9CA3AF, #6B7280)' },
   { id: 'flagged', label: '旗标', icon: 'flag', color: '#FF9500', gradient: 'linear-gradient(135deg, #FB923C, #F97316)' },
-  { id: 'urgent', label: '紧急', icon: 'alert', color: '#FF2D55', gradient: 'linear-gradient(135deg, #F472B6, #EC4899)' },
+  { id: 'overdue', label: '逾期', icon: 'alert', color: '#FF2D55', gradient: 'linear-gradient(135deg, #F472B6, #EC4899)' },
   { id: 'completed', label: '完成', icon: 'check', color: '#C7C7CC', gradient: 'linear-gradient(135deg, #D1D5DB, #9CA3AF)' },
 ];
 
@@ -49,10 +52,41 @@ function QuickFilterItem({ filter, active, onClick, count }: { filter: typeof qu
   );
 }
 
-function ListItem({ list, active, onClick, count }: { list: ListResponse; active: boolean; onClick: () => void; count: number }) {
+function ListItem({
+  list,
+  active,
+  onClick,
+  count,
+  onRename,
+  onDelete,
+}: {
+  list: ListResponse;
+  active: boolean;
+  onClick: () => void;
+  count: number;
+  onRename?: (id: string, name: string) => void;
+  onDelete?: (id: string) => void;
+}) {
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const action = window.prompt('输入新名称以重命名，或输入 DELETE 删除列表', list.name);
+    if (action === null) return;
+    if (action.trim().toUpperCase() === 'DELETE') {
+      if (window.confirm(`确定删除列表「${list.name}」？列表内提醒不会被删除。`)) {
+        onDelete?.(list.id);
+      }
+      return;
+    }
+    if (action.trim() && action.trim() !== list.name) {
+      onRename?.(list.id, action.trim());
+    }
+  };
+
   return (
     <button
       onClick={onClick}
+      onContextMenu={handleContextMenu}
       className={`w-full flex items-center justify-between px-4 py-2.5 rounded-[14px] transition-all duration-250 spring-transition ${
         active
           ? 'bg-apple-blue/10 text-apple-blue shadow-[0_2px_8px_rgba(0,122,255,0.12)]'
@@ -108,6 +142,8 @@ export function Sidebar({
   onFilterChange,
   onSearch,
   onAddList,
+  onRenameList,
+  onDeleteList,
 }: SidebarProps) {
   const [listsExpanded, setListsExpanded] = useState(true);
   const [sortOrder, setSortOrder] = useState<SortOrder>('name-asc');
@@ -181,6 +217,7 @@ export function Sidebar({
         <div className="relative">
           <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-apple-gray" />
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="搜索"
             onChange={handleSearchInput}
@@ -235,6 +272,8 @@ export function Sidebar({
                 active={activeFilter === `list:${list.id}`}
                 onClick={() => handleFilterClick(`list:${list.id}`)}
                 count={getListCount(list.id)}
+                onRename={onRenameList}
+                onDelete={onDeleteList}
               />
             </div>
           ))}

@@ -2,3 +2,5 @@ target/
 dist/
 node_modules/
 backup/
+*.db
+src-tauri/reminders.db

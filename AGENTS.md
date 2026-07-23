@@ -12,8 +12,6 @@ npm run build         # tsc typecheck + vite build (run before cargo tauri build
 cargo tauri build     # production desktop app bundle
 npm run build:windows # build Windows EXE (frontend + Tauri)
 npm run build:dev     # build development version (debug)
-npm run build:beta    # build beta version
-npm run build:prod    # build production version
 ```
 
 No test / lint / format scripts in package.json. TypeScript strict mode with `noUnusedLocals` and `noUnusedParameters`.
@@ -63,9 +61,10 @@ Automatic builds triggered on:
 ## Architecture
 
 - SQLite via rusqlite (`bundled` feature, no system SQLite needed). DB file at Tauri app data dir (`reminders.db`), auto-created on first launch with schema + initial data.
+- Date model: `created_date/time` = record creation stamp; `end_date/time` = user due/deadline (drives today/planned/overdue filters and calendar).
 - All IDs are UUID v4 strings. Tauri commands accept/return them as plain `String` (not `Uuid`).
 - Rust backend: each command receives `State<'_, Database>` which wraps `Arc<Mutex<Connection>>`.
-- Frontend calls backend via `@tauri-apps/api` `invoke()` — see `src/hooks/useApi.ts` (Renamed to `useReminderData.ts`).
+- Frontend: `src/hooks/useApi.ts` (Tauri invoke wrappers) + `src/hooks/useReminderData.ts` (data layer / cache).
 - Tauri window: 800×660, frameless (`decorations: false`), transparent background.
 
 ## Tailwind Design System

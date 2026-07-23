@@ -64,8 +64,9 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
   }, []);
 
   const handleSearchSelect = useCallback((r: ReminderResponse) => {
-    if (r.created_date) {
-      const d = new Date(r.created_date);
+    const due = r.end_date ?? r.created_date;
+    if (due) {
+      const d = new Date(due);
       setCurrentDate(d);
       setSelectedDate(d);
       if (viewMode === 'year') {

@@ -6,10 +6,11 @@ export interface TagResponse {
 // 优先级类型定义
 export type Priority = "none" | "low" | "medium" | "high";
 
-// 重复频率类型定义
+// 重复频率类型定义（含 UI 扩展值；执行层尚未实现）
 export type RecurrenceFrequency =
   | "daily"
   | "weekly"
+  | "biweekly"
   | "monthly"
   | "yearly"
   | "custom";

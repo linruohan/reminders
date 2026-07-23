@@ -1,23 +1,17 @@
 import type { TimeUnit } from '@/types/api';
 
-/** 重复频率选项 */
+/** 重复频率选项（仅持久化元数据；自动生成下一次实例尚未实现） */
 export const recurrenceOptions = [
   { value: '', label: '永不' },
-  { value: 'hourly', label: '每小时' },
   { value: 'daily', label: '每天' },
-  { value: 'weekdays', label: '工作日' },
-  { value: 'weekends', label: '周末' },
   { value: 'weekly', label: '每周' },
   { value: 'biweekly', label: '每2周' },
   { value: 'monthly', label: '每月' },
-  { value: 'bimonthly', label: '每2个月' },
-  { value: 'quarterly', label: '每3个月' },
-  { value: 'semiannual', label: '每6个月' },
   { value: 'yearly', label: '每年' },
   { value: 'custom', label: '自定义' },
 ];
 
-/** 提前提醒选项 */
+/** 提前提醒选项（仅元数据；系统通知调度尚未实现） */
 export const remindOptions = [
   { value: '', label: '无' },
   { value: '1d', label: '1天前' },
@@ -25,9 +19,6 @@ export const remindOptions = [
   { value: '1w', label: '1周前' },
   { value: '2w', label: '2周前' },
   { value: '1M', label: '1个月前' },
-  { value: '2M', label: '2个月前' },
-  { value: '3M', label: '3个月前' },
-  { value: '6M', label: '6个月前' },
   { value: 'custom', label: '自定义' },
 ];
 

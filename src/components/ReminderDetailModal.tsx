@@ -10,6 +10,7 @@ interface ReminderDetailModalProps {
   onDelete: (id: string) => void;
   onToggleCompleted: (id: string) => void;
   onEdit: (id: string) => void;
+  onUpdateReminder?: (id: string, updates: Partial<ReminderResponse>) => void;
 }
 
 const priorityLabels: Record<string, string> = {
@@ -20,22 +21,21 @@ const priorityLabels: Record<string, string> = {
 };
 
 const recurrenceLabels: Record<string, string> = {
-  hourly: '每小时',
   daily: '每天',
-  weekdays: '工作日',
-  weekends: '周末',
   weekly: '每周',
+  biweekly: '每2周',
   monthly: '每月',
   yearly: '每年',
   custom: '自定义',
 };
 
 const unitLabels: Record<string, string> = {
-  minute: '分钟',
-  hour: '小时',
-  day: '天',
-  week: '周',
-  month: '个月',
+  minutes: '分钟',
+  hours: '小时',
+  days: '天',
+  weeks: '周',
+  months: '个月',
+  years: '年',
 };
 
 export function ReminderDetailModal({
@@ -47,6 +47,7 @@ export function ReminderDetailModal({
   onDelete,
   onToggleCompleted,
   onEdit,
+  onUpdateReminder,
 }: ReminderDetailModalProps) {
   if (!isOpen) return null;
 
@@ -54,13 +55,9 @@ export function ReminderDetailModal({
     ? lists.find(l => l.id === reminder.list_id)?.name || '提醒事项'
     : '提醒事项';
 
-  const ownerName = reminder.owner_id
-    ? owners.find(o => o.id === reminder.owner_id)?.name
-    : null;
-
   const hasRecurrence = reminder.recurrence_frequency != null;
   const hasRemind = reminder.remind_before_value != null;
-  const hasEndRange = !reminder.is_all_day && (reminder.end_date || reminder.end_time);
+  const hasDue = Boolean(reminder.end_date || reminder.end_time);
   const isCustomRecur = reminder.recurrence_frequency === 'custom';
 
   return (
@@ -103,25 +100,15 @@ export function ReminderDetailModal({
             </a>
           )}
 
-          {reminder.created_date && (
-            <div className="flex items-center gap-2 mt-3 text-sm text-apple-gray">
+          {hasDue && (
+            <div className="flex items-center gap-2 mt-3 text-sm text-apple-orange">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
               </svg>
               <span>
-                创建于 {formatDate(reminder.created_date)}{reminder.created_time ? ' ' + formatTime(reminder.created_time) : ''}
-              </span>
-            </div>
-          )}
-
-          {hasEndRange && (
-            <div className="flex items-center gap-2 mt-1.5 text-sm text-orange-300 ml-6">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="9 14 4 9 9 4"/><path d="M4 9h11a4 4 0 0 1 4 4v1"/>
-              </svg>
-              <span>
-                {reminder.end_date ? formatDate(reminder.end_date) : ''}{reminder.end_time ? ' ' + formatTime(reminder.end_time) : ''}
+                截止 {reminder.end_date ? formatDate(reminder.end_date) : ''}
+                {reminder.end_time ? ` ${formatTime(reminder.end_time)}` : ''}
               </span>
             </div>
           )}
@@ -133,7 +120,7 @@ export function ReminderDetailModal({
               </svg>
               <span>
                 {isCustomRecur
-                  ? `每 ${reminder.recurrence_interval} ${unitLabels[reminder.custom_recurrence_unit || 'day'] || reminder.custom_recurrence_unit}`
+                  ? `每 ${reminder.recurrence_interval} ${unitLabels[reminder.custom_recurrence_unit || 'days'] || reminder.custom_recurrence_unit}`
                   : recurrenceLabels[reminder.recurrence_frequency || ''] || reminder.recurrence_frequency}
                 {reminder.recurrence_end_date && ` (至 ${formatDate(reminder.recurrence_end_date)})`}
               </span>
@@ -160,14 +147,22 @@ export function ReminderDetailModal({
             </div>
           )}
 
-          {ownerName && (
-            <div className="flex items-center gap-2 mt-3 text-sm text-apple-purple">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M12 16v-4"/>
-                <path d="M12 8h.01"/>
-              </svg>
-              <span>负责人: {ownerName}</span>
+          {onUpdateReminder && owners.length > 0 && (
+            <div className="flex items-center gap-2 mt-3 text-sm">
+              <span className="text-apple-gray flex-shrink-0">负责人</span>
+              <select
+                value={reminder.owner_id ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  onUpdateReminder(reminder.id, { owner_id: value || '' });
+                }}
+                className="flex-1 text-sm bg-[#F2F2F7] rounded-[8px] px-2 py-1.5 outline-none focus:ring-2 focus:ring-apple-blue/30"
+              >
+                <option value="">未分配</option>
+                {owners.map(o => (
+                  <option key={o.id} value={o.id}>{o.name}</option>
+                ))}
+              </select>
             </div>
           )}
 

@@ -45,7 +45,10 @@ impl ReminderRepository {
         let today = Local::now().date_naive();
         let conn = self.conn.lock().unwrap();
         let date_str = today.format("%Y-%m-%d").to_string();
-        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE (created_date IS NULL OR created_date <= ?) AND is_completed = 0 ORDER BY created_at DESC");
+        // 无截止日期，或截止日期 ≤ 今天（含逾期）
+        let query = format!(
+            "SELECT {REMINDER_FIELDS} FROM reminders WHERE (end_date IS NULL OR end_date <= ?) AND is_completed = 0 ORDER BY created_at DESC"
+        );
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([date_str], Self::row_to_reminder)?;
         rows.collect()
@@ -55,7 +58,9 @@ impl ReminderRepository {
         let today = Local::now().date_naive();
         let conn = self.conn.lock().unwrap();
         let date_str = today.format("%Y-%m-%d").to_string();
-        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE created_date IS NOT NULL AND created_date > ? AND is_completed = 0 ORDER BY created_at DESC");
+        let query = format!(
+            "SELECT {REMINDER_FIELDS} FROM reminders WHERE end_date IS NOT NULL AND end_date > ? AND is_completed = 0 ORDER BY created_at DESC"
+        );
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([date_str], Self::row_to_reminder)?;
         rows.collect()
@@ -81,7 +86,9 @@ impl ReminderRepository {
         let today = Local::now().date_naive();
         let conn = self.conn.lock().unwrap();
         let date_str = today.format("%Y-%m-%d").to_string();
-        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE due_date < ? AND is_completed = 0 ORDER BY created_at DESC");
+        let query = format!(
+            "SELECT {REMINDER_FIELDS} FROM reminders WHERE end_date IS NOT NULL AND end_date < ? AND is_completed = 0 ORDER BY created_at DESC"
+        );
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([date_str], Self::row_to_reminder)?;
         rows.collect()
@@ -106,9 +113,16 @@ impl ReminderRepository {
     pub fn search(&self, query: &str) -> Result<Vec<Reminder>> {
         let conn = self.conn.lock().unwrap();
         let like_query = format!("%{}%", query);
-        let query_sql = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE title LIKE ? OR description LIKE ? OR url LIKE ? ORDER BY created_at DESC");
+        let query_sql = format!(
+            "SELECT {REMINDER_FIELDS} FROM reminders WHERE id IN ( \
+               SELECT r.id FROM reminders r \
+               LEFT JOIN reminder_tags rt ON r.id = rt.reminder_id \
+               LEFT JOIN tags t ON rt.tag_id = t.id \
+               WHERE r.title LIKE ?1 OR IFNULL(r.description,'') LIKE ?1 OR IFNULL(r.url,'') LIKE ?1 OR IFNULL(t.name,'') LIKE ?1 \
+             ) ORDER BY created_at DESC"
+        );
         let mut stmt = conn.prepare(&query_sql)?;
-        let rows = stmt.query_map([&like_query, &like_query, &like_query], Self::row_to_reminder)?;
+        let rows = stmt.query_map([&like_query], Self::row_to_reminder)?;
         rows.collect()
     }
 

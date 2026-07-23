@@ -85,17 +85,14 @@ const ReminderItemViewMode = memo(function ReminderItemViewMode({
                 {reminder.description}
               </span>
             )}
-            {reminder.created_date && (
+            {reminder.end_date && (
               <span className="text-[13px] font-medium flex items-center gap-1 text-apple-gray">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                   <line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
-                {formatDate(reminder.created_date)}
-                {reminder.created_time && <> {formatTime(reminder.created_time)}</>}
-                {reminder.end_date && (
-                  <> - {formatDate(reminder.end_date)}{reminder.end_time && <> {formatTime(reminder.end_time)}</>}</>
-                )}
+                {formatDate(reminder.end_date)}
+                {reminder.end_time && <> {formatTime(reminder.end_time)}</>}
               </span>
             )}
             {reminder.tags && reminder.tags.length > 0 && (
@@ -627,7 +624,7 @@ export const ReminderItem = memo(function ReminderItem({
   };
 
   const handleSetDueDate = (date: string) => {
-    onUpdateReminder(reminder.id, { created_date: date });
+    onUpdateReminder(reminder.id, { end_date: date });
   };
 
   const handleShowDetail = useCallback(() => setShowDetail(true), []);
@@ -666,6 +663,7 @@ export const ReminderItem = memo(function ReminderItem({
         onDelete={onDelete}
         onToggleCompleted={onToggleCompleted}
         onEdit={onStartEditing}
+        onUpdateReminder={onUpdateReminder}
       />
 
       <ContextMenu
