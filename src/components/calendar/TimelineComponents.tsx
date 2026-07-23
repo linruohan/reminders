@@ -77,7 +77,7 @@ export function ReminderBlock({
   listColor: string;
   onClick: (reminder: ReminderResponse) => void;
 }) {
-  const dueTime = reminder.end_time ?? reminder.created_time;
+  const dueTime = reminder.end_time;
   const hour = dueTime ? parseInt(dueTime.split(':')[0]) : 9;
   const minute = dueTime ? parseInt(dueTime.split(':')[1]) : 0;
   const top = (hour - 9) * HOUR_HEIGHT + (minute / 60) * HOUR_HEIGHT;

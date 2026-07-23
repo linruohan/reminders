@@ -22,8 +22,8 @@ export function DayView({
   onReminderClick,
   onAllDayDoubleClick,
 }: DayViewProps) {
-  const dayAllDay = useMemo(() => getRemindersForDate(reminders, date).filter(r => r.is_all_day), [reminders, date]);
-  const dayTimed = useMemo(() => getRemindersForDate(reminders, date).filter(r => !r.is_all_day), [reminders, date]);
+  const dayAllDay = useMemo(() => getRemindersForDate(reminders, date).filter(r => r.is_all_day || !r.end_time), [reminders, date]);
+  const dayTimed = useMemo(() => getRemindersForDate(reminders, date).filter(r => !r.is_all_day && !!r.end_time), [reminders, date]);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverMinute, setHoverMinute] = useState<number | null>(null);
 

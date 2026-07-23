@@ -1,14 +1,14 @@
 import type { ReminderResponse } from '@/types/api';
 import { getTodayStr } from '@/utils/dateUtils';
 
-/** 有效截止日期：优先 end_date，兼容迁移前仅有 created_date 的旧数据 */
-export function effectiveDueDate(r: Pick<ReminderResponse, 'end_date' | 'created_date'>): string | null {
-  return r.end_date ?? r.created_date;
+/** 截止日期：仅使用 end_date（旧数据已由 schema 回填迁移） */
+export function effectiveDueDate(r: Pick<ReminderResponse, 'end_date'>): string | null {
+  return r.end_date ?? null;
 }
 
-/** 有效截止时间：优先 end_time */
-export function effectiveDueTime(r: Pick<ReminderResponse, 'end_time' | 'created_time'>): string | null {
-  return r.end_time ?? r.created_time;
+/** 截止时间：仅使用 end_time */
+export function effectiveDueTime(r: Pick<ReminderResponse, 'end_time'>): string | null {
+  return r.end_time ?? null;
 }
 
 /** 今天：截止日期恰好为今天（无截止日期不纳入；逾期见 isOverdue） */

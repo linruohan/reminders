@@ -275,15 +275,20 @@ pub fn insert_initial_data(conn: &Connection) -> Result<()> {
         use chrono::Local;
         let now = Local::now().to_rfc3339();
         let today = Local::now().date_naive().format("%Y-%m-%d").to_string();
+        let created_time = Local::now().time().format("%H:%M:%S").to_string();
 
+        // created_* = 记录创建戳；end_* = 用户截止日期（驱动今天/计划/逾期与日历）
         conn.execute(
-            "INSERT INTO reminders (id, title, description, created_date, created_time, is_completed, priority, list_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO reminders (id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, priority, list_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 Uuid::new_v4().to_string(),
                 "买酸奶",
                 Some("记得买低糖的".to_string()),
                 Some(today.clone()),
+                Some(created_time.clone()),
+                Some(today.clone()),
                 Some("14:00:00".to_string()),
+                0,
                 0,
                 "none",
                 Some(DEFAULT_LIST_ID.to_string()),
@@ -292,13 +297,16 @@ pub fn insert_initial_data(conn: &Connection) -> Result<()> {
             ),
         )?;
         conn.execute(
-            "INSERT INTO reminders (id, title, description, created_date, created_time, is_completed, priority, list_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO reminders (id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, priority, list_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 Uuid::new_v4().to_string(),
                 "完成项目设计",
                 None::<String>,
+                Some(today.clone()),
+                Some(created_time.clone()),
                 None::<String>,
                 None::<String>,
+                0,
                 0,
                 "medium",
                 Some(DEFAULT_LIST_ID.to_string()),
@@ -307,13 +315,16 @@ pub fn insert_initial_data(conn: &Connection) -> Result<()> {
             ),
         )?;
         conn.execute(
-            "INSERT INTO reminders (id, title, description, created_date, created_time, is_completed, priority, list_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO reminders (id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, priority, list_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 Uuid::new_v4().to_string(),
                 "参加会议",
                 None::<String>,
+                Some(today.clone()),
+                Some(created_time),
                 Some(today),
                 Some("09:00:00".to_string()),
+                0,
                 0,
                 "high",
                 Some(WORK_LIST_ID.to_string()),

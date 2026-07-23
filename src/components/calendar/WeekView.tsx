@@ -86,7 +86,7 @@ export function WeekView({
         </div>
         <div className="flex-1 grid grid-cols-7">
           {weekDates.map((d, i) => {
-            const dayAllDay = getRemindersForDate(reminders, d).filter(r => r.is_all_day);
+            const dayAllDay = getRemindersForDate(reminders, d).filter(r => r.is_all_day || !r.end_time);
             return (
               <div key={i} className="flex items-center gap-1 overflow-x-auto px-2 border-l border-gray-200" onDoubleClick={() => onAllDayDoubleClick(d)}>
                 {dayAllDay.map(r => {
@@ -120,11 +120,11 @@ export function WeekView({
           </div>
           <div className="flex-1 grid grid-cols-7 relative">
             {weekDates.map((d, colIdx) => {
-              const dayTimed = getRemindersForDate(reminders, d).filter(r => !r.is_all_day);
+              const dayTimed = getRemindersForDate(reminders, d).filter(r => !r.is_all_day && !!r.end_time);
               return (
                 <div key={colIdx} className="relative border-l border-gray-200">
                   {dayTimed.map(r => {
-                    const dueTime = r.end_time ?? r.created_time;
+                    const dueTime = r.end_time;
                     const hour = dueTime ? parseInt(dueTime.split(':')[0]) : 9;
                     const minute = dueTime ? parseInt(dueTime.split(':')[1]) : 0;
                     const top = (hour - 9) * HOUR_HEIGHT + (minute / 60) * HOUR_HEIGHT;

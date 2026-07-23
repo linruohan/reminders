@@ -90,18 +90,6 @@ impl Reminder {
         self
     }
 
-    pub fn with_created_date(mut self, created_date: NaiveDate) -> Self {
-        self.created_date = Some(created_date);
-        self.is_all_day = true;
-        self
-    }
-
-    pub fn with_created_time(mut self, created_time: NaiveTime) -> Self {
-        self.created_time = Some(created_time);
-        self.is_all_day = false;
-        self
-    }
-
     pub fn with_is_all_day(mut self) -> Self {
         self.is_all_day = true;
         self
