@@ -3,7 +3,7 @@ import { TitleBar } from './components/TitleBar';
 import { ReminderPage } from './pages/ReminderPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { AddReminderModal } from './components/AddReminderModal';
-import { Dialog } from './components/Dialog';
+import { CreateListDialog } from './components/CreateListDialog';
 import { ToastContainer, type ToastMessage, type ToastType } from './components/Toast';
 import { useReminderData } from './hooks/useReminderData';
 import { CreateReminderRequest } from './types/api';
@@ -74,8 +74,8 @@ export function App() {
     setShowAddListDialog(true);
   }, []);
 
-  const handleAddListSubmit = useCallback(async (name: string) => {
-    const result = await handleAddList(name);
+  const handleAddListSubmit = useCallback(async (name: string, icon: string) => {
+    const result = await handleAddList(name, icon);
     if (result) {
       setShowAddListDialog(false);
       showToast('success', `列表 "${name}" 已创建`);
@@ -191,10 +191,8 @@ export function App() {
           />
         )}
 
-        <Dialog
+        <CreateListDialog
           isOpen={showAddListDialog}
-          title="新建列表"
-          placeholder="输入列表名称"
           onClose={() => setShowAddListDialog(false)}
           onSubmit={handleAddListSubmit}
         />

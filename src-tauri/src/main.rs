@@ -8,6 +8,7 @@ use crate::database::connection::Database;
 mod commands;
 mod database;
 mod models;
+mod notification_scheduler;
 mod recurrence;
 mod repository;
 
@@ -20,12 +21,14 @@ fn get_data_dir(app_handle: &AppHandle) -> PathBuf {
 
 fn main() {
     let context = tauri::generate_context!();
-    
+
     Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             let db_path = get_data_dir(&app.handle()).join("reminders.db");
             let db = Database::open(&db_path).expect("Failed to open database");
             app.manage(db);
+            notification_scheduler::start(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

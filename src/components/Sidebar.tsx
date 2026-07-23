@@ -18,7 +18,8 @@ const quickFilters = [
   { id: 'planned', label: '计划', icon: 'calendarDays', color: '#FF3B30', gradient: 'linear-gradient(135deg, #F87171, #EF4444)' },
   { id: 'all', label: '全部', icon: 'mail', color: '#8E8E93', gradient: 'linear-gradient(135deg, #9CA3AF, #6B7280)' },
   { id: 'flagged', label: '旗标', icon: 'flag', color: '#FF9500', gradient: 'linear-gradient(135deg, #FB923C, #F97316)' },
-  { id: 'overdue', label: '逾期', icon: 'alert', color: '#FF2D55', gradient: 'linear-gradient(135deg, #F472B6, #EC4899)' },
+  { id: 'urgent', label: '紧急', icon: 'alert', color: '#FF2D55', gradient: 'linear-gradient(135deg, #F472B6, #EC4899)' },
+  { id: 'overdue', label: '逾期', icon: 'calendarDays', color: '#AF52DE', gradient: 'linear-gradient(135deg, #C084FC, #A855F7)' },
   { id: 'completed', label: '完成', icon: 'check', color: '#C7C7CC', gradient: 'linear-gradient(135deg, #D1D5DB, #9CA3AF)' },
 ];
 

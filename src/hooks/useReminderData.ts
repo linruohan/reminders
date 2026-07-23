@@ -229,8 +229,8 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     return result;
   }, [createReminder, syncAfterMutation]);
 
-  const handleAddList = useCallback(async (name: string) => {
-    const result = await createList({ name });
+  const handleAddList = useCallback(async (name: string, icon?: string) => {
+    const result = await createList({ name, icon: icon || 'list' });
     if (result) {
       await loadLists();
     }
