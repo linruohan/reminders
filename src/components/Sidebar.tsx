@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { ListResponse, OwnerResponse } from '@/types/api';
 import type { FilterCounts } from '@/types/filters';
 import { Dialog } from './Dialog';
@@ -28,6 +29,19 @@ const quickFilters = [
   { id: 'completed', label: '完成', icon: 'check', color: '#C7C7CC', gradient: 'linear-gradient(135deg, #D1D5DB, #9CA3AF)' },
 ];
 
+type CtxMenu =
+  | { kind: 'list'; item: ListResponse; x: number; y: number }
+  | { kind: 'owner'; item: OwnerResponse; x: number; y: number }
+  | null;
+
+type DialogState =
+  | { kind: 'add-owner' }
+  | { kind: 'rename-list'; item: ListResponse }
+  | { kind: 'delete-list'; item: ListResponse }
+  | { kind: 'rename-owner'; item: OwnerResponse }
+  | { kind: 'delete-owner'; item: OwnerResponse }
+  | null;
+
 function QuickFilterItem({ filter, active, onClick, count }: { filter: typeof quickFilters[0]; active: boolean; onClick: () => void; count: number }) {
   return (
     <button
@@ -55,36 +69,18 @@ function ListItem({
   active,
   onClick,
   count,
-  onRename,
-  onDelete,
+  onContextMenu,
 }: {
   list: ListResponse;
   active: boolean;
   onClick: () => void;
   count: number;
-  onRename?: (id: string, name: string) => void;
-  onDelete?: (id: string) => void;
+  onContextMenu: (e: React.MouseEvent, list: ListResponse) => void;
 }) {
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const action = window.prompt('输入新名称以重命名，或输入 DELETE 删除列表', list.name);
-    if (action === null) return;
-    if (action.trim().toUpperCase() === 'DELETE') {
-      if (window.confirm(`确定删除列表「${list.name}」？列表内提醒不会被删除。`)) {
-        onDelete?.(list.id);
-      }
-      return;
-    }
-    if (action.trim() && action.trim() !== list.name) {
-      onRename?.(list.id, action.trim());
-    }
-  };
-
   return (
     <button
       onClick={onClick}
-      onContextMenu={handleContextMenu}
+      onContextMenu={(e) => onContextMenu(e, list)}
       aria-label={`${list.name}，${count} 项`}
       aria-current={active ? 'page' : undefined}
       className={`w-full flex items-center justify-between px-4 py-2.5 rounded-[14px] transition-all duration-250 spring-transition ${
@@ -113,33 +109,15 @@ function ListItem({
 
 function OwnerItem({
   owner,
-  onRename,
-  onDelete,
+  onContextMenu,
 }: {
   owner: OwnerResponse;
-  onRename?: (id: string, name: string) => void;
-  onDelete?: (id: string) => void;
+  onContextMenu: (e: React.MouseEvent, owner: OwnerResponse) => void;
 }) {
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const action = window.prompt('输入新名称以重命名，或输入 DELETE 删除负责人', owner.name);
-    if (action === null) return;
-    if (action.trim().toUpperCase() === 'DELETE') {
-      if (window.confirm(`确定删除负责人「${owner.name}」？`)) {
-        onDelete?.(owner.id);
-      }
-      return;
-    }
-    if (action.trim() && action.trim() !== owner.name) {
-      onRename?.(owner.id, action.trim());
-    }
-  };
-
   return (
     <button
       type="button"
-      onContextMenu={handleContextMenu}
+      onContextMenu={(e) => onContextMenu(e, owner)}
       aria-label={`负责人 ${owner.name}`}
       className="w-full flex items-center gap-3 px-4 py-2 rounded-[14px] text-gray-700 hover:bg-white/90 transition-all duration-250 spring-transition"
     >
@@ -158,7 +136,6 @@ function Icon({ name, size = 16, className = '' }: { name: string; size?: number
     calendarDays: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/>',
     flag: '<path d="M7 2v18"/><path d="M7 2c3 0 5 .5 7 1.5s3 2 3 4-1 2-3 3-5 1-7.5-.5-2-3-2-5.5"/><path d="M7 14c3.5 0 5.5.5 6.5 1"/>',
     mail: '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',
-    layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
     check: '<polyline points="20 6 9 17 4 12"/>',
     alert: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
     list: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
@@ -167,7 +144,6 @@ function Icon({ name, size = 16, className = '' }: { name: string; size?: number
     chevronDown: '<polyline points="6 9 12 15 18 9"/>',
     chevronRight: '<polyline points="9 18 15 12 9 6"/>',
     sort: '<path d="M12 21l-6-6 6-6"/><path d="M18 17l-6-6 6-6"/>',
-    user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   };
 
   return (
@@ -194,7 +170,8 @@ export function Sidebar({
   const [listsExpanded, setListsExpanded] = useState(true);
   const [ownersExpanded, setOwnersExpanded] = useState(true);
   const [sortOrder, setSortOrder] = useState<SortOrder>('name-asc');
-  const [showAddOwnerDialog, setShowAddOwnerDialog] = useState(false);
+  const [ctxMenu, setCtxMenu] = useState<CtxMenu>(null);
+  const [dialog, setDialog] = useState<DialogState>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -204,10 +181,23 @@ export function Sidebar({
         searchInputRef.current?.focus();
       }
     };
-
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    document.addEventListener('click', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [ctxMenu]);
 
   const getListCount = (listId: string) => {
     const found = filterCounts.lists.find(l => l.id === listId);
@@ -226,7 +216,6 @@ export function Sidebar({
   const sortedLists = [...lists].sort((a, b) => {
     const countA = getListCount(a.id);
     const countB = getListCount(b.id);
-
     switch (sortOrder) {
       case 'name-asc':
         return a.name.localeCompare(b.name);
@@ -258,10 +247,56 @@ export function Sidebar({
     }
   };
 
-  const handleAddOwnerSubmit = (value: string) => {
-    onAddOwner?.(value);
-    setShowAddOwnerDialog(false);
+  const openListMenu = (e: React.MouseEvent, list: ListResponse) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ kind: 'list', item: list, x: e.clientX, y: e.clientY });
   };
+
+  const openOwnerMenu = (e: React.MouseEvent, owner: OwnerResponse) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ kind: 'owner', item: owner, x: e.clientX, y: e.clientY });
+  };
+
+  const handleDialogSubmit = (value: string) => {
+    if (!dialog) return;
+    switch (dialog.kind) {
+      case 'add-owner':
+        onAddOwner?.(value);
+        break;
+      case 'rename-list':
+        if (value && value !== dialog.item.name) onRenameList?.(dialog.item.id, value);
+        break;
+      case 'delete-list':
+        onDeleteList?.(dialog.item.id);
+        break;
+      case 'rename-owner':
+        if (value && value !== dialog.item.name) onRenameOwner?.(dialog.item.id, value);
+        break;
+      case 'delete-owner':
+        onDeleteOwner?.(dialog.item.id);
+        break;
+    }
+    setDialog(null);
+  };
+
+  const dialogTitle =
+    dialog?.kind === 'add-owner' ? '添加负责人'
+      : dialog?.kind === 'rename-list' ? '重命名列表'
+        : dialog?.kind === 'delete-list' ? '删除列表'
+          : dialog?.kind === 'rename-owner' ? '重命名负责人'
+            : dialog?.kind === 'delete-owner' ? '删除负责人'
+              : '';
+
+  const dialogMessage =
+    dialog?.kind === 'delete-list'
+      ? `确定删除列表「${dialog.item.name}」？列表内提醒不会被删除。`
+      : dialog?.kind === 'delete-owner'
+        ? `确定删除负责人「${dialog.item.name}」？`
+        : undefined;
+
+  const isConfirm = dialog?.kind === 'delete-list' || dialog?.kind === 'delete-owner';
 
   return (
     <aside className="w-60 h-full flex flex-col" aria-label="侧边栏">
@@ -325,8 +360,7 @@ export function Sidebar({
                 active={activeFilter === `list:${list.id}`}
                 onClick={() => handleFilterClick(`list:${list.id}`)}
                 count={getListCount(list.id)}
-                onRename={onRenameList}
-                onDelete={onDeleteList}
+                onContextMenu={openListMenu}
               />
             </div>
           ))}
@@ -350,14 +384,13 @@ export function Sidebar({
             <OwnerItem
               key={owner.id}
               owner={owner}
-              onRename={onRenameOwner}
-              onDelete={onDeleteOwner}
+              onContextMenu={openOwnerMenu}
             />
           ))}
           {onAddOwner && (
             <button
               type="button"
-              onClick={() => setShowAddOwnerDialog(true)}
+              onClick={() => setDialog({ kind: 'add-owner' })}
               className="w-full flex items-center gap-2 px-4 py-2 rounded-[14px] text-apple-blue hover:bg-blue-50/90 transition-all duration-250 spring-transition"
             >
               <Icon name="plus" size={14} />
@@ -377,12 +410,53 @@ export function Sidebar({
         </button>
       </div>
 
+      {ctxMenu && createPortal(
+        <div
+          className="fixed z-[10000] min-w-[140px] bg-white rounded-[12px] shadow-[0_8px_28px_rgba(0,0,0,0.16)] border border-apple-divider py-1 overflow-hidden"
+          style={{ top: ctxMenu.y, left: ctxMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            onClick={() => {
+              if (ctxMenu.kind === 'list') setDialog({ kind: 'rename-list', item: ctxMenu.item });
+              else setDialog({ kind: 'rename-owner', item: ctxMenu.item });
+              setCtxMenu(null);
+            }}
+          >
+            重命名
+          </button>
+          <button
+            type="button"
+            className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50"
+            onClick={() => {
+              if (ctxMenu.kind === 'list') setDialog({ kind: 'delete-list', item: ctxMenu.item });
+              else setDialog({ kind: 'delete-owner', item: ctxMenu.item });
+              setCtxMenu(null);
+            }}
+          >
+            删除
+          </button>
+        </div>,
+        document.body
+      )}
+
       <Dialog
-        isOpen={showAddOwnerDialog}
-        title="添加负责人"
-        placeholder="输入姓名"
-        onClose={() => setShowAddOwnerDialog(false)}
-        onSubmit={handleAddOwnerSubmit}
+        isOpen={dialog !== null}
+        title={dialogTitle}
+        mode={isConfirm ? 'confirm' : 'input'}
+        message={dialogMessage}
+        placeholder={dialog?.kind === 'add-owner' ? '输入姓名' : '输入名称'}
+        defaultValue={
+          dialog?.kind === 'rename-list' || dialog?.kind === 'rename-owner'
+            ? dialog.item.name
+            : ''
+        }
+        confirmLabel={isConfirm ? '删除' : '确定'}
+        danger={isConfirm}
+        onClose={() => setDialog(null)}
+        onSubmit={handleDialogSubmit}
       />
     </aside>
   );
