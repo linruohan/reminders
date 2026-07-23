@@ -17,7 +17,7 @@ interface ReminderPageProps {
   onDeleteReminder: (id: string) => void;
   onCreateReminder: () => void;
   onAddList: () => void;
-  onRenameList?: (id: string, name: string) => void;
+  onEditList?: (list: ListResponse) => void;
   onDeleteList?: (id: string) => void;
   onAddOwner?: (name: string) => void;
   onRenameOwner?: (id: string, name: string) => void;
@@ -44,7 +44,7 @@ export function ReminderPage({
   onDeleteReminder,
   onCreateReminder,
   onAddList,
-  onRenameList,
+  onEditList,
   onDeleteList,
   onAddOwner,
   onRenameOwner,
@@ -66,7 +66,7 @@ export function ReminderPage({
         onFilterChange={onFilterChange}
         onSearch={onSearch}
         onAddList={onAddList}
-        onRenameList={onRenameList}
+        onEditList={onEditList}
         onDeleteList={onDeleteList}
         onAddOwner={onAddOwner}
         onRenameOwner={onRenameOwner}

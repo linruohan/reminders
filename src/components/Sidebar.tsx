@@ -12,7 +12,7 @@ interface SidebarProps {
   onFilterChange: (filter: string) => void;
   onSearch: (query: string) => void;
   onAddList: () => void;
-  onRenameList?: (id: string, name: string) => void;
+  onEditList?: (list: ListResponse) => void;
   onDeleteList?: (id: string) => void;
   onAddOwner?: (name: string) => void;
   onRenameOwner?: (id: string, name: string) => void;
@@ -36,7 +36,6 @@ type CtxMenu =
 
 type DialogState =
   | { kind: 'add-owner' }
-  | { kind: 'rename-list'; item: ListResponse }
   | { kind: 'delete-list'; item: ListResponse }
   | { kind: 'rename-owner'; item: OwnerResponse }
   | { kind: 'delete-owner'; item: OwnerResponse }
@@ -161,7 +160,7 @@ export function Sidebar({
   onFilterChange,
   onSearch,
   onAddList,
-  onRenameList,
+  onEditList,
   onDeleteList,
   onAddOwner,
   onRenameOwner,
@@ -265,9 +264,6 @@ export function Sidebar({
       case 'add-owner':
         onAddOwner?.(value);
         break;
-      case 'rename-list':
-        if (value && value !== dialog.item.name) onRenameList?.(dialog.item.id, value);
-        break;
       case 'delete-list':
         onDeleteList?.(dialog.item.id);
         break;
@@ -283,11 +279,10 @@ export function Sidebar({
 
   const dialogTitle =
     dialog?.kind === 'add-owner' ? '添加负责人'
-      : dialog?.kind === 'rename-list' ? '重命名列表'
-        : dialog?.kind === 'delete-list' ? '删除列表'
-          : dialog?.kind === 'rename-owner' ? '重命名负责人'
-            : dialog?.kind === 'delete-owner' ? '删除负责人'
-              : '';
+      : dialog?.kind === 'delete-list' ? '删除列表'
+        : dialog?.kind === 'rename-owner' ? '重命名负责人'
+          : dialog?.kind === 'delete-owner' ? '删除负责人'
+            : '';
 
   const dialogMessage =
     dialog?.kind === 'delete-list'
@@ -420,12 +415,15 @@ export function Sidebar({
             type="button"
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
             onClick={() => {
-              if (ctxMenu.kind === 'list') setDialog({ kind: 'rename-list', item: ctxMenu.item });
-              else setDialog({ kind: 'rename-owner', item: ctxMenu.item });
+              if (ctxMenu.kind === 'list') {
+                onEditList?.(ctxMenu.item);
+              } else {
+                setDialog({ kind: 'rename-owner', item: ctxMenu.item });
+              }
               setCtxMenu(null);
             }}
           >
-            重命名
+            {ctxMenu.kind === 'list' ? '编辑' : '重命名'}
           </button>
           <button
             type="button"
@@ -449,9 +447,7 @@ export function Sidebar({
         message={dialogMessage}
         placeholder={dialog?.kind === 'add-owner' ? '输入姓名' : '输入名称'}
         defaultValue={
-          dialog?.kind === 'rename-list' || dialog?.kind === 'rename-owner'
-            ? dialog.item.name
-            : ''
+          dialog?.kind === 'rename-owner' ? dialog.item.name : ''
         }
         confirmLabel={isConfirm ? '删除' : '确定'}
         danger={isConfirm}

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 
-const LIST_ICONS = [
+export const LIST_ICONS = [
   { id: 'list', label: '列表' },
   { id: 'flag', label: '旗标' },
   { id: 'calendar', label: '日历' },
@@ -9,28 +9,58 @@ const LIST_ICONS = [
   { id: 'alert', label: '提醒' },
 ] as const;
 
-interface CreateListDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (name: string, icon: string) => void;
+export const LIST_COLORS = [
+  '#007AFF',
+  '#34C759',
+  '#FF9500',
+  '#FF3B30',
+  '#AF52DE',
+  '#5856D6',
+  '#FF2D55',
+  '#00C7BE',
+  '#A2845E',
+  '#8E8E93',
+] as const;
+
+export interface ListEditorValues {
+  name: string;
+  icon: string;
+  color: string;
 }
 
-export function CreateListDialog({ isOpen, onClose, onSubmit }: CreateListDialogProps) {
+interface ListEditorDialogProps {
+  isOpen: boolean;
+  mode?: 'create' | 'edit';
+  initial?: Partial<ListEditorValues>;
+  onClose: () => void;
+  onSubmit: (values: ListEditorValues) => void;
+}
+
+/** 新建 / 编辑列表（名称 + 颜色 + 图标） */
+export function ListEditorDialog({
+  isOpen,
+  mode = 'create',
+  initial,
+  onClose,
+  onSubmit,
+}: ListEditorDialogProps) {
   const [value, setValue] = useState('');
-  const [icon, setIcon] = useState<string>('list');
+  const [icon, setIcon] = useState('list');
+  const [color, setColor] = useState<string>(LIST_COLORS[0]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setValue('');
-      setIcon('list');
+      setValue(initial?.name ?? '');
+      setIcon(initial?.icon ?? 'list');
+      setColor(initial?.color ?? LIST_COLORS[0]);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [isOpen]);
+  }, [isOpen, initial?.name, initial?.icon, initial?.color]);
 
   const handleSubmit = () => {
     if (value.trim()) {
-      onSubmit(value.trim(), icon);
+      onSubmit({ name: value.trim(), icon, color });
     }
   };
 
@@ -55,12 +85,14 @@ export function CreateListDialog({ isOpen, onClose, onSubmit }: CreateListDialog
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="create-list-title"
+        aria-labelledby="list-editor-title"
         className="bg-white rounded-[20px] shadow-[0_20px_60px_rgba(0,0,0,0.18)] w-[360px] overflow-hidden animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-4">
-          <div id="create-list-title" className="text-[17px] font-semibold text-gray-900 mb-3">新建列表</div>
+          <div id="list-editor-title" className="text-[17px] font-semibold text-gray-900 mb-3">
+            {mode === 'edit' ? '编辑列表' : '新建列表'}
+          </div>
           <input
             ref={inputRef}
             type="text"
@@ -70,6 +102,26 @@ export function CreateListDialog({ isOpen, onClose, onSubmit }: CreateListDialog
             placeholder="输入列表名称"
             className="w-full px-4 py-3 bg-[#F2F2F7] rounded-[14px] text-[15px] text-gray-900 placeholder-apple-gray outline-none focus:ring-2 focus:ring-apple-blue/30 focus:bg-white focus:shadow-[0_0_0_3px_rgba(0,122,255,0.1)] transition-all duration-250 spring-transition"
           />
+
+          <div className="mt-3">
+            <div className="text-xs font-medium text-apple-gray mb-2">颜色</div>
+            <div className="flex flex-wrap gap-2">
+              {LIST_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-label={`颜色 ${c}`}
+                  aria-pressed={color === c}
+                  onClick={() => setColor(c)}
+                  className={`w-8 h-8 rounded-full transition-all ${
+                    color === c ? 'ring-2 ring-offset-2 ring-apple-blue scale-110' : 'hover:scale-105'
+                  }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          </div>
+
           <div className="mt-3">
             <div className="text-xs font-medium text-apple-gray mb-2">图标</div>
             <div className="flex flex-wrap gap-2">
@@ -82,9 +134,10 @@ export function CreateListDialog({ isOpen, onClose, onSubmit }: CreateListDialog
                   onClick={() => setIcon(item.id)}
                   className={`w-10 h-10 rounded-[12px] flex items-center justify-center transition-all ${
                     icon === item.id
-                      ? 'bg-apple-blue text-white shadow-sm'
+                      ? 'text-white shadow-sm'
                       : 'bg-[#F2F2F7] text-gray-600 hover:bg-gray-200'
                   }`}
+                  style={icon === item.id ? { backgroundColor: color } : undefined}
                 >
                   <ListIconGlyph name={item.id} />
                 </button>
@@ -112,6 +165,9 @@ export function CreateListDialog({ isOpen, onClose, onSubmit }: CreateListDialog
     </div>
   );
 }
+
+/** @deprecated 使用 ListEditorDialog；保留别名以免旧引用断裂 */
+export const CreateListDialog = ListEditorDialog;
 
 function ListIconGlyph({ name }: { name: string }) {
   const paths: Record<string, string> = {

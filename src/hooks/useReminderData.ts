@@ -213,10 +213,15 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     }
   }, [updateReminder, syncAfterMutation, showToast, error]);
 
-  const handleDeleteReminder = useCallback(async (id: string) => {
-    if (!window.confirm('确定删除此提醒事项？')) {
-      return false;
+  const handleAddList = useCallback(async (name: string, icon?: string, color?: string) => {
+    const result = await createList({ name, icon: icon || 'list', color });
+    if (result) {
+      await loadLists();
     }
+    return result;
+  }, [createList, loadLists]);
+
+  const handleDeleteReminder = useCallback(async (id: string) => {
     const success = await deleteReminder(id);
     if (success) {
       await syncAfterMutation();
@@ -235,14 +240,6 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     }
     return result;
   }, [createReminder, syncAfterMutation]);
-
-  const handleAddList = useCallback(async (name: string, icon?: string) => {
-    const result = await createList({ name, icon: icon || 'list' });
-    if (result) {
-      await loadLists();
-    }
-    return result;
-  }, [createList, loadLists]);
 
   const handleDeleteList = useCallback(async (id: string) => {
     const success = await deleteList(id);

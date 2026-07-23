@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { TitleBar } from './components/TitleBar';
 import { ReminderPage } from './pages/ReminderPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { AddReminderModal } from './components/AddReminderModal';
-import { CreateListDialog } from './components/CreateListDialog';
+import { ListEditorDialog, type ListEditorValues } from './components/CreateListDialog';
+import { Dialog } from './components/Dialog';
 import { ToastContainer, type ToastMessage, type ToastType } from './components/Toast';
 import { useReminderData } from './hooks/useReminderData';
-import { CreateReminderRequest } from './types/api';
+import type { CreateReminderRequest, ListResponse } from './types/api';
 
 function AuroraBackground() {
   return (
@@ -21,7 +22,10 @@ function AuroraBackground() {
 export function App() {
   const [currentView, setCurrentView] = useState<'reminder' | 'calendar'>('reminder');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showAddListDialog, setShowAddListDialog] = useState(false);
+  const [listEditor, setListEditor] = useState<
+    { mode: 'create' } | { mode: 'edit'; list: ListResponse } | null
+  >(null);
+  const [pendingDeleteReminderId, setPendingDeleteReminderId] = useState<string | null>(null);
   const [toastMessages, setToastMessages] = useState<ToastMessage[]>([]);
 
   const showToast = useCallback((type: ToastType, message: string) => {
@@ -64,6 +68,13 @@ export function App() {
     refreshData,
   } = useReminderData(showToast);
 
+  const pendingDeleteTitle = useMemo(() => {
+    if (!pendingDeleteReminderId) return '';
+    const fromView = reminders.find(r => r.id === pendingDeleteReminderId);
+    if (fromView) return fromView.title;
+    return allReminders.find(r => r.id === pendingDeleteReminderId)?.title ?? '';
+  }, [pendingDeleteReminderId, reminders, allReminders]);
+
   const handleCreateReminderCallback = useCallback(async (data: CreateReminderRequest) => {
     const result = await handleCreateReminder(data);
     if (result.data) {
@@ -74,26 +85,30 @@ export function App() {
     }
   }, [handleCreateReminder, showToast]);
 
-  const handleAddListCallback = useCallback(() => {
-    setShowAddListDialog(true);
-  }, []);
-
-  const handleAddListSubmit = useCallback(async (name: string, icon: string) => {
-    const result = await handleAddList(name, icon);
+  const handleListEditorSubmit = useCallback(async (values: ListEditorValues) => {
+    if (!listEditor) return;
+    if (listEditor.mode === 'create') {
+      const result = await handleAddList(values.name, values.icon, values.color);
+      if (result) {
+        setListEditor(null);
+        showToast('success', `列表「${values.name}」已创建`);
+      } else {
+        showToast('error', '创建列表失败');
+      }
+      return;
+    }
+    const result = await handleUpdateList(listEditor.list.id, {
+      name: values.name,
+      icon: values.icon,
+      color: values.color,
+    });
     if (result) {
-      setShowAddListDialog(false);
-      showToast('success', `列表 "${name}" 已创建`);
+      setListEditor(null);
+      showToast('success', '列表已更新');
     } else {
-      showToast('error', '创建列表失败');
+      showToast('error', '更新列表失败');
     }
-  }, [handleAddList, showToast]);
-
-  const handleRenameList = useCallback(async (id: string, name: string) => {
-    const result = await handleUpdateList(id, { name });
-    if (result) {
-      showToast('success', '列表已重命名');
-    }
-  }, [handleUpdateList, showToast]);
+  }, [listEditor, handleAddList, handleUpdateList, showToast]);
 
   const handleDeleteListCallback = useCallback(async (id: string) => {
     const success = await handleDeleteList(id);
@@ -125,7 +140,17 @@ export function App() {
     }
   }, [handleDeleteOwner, showToast]);
 
-  // 使用 useRef 存储 refreshData / isEditing，避免定时器因依赖变化而重复创建
+  const requestDeleteReminder = useCallback((id: string) => {
+    setPendingDeleteReminderId(id);
+  }, []);
+
+  const confirmDeleteReminder = useCallback(async () => {
+    if (!pendingDeleteReminderId) return;
+    const id = pendingDeleteReminderId;
+    setPendingDeleteReminderId(null);
+    await handleDeleteReminder(id);
+  }, [pendingDeleteReminderId, handleDeleteReminder]);
+
   const refreshDataRef = useRef(refreshData);
   const isEditingRef = useRef(isEditing);
   useEffect(() => {
@@ -141,11 +166,9 @@ export function App() {
         refreshDataRef.current();
       }
     }, 60000);
-
     return () => clearInterval(interval);
   }, []);
 
-  // Ctrl+N 新建提醒；Ctrl+F 由 Sidebar 处理
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
@@ -160,7 +183,7 @@ export function App() {
   return (
     <div className="h-screen w-screen flex flex-col bg-apple-bg overflow-hidden relative">
       <AuroraBackground />
-      
+
       <div className="relative z-10 h-full flex flex-col">
         <TitleBar currentView={currentView} onViewChange={setCurrentView} />
 
@@ -184,10 +207,10 @@ export function App() {
               onSearch={handleSearch}
               onToggleCompleted={handleToggleCompleted}
               onUpdateReminder={handleUpdateReminder}
-              onDeleteReminder={handleDeleteReminder}
+              onDeleteReminder={requestDeleteReminder}
               onCreateReminder={() => setShowAddModal(true)}
-              onAddList={handleAddListCallback}
-              onRenameList={handleRenameList}
+              onAddList={() => setListEditor({ mode: 'create' })}
+              onEditList={(list) => setListEditor({ mode: 'edit', list })}
               onDeleteList={handleDeleteListCallback}
               onAddOwner={handleAddOwnerCallback}
               onRenameOwner={handleRenameOwner}
@@ -213,7 +236,7 @@ export function App() {
               reminders={allReminders}
               lists={lists}
               onUpdateReminder={handleUpdateReminder}
-              onDeleteReminder={handleDeleteReminder}
+              onDeleteReminder={requestDeleteReminder}
               onCreateReminder={handleCreateReminder}
             />
           </div>
@@ -227,10 +250,35 @@ export function App() {
           />
         )}
 
-        <CreateListDialog
-          isOpen={showAddListDialog}
-          onClose={() => setShowAddListDialog(false)}
-          onSubmit={handleAddListSubmit}
+        <ListEditorDialog
+          isOpen={listEditor !== null}
+          mode={listEditor?.mode === 'edit' ? 'edit' : 'create'}
+          initial={
+            listEditor?.mode === 'edit'
+              ? {
+                  name: listEditor.list.name,
+                  icon: listEditor.list.icon,
+                  color: listEditor.list.color,
+                }
+              : undefined
+          }
+          onClose={() => setListEditor(null)}
+          onSubmit={handleListEditorSubmit}
+        />
+
+        <Dialog
+          isOpen={pendingDeleteReminderId !== null}
+          mode="confirm"
+          title="删除提醒"
+          message={
+            pendingDeleteTitle
+              ? `确定删除「${pendingDeleteTitle}」？此操作无法撤销。`
+              : '确定删除此提醒事项？此操作无法撤销。'
+          }
+          confirmLabel="删除"
+          danger
+          onClose={() => setPendingDeleteReminderId(null)}
+          onSubmit={confirmDeleteReminder}
         />
 
         <ToastContainer messages={toastMessages} onRemove={removeToast} />
