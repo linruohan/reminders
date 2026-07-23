@@ -45,9 +45,9 @@ impl ReminderRepository {
         let today = Local::now().date_naive();
         let conn = self.conn.lock().unwrap();
         let date_str = today.format("%Y-%m-%d").to_string();
-        // 无截止日期，或截止日期 ≤ 今天（含逾期）
+        // 今天：截止日期恰好为今天（无截止日期不纳入；逾期见 get_overdue）
         let query = format!(
-            "SELECT {REMINDER_FIELDS} FROM reminders WHERE (end_date IS NULL OR end_date <= ?) AND is_completed = 0 ORDER BY created_at DESC"
+            "SELECT {REMINDER_FIELDS} FROM reminders WHERE end_date = ? AND is_completed = 0 ORDER BY created_at DESC"
         );
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([date_str], Self::row_to_reminder)?;

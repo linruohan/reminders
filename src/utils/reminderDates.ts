@@ -11,11 +11,12 @@ export function effectiveDueTime(r: Pick<ReminderResponse, 'end_time' | 'created
   return r.end_time ?? r.created_time;
 }
 
-export function isDueToday(r: Pick<ReminderResponse, 'end_date' | 'created_date' | 'is_completed'>): boolean {
+/** 今天：截止日期恰好为今天（无截止日期不纳入；逾期见 isOverdue） */
+export function isDueToday(r: Pick<ReminderResponse, 'end_date' | 'is_completed'>): boolean {
   if (r.is_completed) return false;
   const due = r.end_date;
-  if (due === null || due === undefined) return true;
-  return due <= getTodayStr();
+  if (due === null || due === undefined) return false;
+  return due === getTodayStr();
 }
 
 export function isPlanned(r: Pick<ReminderResponse, 'end_date' | 'is_completed'>): boolean {

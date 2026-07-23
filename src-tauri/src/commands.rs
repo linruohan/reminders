@@ -503,10 +503,16 @@ pub fn update_reminder(db: State<'_, Database>, request: UpdateReminderRequest) 
         reminder.recurrence_end_date = if s.is_empty() { None } else { parse_date(&s) };
     }
     if let Some(rbv) = request.remind_before_value {
-        reminder.remind_before_value = Some(rbv);
+        // 约定：负数表示清空提前提醒（JSON null 无法与「未传字段」区分）
+        reminder.remind_before_value = if rbv < 0 { None } else { Some(rbv) };
     }
     if let Some(rbu) = request.remind_before_unit {
-        reminder.remind_before_unit = if rbu.is_empty() { None } else { Some(rbu) };
+        if rbu.is_empty() {
+            reminder.remind_before_unit = None;
+            reminder.remind_before_value = None;
+        } else {
+            reminder.remind_before_unit = Some(rbu);
+        }
     }
 
     // 使用事务保证原子性：更新主表 + 同步标签

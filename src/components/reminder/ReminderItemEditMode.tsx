@@ -5,7 +5,7 @@ import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, TimeUn
 import { formatDate, formatTime } from '@/utils/dateUtils';
 import { buildUpdates } from '@/utils/reminderUpdates';
 import { ReminderDetailModal } from '../ReminderDetailModal';
-import { recurrenceOptions, remindOptions, priorityOptions } from './formOptions';
+import { recurrenceOptions, remindOptions, priorityOptions, encodeRemindValue, parseRemindValue } from './formOptions';
 import { ReminderDateDropdown } from './ReminderDateDropdown';
 import { ReminderTimeDropdown } from './ReminderTimeDropdown';
 import { ReminderRemindDropdown } from './ReminderRemindDropdown';
@@ -44,12 +44,9 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const [editRecurrenceInterval, setEditRecurrenceInterval] = useState(reminder.recurrence_interval ?? 1);
   const [editCustomUnit, setEditCustomUnit] = useState<TimeUnit>(reminder.custom_recurrence_unit ?? 'days');
   const [editRecurrenceEndDate, setEditRecurrenceEndDate] = useState(reminder.recurrence_end_date || '');
-  const [editRemindValue, setEditRemindValue] = useState(() => {
-    if (reminder.remind_before_value == null) return '';
-    const unitMap: Record<string, string> = { days: 'd', weeks: 'w', months: 'M', years: 'y', hours: 'h' };
-    const u = unitMap[reminder.remind_before_unit || ''] || '';
-    return u ? `${reminder.remind_before_value}${u}` : 'custom';
-  });
+  const [editRemindValue, setEditRemindValue] = useState(() =>
+    encodeRemindValue(reminder.remind_before_value, reminder.remind_before_unit)
+  );
   const [editTags, setEditTags] = useState<string[]>(reminder.tags?.map(t => t.name) || []);
   const [tagInput, setTagInput] = useState('');
   const [tagSuggestions, setTagSuggestions] = useState<TagResponse[]>([]);
@@ -63,19 +60,10 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   onChangeRef.current = onChange;
 
   const toRemindFields = useCallback((remindValue: string) => {
-    if (remindValue && remindValue !== 'custom') {
-      const unit = remindValue.slice(-1);
-      const num = parseInt(remindValue.slice(0, -1), 10);
-      const unitMap: Record<string, TimeUnit> = { d: 'days', w: 'weeks', M: 'months', y: 'years', h: 'hours' };
-      return {
-        remind_before_value: Number.isFinite(num) ? num : null,
-        remind_before_unit: unitMap[unit] || null,
-      };
-    }
     if (remindValue === 'custom') {
       return { remind_before_value: 1, remind_before_unit: 'days' as TimeUnit };
     }
-    return { remind_before_value: null, remind_before_unit: null };
+    return parseRemindValue(remindValue);
   }, []);
 
   const publishDraft = useCallback((patch: Partial<ReminderResponse>) => {
@@ -99,15 +87,7 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
       recurrence_interval: reminder.recurrence_frequency === 'custom' ? (reminder.recurrence_interval ?? 1) : null,
       custom_recurrence_unit: reminder.recurrence_frequency === 'custom' ? (reminder.custom_recurrence_unit ?? 'days') : null,
       recurrence_end_date: reminder.recurrence_end_date || null,
-      ...toRemindFields(
-        reminder.remind_before_value == null
-          ? ''
-          : (() => {
-              const unitMap: Record<string, string> = { day: 'd', week: 'w', month: 'M', days: 'd', weeks: 'w' };
-              const u = unitMap[reminder.remind_before_unit || ''] || '';
-              return u ? `${reminder.remind_before_value}${u}` : 'custom';
-            })()
-      ),
+      ...toRemindFields(encodeRemindValue(reminder.remind_before_value, reminder.remind_before_unit)),
     };
     draftRef.current = initial;
     onChangeRef.current(initial);

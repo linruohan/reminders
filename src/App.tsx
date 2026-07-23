@@ -43,6 +43,7 @@ export function App() {
     clipboard,
     isInitialLoading,
     isCalendarLoading,
+    isEditing,
     setIsEditing,
     filterCounts,
     handleFilterChange,
@@ -54,6 +55,9 @@ export function App() {
     handleAddList,
     handleUpdateList,
     handleDeleteList,
+    handleAddOwner,
+    handleUpdateOwner,
+    handleDeleteOwner,
     handleCutReminder,
     handleCopyReminder,
     handlePasteReminder,
@@ -98,15 +102,44 @@ export function App() {
     }
   }, [handleDeleteList, showToast]);
 
-  // 使用 useRef 存储 refreshData，避免定时器因依赖变化而重复创建
+  const handleAddOwnerCallback = useCallback(async (name: string) => {
+    const result = await handleAddOwner(name);
+    if (result) {
+      showToast('success', `负责人「${name}」已添加`);
+    } else {
+      showToast('error', '添加负责人失败');
+    }
+  }, [handleAddOwner, showToast]);
+
+  const handleRenameOwner = useCallback(async (id: string, name: string) => {
+    const result = await handleUpdateOwner(id, { name });
+    if (result) {
+      showToast('success', '负责人已重命名');
+    }
+  }, [handleUpdateOwner, showToast]);
+
+  const handleDeleteOwnerCallback = useCallback(async (id: string) => {
+    const success = await handleDeleteOwner(id);
+    if (success) {
+      showToast('success', '负责人已删除');
+    }
+  }, [handleDeleteOwner, showToast]);
+
+  // 使用 useRef 存储 refreshData / isEditing，避免定时器因依赖变化而重复创建
   const refreshDataRef = useRef(refreshData);
+  const isEditingRef = useRef(isEditing);
   useEffect(() => {
     refreshDataRef.current = refreshData;
   }, [refreshData]);
+  useEffect(() => {
+    isEditingRef.current = isEditing;
+  }, [isEditing]);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      refreshDataRef.current();
+      if (!isEditingRef.current) {
+        refreshDataRef.current();
+      }
     }, 60000);
 
     return () => clearInterval(interval);
@@ -156,6 +189,9 @@ export function App() {
               onAddList={handleAddListCallback}
               onRenameList={handleRenameList}
               onDeleteList={handleDeleteListCallback}
+              onAddOwner={handleAddOwnerCallback}
+              onRenameOwner={handleRenameOwner}
+              onDeleteOwner={handleDeleteOwnerCallback}
               onEditStart={() => setIsEditing(true)}
               onEditEnd={() => setIsEditing(false)}
               onCut={handleCutReminder}

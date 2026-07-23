@@ -6,7 +6,7 @@ export interface TagResponse {
 // 优先级类型定义
 export type Priority = "none" | "low" | "medium" | "high";
 
-// 重复频率类型定义（含 UI 扩展值；执行层尚未实现）
+// 重复频率（含 custom；完成时由后端生成下一次实例）
 export type RecurrenceFrequency =
   | "daily"
   | "weekly"
@@ -97,8 +97,10 @@ export interface UpdateReminderRequest {
   recurrence_interval?: number | null;
   custom_recurrence_unit?: TimeUnit | null;
   recurrence_end_date?: string | null;
+  /** 传 -1 表示清空提前提醒数值 */
   remind_before_value?: number | null;
-  remind_before_unit?: TimeUnit | null;
+  /** 传空字符串可清空提前提醒单位（并清空数值） */
+  remind_before_unit?: TimeUnit | '' | null;
   tags?: string[];
 }
 

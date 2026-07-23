@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import type { ListResponse } from '@/types/api';
+import type { ListResponse, OwnerResponse } from '@/types/api';
 import type { FilterCounts } from '@/types/filters';
+import { Dialog } from './Dialog';
 
 interface SidebarProps {
   lists: ListResponse[];
+  owners: OwnerResponse[];
   activeFilter: string;
   filterCounts: FilterCounts;
   onFilterChange: (filter: string) => void;
@@ -11,6 +13,9 @@ interface SidebarProps {
   onAddList: () => void;
   onRenameList?: (id: string, name: string) => void;
   onDeleteList?: (id: string) => void;
+  onAddOwner?: (name: string) => void;
+  onRenameOwner?: (id: string, name: string) => void;
+  onDeleteOwner?: (id: string) => void;
 }
 
 const quickFilters = [
@@ -106,6 +111,47 @@ function ListItem({
   );
 }
 
+function OwnerItem({
+  owner,
+  onRename,
+  onDelete,
+}: {
+  owner: OwnerResponse;
+  onRename?: (id: string, name: string) => void;
+  onDelete?: (id: string) => void;
+}) {
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const action = window.prompt('输入新名称以重命名，或输入 DELETE 删除负责人', owner.name);
+    if (action === null) return;
+    if (action.trim().toUpperCase() === 'DELETE') {
+      if (window.confirm(`确定删除负责人「${owner.name}」？`)) {
+        onDelete?.(owner.id);
+      }
+      return;
+    }
+    if (action.trim() && action.trim() !== owner.name) {
+      onRename?.(owner.id, action.trim());
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onContextMenu={handleContextMenu}
+      aria-label={`负责人 ${owner.name}`}
+      className="w-full flex items-center gap-3 px-4 py-2 rounded-[14px] text-gray-700 hover:bg-white/90 transition-all duration-250 spring-transition"
+    >
+      <div
+        className="w-5 h-5 rounded-full shadow-sm shrink-0"
+        style={{ backgroundColor: owner.color }}
+      />
+      <span className="text-sm font-semibold truncate">{owner.name}</span>
+    </button>
+  );
+}
+
 function Icon({ name, size = 16, className = '' }: { name: string; size?: number; className?: string }) {
   const icons: Record<string, string> = {
     calendar: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
@@ -121,6 +167,7 @@ function Icon({ name, size = 16, className = '' }: { name: string; size?: number
     chevronDown: '<polyline points="6 9 12 15 18 9"/>',
     chevronRight: '<polyline points="9 18 15 12 9 6"/>',
     sort: '<path d="M12 21l-6-6 6-6"/><path d="M18 17l-6-6 6-6"/>',
+    user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   };
 
   return (
@@ -132,6 +179,7 @@ type SortOrder = 'name-asc' | 'name-desc' | 'count-asc' | 'count-desc';
 
 export function Sidebar({
   lists,
+  owners,
   activeFilter,
   filterCounts,
   onFilterChange,
@@ -139,12 +187,16 @@ export function Sidebar({
   onAddList,
   onRenameList,
   onDeleteList,
+  onAddOwner,
+  onRenameOwner,
+  onDeleteOwner,
 }: SidebarProps) {
   const [listsExpanded, setListsExpanded] = useState(true);
+  const [ownersExpanded, setOwnersExpanded] = useState(true);
   const [sortOrder, setSortOrder] = useState<SortOrder>('name-asc');
+  const [showAddOwnerDialog, setShowAddOwnerDialog] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // 实现 Ctrl+F 快捷键聚焦搜索框
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
@@ -174,7 +226,7 @@ export function Sidebar({
   const sortedLists = [...lists].sort((a, b) => {
     const countA = getListCount(a.id);
     const countB = getListCount(b.id);
-    
+
     switch (sortOrder) {
       case 'name-asc':
         return a.name.localeCompare(b.name);
@@ -204,6 +256,11 @@ export function Sidebar({
       case 'count-desc':
         return '数量 多→少';
     }
+  };
+
+  const handleAddOwnerSubmit = (value: string) => {
+    onAddOwner?.(value);
+    setShowAddOwnerDialog(false);
   };
 
   return (
@@ -260,7 +317,7 @@ export function Sidebar({
       </div>
 
       {listsExpanded && (
-        <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-0.5">
+        <div className="max-h-[40%] overflow-y-auto px-3 pb-2 space-y-0.5">
           {sortedLists.map((list, index) => (
             <div key={list.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 40}ms` }}>
               <ListItem
@@ -276,6 +333,40 @@ export function Sidebar({
         </div>
       )}
 
+      <div className="px-4 py-2 flex items-center justify-between">
+        <button
+          onClick={() => setOwnersExpanded(!ownersExpanded)}
+          className="flex items-center gap-2 text-xs font-semibold text-apple-gray uppercase tracking-wide hover:text-gray-700 transition-colors spring-transition"
+        >
+          <Icon name={ownersExpanded ? 'chevronDown' : 'chevronRight'} size={14} />
+          <span>负责人</span>
+          <span className="text-gray-400">({owners.length})</span>
+        </button>
+      </div>
+
+      {ownersExpanded && (
+        <div className="flex-1 overflow-y-auto px-3 pb-2 space-y-0.5 min-h-0">
+          {owners.map((owner) => (
+            <OwnerItem
+              key={owner.id}
+              owner={owner}
+              onRename={onRenameOwner}
+              onDelete={onDeleteOwner}
+            />
+          ))}
+          {onAddOwner && (
+            <button
+              type="button"
+              onClick={() => setShowAddOwnerDialog(true)}
+              className="w-full flex items-center gap-2 px-4 py-2 rounded-[14px] text-apple-blue hover:bg-blue-50/90 transition-all duration-250 spring-transition"
+            >
+              <Icon name="plus" size={14} />
+              <span className="text-sm font-semibold">添加负责人</span>
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="px-3 py-3">
         <button
           onClick={onAddList}
@@ -285,6 +376,14 @@ export function Sidebar({
           <span className="text-sm font-semibold">添加列表</span>
         </button>
       </div>
+
+      <Dialog
+        isOpen={showAddOwnerDialog}
+        title="添加负责人"
+        placeholder="输入姓名"
+        onClose={() => setShowAddOwnerDialog(false)}
+        onSubmit={handleAddOwnerSubmit}
+      />
     </aside>
   );
 }

@@ -19,6 +19,9 @@ interface ReminderPageProps {
   onAddList: () => void;
   onRenameList?: (id: string, name: string) => void;
   onDeleteList?: (id: string) => void;
+  onAddOwner?: (name: string) => void;
+  onRenameOwner?: (id: string, name: string) => void;
+  onDeleteOwner?: (id: string) => void;
   onEditStart: () => void;
   onEditEnd: () => void;
   onCut: (reminder: ReminderResponse) => void;
@@ -43,6 +46,9 @@ export function ReminderPage({
   onAddList,
   onRenameList,
   onDeleteList,
+  onAddOwner,
+  onRenameOwner,
+  onDeleteOwner,
   onEditStart,
   onEditEnd,
   onCut,
@@ -54,6 +60,7 @@ export function ReminderPage({
     <div className="flex-1 flex overflow-hidden bg-white">
       <Sidebar
         lists={lists}
+        owners={owners}
         activeFilter={activeFilter}
         filterCounts={filterCounts}
         onFilterChange={onFilterChange}
@@ -61,6 +68,9 @@ export function ReminderPage({
         onAddList={onAddList}
         onRenameList={onRenameList}
         onDeleteList={onDeleteList}
+        onAddOwner={onAddOwner}
+        onRenameOwner={onRenameOwner}
+        onDeleteOwner={onDeleteOwner}
       />
 
       <ReminderList

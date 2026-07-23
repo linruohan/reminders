@@ -192,9 +192,16 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
 
   const handleUpdateReminder = useCallback(async (id: string, updates: Partial<ReminderResponse>) => {
     const { tags: tagObjs, ...rest } = updates;
+    // null 无法与「未更新」区分：清空提前提醒时用 -1 + 空字符串作为哨兵
+    const clearRemind =
+      Object.prototype.hasOwnProperty.call(updates, 'remind_before_value') &&
+      updates.remind_before_value == null;
     const request: UpdateReminderRequest = {
       id,
       ...rest,
+      ...(clearRemind
+        ? { remind_before_value: -1, remind_before_unit: '' }
+        : {}),
       ...(tagObjs ? { tags: tagObjs.map(t => typeof t === 'string' ? t : t.name) } : {}),
     };
     const result = await updateReminder(request);

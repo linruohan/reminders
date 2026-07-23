@@ -15,8 +15,9 @@ pub fn next_due_date(
         "biweekly" => current + Duration::weeks(2),
         "monthly" => current.checked_add_months(Months::new(n))?,
         "yearly" => current.checked_add_months(Months::new(n * 12))?,
+        // 截止日期为 NaiveDate，自定义仅支持天及以上；旧数据中的 minutes/hours 按天处理
         "custom" => match custom_unit.unwrap_or("days") {
-            "minutes" | "hours" | "days" => current + Duration::days(n as i64),
+            "days" | "minutes" | "hours" => current + Duration::days(n as i64),
             "weeks" => current + Duration::weeks(n as i64),
             "months" => current.checked_add_months(Months::new(n))?,
             "years" => current.checked_add_months(Months::new(n * 12))?,

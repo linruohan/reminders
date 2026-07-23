@@ -1,6 +1,6 @@
 import type { TimeUnit } from '@/types/api';
 
-/** 重复频率选项（仅持久化元数据；自动生成下一次实例尚未实现） */
+/** 重复频率选项；完成时由后端生成下一次实例（见 spawn_next_occurrence） */
 export const recurrenceOptions = [
   { value: '', label: '永不' },
   { value: 'daily', label: '每天' },
@@ -11,7 +11,7 @@ export const recurrenceOptions = [
   { value: 'custom', label: '自定义' },
 ];
 
-/** 提前提醒选项（仅元数据；系统通知调度尚未实现） */
+/** 提前提醒选项；应用运行时由 notification_scheduler 轮询触发（关闭应用后不会弹出） */
 export const remindOptions = [
   { value: '', label: '无' },
   { value: '1d', label: '1天前' },
@@ -30,12 +30,43 @@ export const priorityOptions = [
   { value: 'high', label: '高' },
 ];
 
-/** 解析提醒值 */
+/** 单字符后缀 → TimeUnit */
+export const remindSuffixToUnit: Record<string, TimeUnit> = {
+  h: 'hours',
+  d: 'days',
+  w: 'weeks',
+  M: 'months',
+  y: 'years',
+};
+
+/** TimeUnit → 单字符后缀（含兼容旧单数写法） */
+export const remindUnitToSuffix: Record<string, string> = {
+  hours: 'h',
+  hour: 'h',
+  days: 'd',
+  day: 'd',
+  weeks: 'w',
+  week: 'w',
+  months: 'M',
+  month: 'M',
+  years: 'y',
+  year: 'y',
+};
+
+/** 解析提醒值（如 1d / 2w / 1M / 3h / 1y） */
 export function parseRemindValue(value: string): { remind_before_value: number | null; remind_before_unit: TimeUnit | null } {
-  if (!value) return { remind_before_value: null, remind_before_unit: null };
-  if (value === 'custom') return { remind_before_value: null, remind_before_unit: null };
+  if (!value || value === 'custom') return { remind_before_value: null, remind_before_unit: null };
   const unit = value.slice(-1);
-  const num = parseInt(value.slice(0, -1));
-  const unitMap: Record<string, TimeUnit> = { d: 'days', w: 'weeks', M: 'months' };
-  return { remind_before_value: num, remind_before_unit: unitMap[unit] || null };
+  const num = parseInt(value.slice(0, -1), 10);
+  return {
+    remind_before_value: Number.isFinite(num) ? num : null,
+    remind_before_unit: remindSuffixToUnit[unit] || null,
+  };
+}
+
+/** 将已存的 value+unit 编码为 UI 字符串 */
+export function encodeRemindValue(value: number | null | undefined, unit: string | null | undefined): string {
+  if (value == null) return '';
+  const suffix = remindUnitToSuffix[unit || ''];
+  return suffix ? `${value}${suffix}` : 'custom';
 }

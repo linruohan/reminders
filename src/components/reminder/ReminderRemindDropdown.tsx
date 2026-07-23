@@ -31,9 +31,15 @@ export const ReminderRemindDropdown = memo(function ReminderRemindDropdown({
       {remindOptions.map(o => (
         <button
           key={o.value}
-          onClick={() => { onRemindChange(o.value); onClose(); }}
+          onClick={() => {
+            onRemindChange(o.value);
+            // 自定义需继续配置数值/单位，不关闭下拉
+            if (o.value !== 'custom') onClose();
+          }}
           className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
-            editRemindValue === o.value ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50'
+            editRemindValue === o.value || (o.value === 'custom' && editRemindValue === 'custom')
+              ? 'bg-apple-blue/10 text-apple-blue'
+              : 'text-gray-700 hover:bg-gray-50'
           }`}
         >
           {o.label}

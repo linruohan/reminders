@@ -343,11 +343,10 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, show
                   className="w-14 px-2 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none text-center"
                 />
                 <select
-                  value={customUnit}
+                  value={customUnit === 'hours' || customUnit === 'minutes' ? 'days' : customUnit}
                   onChange={(e) => setCustomUnit(e.target.value)}
                   className="px-2 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none"
                 >
-                  <option value="hours">小时</option>
                   <option value="days">天</option>
                   <option value="weeks">周</option>
                   <option value="months">个月</option>
