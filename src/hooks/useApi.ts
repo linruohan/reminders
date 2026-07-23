@@ -12,7 +12,7 @@ import type {
   CreateOwnerRequest,
   UpdateOwnerRequest,
 } from '@/types/api';
-import { parseInvokeError, type AppError } from '@/types/error';
+import { parseInvokeError, getUserFriendlyMessage, type AppError } from '@/types/error';
 
 type LoadingState = Record<string, boolean>;
 type ErrorState = Record<string, string | null>;
@@ -34,7 +34,7 @@ export function useApi() {
       return result;
     } catch (e) {
       const appError: AppError = parseInvokeError(e);
-      const message = appError.message;
+      const message = getUserFriendlyMessage(appError);
       setLoading(prev => ({ ...prev, [key]: false }));
       setError(prev => ({ ...prev, [key]: message }));
       // 错误已通过 setError 记录到状态中，此处不再输出到控制台
@@ -73,7 +73,7 @@ export function useApi() {
       return { data: result, error: null };
     } catch (e) {
       const appError: AppError = parseInvokeError(e);
-      const message = appError.message;
+      const message = getUserFriendlyMessage(appError);
       setLoading(prev => ({ ...prev, [key]: false }));
       setError(prev => ({ ...prev, [key]: message }));
       // 错误已通过 setError 记录到状态中，此处不再输出到控制台

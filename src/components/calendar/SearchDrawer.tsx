@@ -1,5 +1,7 @@
 import { useRef, useEffect } from 'react';
 import type { ReminderResponse, ListResponse } from '@/types/api';
+import { formatDate, formatTime } from '@/utils/dateUtils';
+import { effectiveDueDate, effectiveDueTime } from '@/utils/reminderDates';
 import { getListColor } from './utils';
 
 export function SearchDrawer({
@@ -74,11 +76,11 @@ export function SearchDrawer({
                     {r.title}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
-                    {(r.end_date ?? r.created_date) && (
-                      <span className="text-[11px] text-gray-400">{r.end_date ?? r.created_date}</span>
+                    {effectiveDueDate(r) && (
+                      <span className="text-[11px] text-gray-400">{formatDate(effectiveDueDate(r))}</span>
                     )}
-                    {(r.end_time ?? r.created_time) && (
-                      <span className="text-[11px] text-apple-gray">{r.end_time ?? r.created_time}</span>
+                    {effectiveDueTime(r) && (
+                      <span className="text-[11px] text-apple-gray">{formatTime(effectiveDueTime(r))}</span>
                     )}
                   </div>
                 </div>

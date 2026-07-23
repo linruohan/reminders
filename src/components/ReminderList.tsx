@@ -8,6 +8,7 @@ interface ReminderListProps {
   lists: ListResponse[];
   owners: OwnerResponse[];
   activeFilter: string;
+  searchQuery?: string;
   onToggleCompleted: (id: string) => void;
   onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
   onDeleteReminder: (id: string) => void;
@@ -51,6 +52,7 @@ export function ReminderList({
   lists,
   owners,
   activeFilter,
+  searchQuery = '',
   onToggleCompleted,
   onUpdateReminder,
   onDeleteReminder,
@@ -217,7 +219,11 @@ export function ReminderList({
                 <line x1="15" y1="3" x2="15" y2="21"/>
               </svg>
             </div>
-            <span className="text-base font-medium">没有提醒事项</span>
+            <span className="text-base font-medium">
+              {searchQuery.trim()
+                ? `未找到「${searchQuery.trim()}」相关提醒`
+                : '没有提醒事项'}
+            </span>
           </div>
         ) : (
           <div className="space-y-1">

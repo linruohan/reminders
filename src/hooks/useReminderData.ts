@@ -297,11 +297,13 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
 
   const handleCutReminder = useCallback((reminder: ReminderResponse) => {
     setClipboard({ action: 'cut', reminder });
-  }, []);
+    showToast?.('info', '已剪切');
+  }, [showToast]);
 
   const handleCopyReminder = useCallback((reminder: ReminderResponse) => {
     setClipboard({ action: 'copy', reminder });
-  }, []);
+    showToast?.('info', '已复制');
+  }, [showToast]);
 
   const handlePasteReminder = useCallback(async (targetListId: string | null) => {
     if (!clipboard) return;
@@ -329,6 +331,9 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     if (result.data) {
       if (clipboard.action === 'cut') {
         await deleteReminder(clipboard.reminder.id);
+        showToast?.('success', '提醒已移动');
+      } else {
+        showToast?.('success', '提醒已粘贴');
       }
       await syncAfterMutation();
     } else {
@@ -371,6 +376,8 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
   const isInitialLoading = 
     (activeFilterLoaded === false || allDataLoaded === false) && reminders.length === 0;
 
+  const isCalendarLoading = !allDataLoaded;
+
   return {
     reminders,
     allReminders,
@@ -381,6 +388,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     clipboard,
     isLoading,
     isInitialLoading,
+    isCalendarLoading,
     isEditing,
     setIsEditing,
     filterCounts,

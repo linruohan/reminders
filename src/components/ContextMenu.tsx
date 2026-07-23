@@ -82,9 +82,11 @@ export function ContextMenu({
   };
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-50" role="presentation">
       <div
         ref={menuRef}
+        role="menu"
+        aria-label="提醒操作"
         className="absolute bg-white rounded-[16px] shadow-[0_12px_48px_rgba(0,0,0,0.18)] border border-apple-divider overflow-hidden animate-scale-in"
         style={{ left: adjustedX, top: adjustedY, width: menuWidth }}
       >

@@ -8,6 +8,7 @@ use crate::database::connection::Database;
 mod commands;
 mod database;
 mod models;
+mod recurrence;
 mod repository;
 
 fn get_data_dir(app_handle: &AppHandle) -> PathBuf {

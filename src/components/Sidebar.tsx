@@ -1,16 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { ListResponse } from '@/types/api';
-
-interface FilterCounts {
-  all: number;
-  today: number;
-  planned: number;
-  overdue: number;
-  completed: number;
-  urgent: number;
-  flagged: number;
-  lists: Array<{ id: string; count: number }>;
-}
+import type { FilterCounts } from '@/types/filters';
 
 interface SidebarProps {
   lists: ListResponse[];
@@ -36,6 +26,8 @@ function QuickFilterItem({ filter, active, onClick, count }: { filter: typeof qu
   return (
     <button
       onClick={onClick}
+      aria-label={`${filter.label}，${count} 项`}
+      aria-current={active ? 'page' : undefined}
       style={{ background: filter.gradient }}
       className={`w-full flex flex-col items-start px-3 py-3 rounded-[16px] shadow-[0_2px_8px_rgba(0,0,0,0.12)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)] hover:scale-[1.02] transition-all duration-300 spring-transition ${
         active
@@ -87,6 +79,8 @@ function ListItem({
     <button
       onClick={onClick}
       onContextMenu={handleContextMenu}
+      aria-label={`${list.name}，${count} 项`}
+      aria-current={active ? 'page' : undefined}
       className={`w-full flex items-center justify-between px-4 py-2.5 rounded-[14px] transition-all duration-250 spring-transition ${
         active
           ? 'bg-apple-blue/10 text-apple-blue shadow-[0_2px_8px_rgba(0,122,255,0.12)]'
@@ -98,7 +92,7 @@ function ListItem({
           className="w-5 h-5 rounded-[8px] flex items-center justify-center shadow-sm"
           style={{ backgroundColor: list.color }}
         >
-          <Icon name="list" size={11} className="text-white" />
+          <Icon name={list.icon || 'list'} size={11} className="text-white" />
         </div>
         <span className="text-sm font-semibold truncate">{list.name}</span>
       </div>
@@ -212,7 +206,7 @@ export function Sidebar({
   };
 
   return (
-    <aside className="w-60 h-full flex flex-col">
+    <aside className="w-60 h-full flex flex-col" aria-label="侧边栏">
       <div className="px-4 pt-4">
         <div className="relative">
           <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-apple-gray" />
@@ -220,6 +214,7 @@ export function Sidebar({
             ref={searchInputRef}
             type="text"
             placeholder="搜索"
+            aria-label="搜索提醒"
             onChange={handleSearchInput}
             className="w-full h-10 pl-10 pr-10 bg-white/80 rounded-[14px] text-sm text-gray-900 placeholder-apple-gray focus:ring-2 focus:ring-apple-blue/30 focus:bg-white focus:shadow-[0_0_0_3px_rgba(0,122,255,0.1)] outline-none border border-white/60 shadow-sm transition-all duration-250 spring-transition"
           />

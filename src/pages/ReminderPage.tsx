@@ -1,23 +1,14 @@
 import { Sidebar } from '../components/Sidebar';
 import { ReminderList } from '../components/ReminderList';
 import type { ReminderResponse, ListResponse, OwnerResponse } from '../types/api';
-
-interface FilterCounts {
-  all: number;
-  today: number;
-  planned: number;
-  overdue: number;
-  completed: number;
-  urgent: number;
-  flagged: number;
-  lists: Array<{ id: string; count: number }>;
-}
+import type { FilterCounts } from '../types/filters';
 
 interface ReminderPageProps {
   reminders: ReminderResponse[];
   lists: ListResponse[];
   owners: OwnerResponse[];
   activeFilter: string;
+  searchQuery: string;
   filterCounts: FilterCounts;
   onFilterChange: (filter: string) => void;
   onSearch: (query: string) => void;
@@ -41,6 +32,7 @@ export function ReminderPage({
   lists,
   owners,
   activeFilter,
+  searchQuery,
   filterCounts,
   onFilterChange,
   onSearch,
@@ -70,12 +62,13 @@ export function ReminderPage({
         onRenameList={onRenameList}
         onDeleteList={onDeleteList}
       />
-      
+
       <ReminderList
         reminders={reminders}
         lists={lists}
         owners={owners}
         activeFilter={activeFilter}
+        searchQuery={searchQuery}
         onToggleCompleted={onToggleCompleted}
         onUpdateReminder={onUpdateReminder}
         onDeleteReminder={onDeleteReminder}

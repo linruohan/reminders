@@ -9,6 +9,7 @@ use uuid::Uuid;
 use crate::database::connection::Database;
 use crate::models::owner::Owner;
 use crate::models::reminder::{Priority, Reminder, ReminderList};
+use crate::recurrence::next_due_date;
 use crate::repository::list::ListRepository;
 use crate::repository::owner::OwnerRepository;
 use crate::repository::reminder::ReminderRepository;
@@ -581,20 +582,129 @@ pub fn delete_reminder(db: State<'_, Database>, id: String) -> Result<(), String
 pub fn toggle_reminder_completed(db: State<'_, Database>, id: String) -> Result<ReminderResponse, String> {
     let repo = ReminderRepository::new(get_conn(&db));
     let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
-    
-    let mut reminder = repo.get_by_id(&id)
+
+    let mut reminder = repo
+        .get_by_id(&id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Reminder not found".to_string())?;
-    
-    reminder.is_completed = !reminder.is_completed;
-    if reminder.is_completed {
+
+    let becoming_completed = !reminder.is_completed;
+    reminder.is_completed = becoming_completed;
+    if becoming_completed {
         reminder.completion_date = Some(Local::now());
     } else {
         reminder.completion_date = None;
     }
-    
+
     repo.update(&reminder).map_err(|e| e.to_string())?;
+
+    // 完成带重复规则的提醒时，生成下一次未完成实例
+    if becoming_completed {
+        if let Some(freq) = reminder.recurrence_frequency.clone() {
+            let base_date = reminder
+                .end_date
+                .or(reminder.created_date)
+                .unwrap_or_else(|| Local::now().date_naive());
+            if let Some(next_date) = next_due_date(
+                base_date,
+                &freq,
+                reminder.recurrence_interval,
+                reminder.custom_recurrence_unit.as_deref(),
+                reminder.recurrence_end_date,
+            ) {
+                spawn_next_occurrence(&db, &reminder, next_date)?;
+            }
+        }
+    }
+
     get_reminder_with_tags(reminder, &db)
+}
+
+fn insert_reminder_row(tx: &rusqlite::Transaction, reminder: &Reminder) -> Result<(), String> {
+    tx.execute(
+        "INSERT INTO reminders (id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, location_address, location_latitude, location_longitude, location_radius, location_proximity, owner_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)",
+        rusqlite::params![
+            reminder.id.to_string(),
+            reminder.title,
+            reminder.description,
+            reminder.created_date.map(|d| d.format("%Y-%m-%d").to_string()),
+            reminder.created_time.map(|t| t.format("%H:%M:%S").to_string()),
+            reminder.end_date.map(|d| d.format("%Y-%m-%d").to_string()),
+            reminder.end_time.map(|t| t.format("%H:%M:%S").to_string()),
+            reminder.is_all_day as i32,
+            reminder.is_completed as i32,
+            reminder.is_flagged as i32,
+            match reminder.priority {
+                Priority::None => "none",
+                Priority::High => "high",
+                Priority::Medium => "medium",
+                Priority::Low => "low",
+            },
+            reminder.list_id.map(|id| id.to_string()),
+            reminder.created_at.to_rfc3339(),
+            reminder.updated_at.to_rfc3339(),
+            reminder.url,
+            reminder.completion_date.map(|d| d.to_rfc3339()),
+            reminder.recurrence_frequency,
+            reminder.recurrence_interval,
+            reminder.custom_recurrence_unit,
+            reminder.recurrence_end_date.map(|d| d.format("%Y-%m-%d").to_string()),
+            reminder.remind_before_value,
+            reminder.remind_before_unit,
+            None::<String>,
+            None::<f64>,
+            None::<f64>,
+            None::<f64>,
+            None::<String>,
+            reminder.owner_id.map(|id| id.to_string()),
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn spawn_next_occurrence(
+    db: &State<'_, Database>,
+    source: &Reminder,
+    next_date: NaiveDate,
+) -> Result<(), String> {
+    let now = Local::now();
+    let mut next = Reminder::new(source.title.clone());
+    next.description = source.description.clone();
+    next.url = source.url.clone();
+    next.created_date = Some(now.date_naive());
+    next.created_time = Some(now.time());
+    next.end_date = Some(next_date);
+    next.end_time = source.end_time;
+    next.is_all_day = source.is_all_day;
+    next.is_completed = false;
+    next.is_flagged = source.is_flagged;
+    next.priority = source.priority.clone();
+    next.list_id = source.list_id;
+    next.owner_id = source.owner_id;
+    next.recurrence_frequency = source.recurrence_frequency.clone();
+    next.recurrence_interval = source.recurrence_interval;
+    next.custom_recurrence_unit = source.custom_recurrence_unit.clone();
+    next.recurrence_end_date = source.recurrence_end_date;
+    next.remind_before_value = source.remind_before_value;
+    next.remind_before_unit = source.remind_before_unit.clone();
+
+    let source_id = source.id.to_string();
+    let next_id = next.id.to_string();
+    let tag_names = get_reminder_tags_internal(get_conn(db), &source_id)?
+        .into_iter()
+        .map(|t| t.name)
+        .collect::<Vec<_>>();
+
+    let conn = get_conn(db);
+    let mut conn_guard = conn.lock().unwrap();
+    let tx = conn_guard.transaction().map_err(|e| e.to_string())?;
+    insert_reminder_row(&tx, &next)?;
+    if !tag_names.is_empty() {
+        sync_reminder_tags_in_tx(&tx, &next_id, &tag_names)?;
+    }
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[command]

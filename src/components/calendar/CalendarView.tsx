@@ -1,7 +1,8 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { ReminderResponse, ListResponse, CreateReminderRequest, Priority, RecurrenceFrequency, TimeUnit } from '@/types/api';
-import { getDaysInMonth } from '@/utils/dateUtils';
+import { getDaysInMonth, parseISODate } from '@/utils/dateUtils';
+import { effectiveDueDate } from '@/utils/reminderDates';
 import { AddReminderModal } from '../AddReminderModal';
 import { DayView } from './DayView';
 import { WeekView } from './WeekView';
@@ -64,9 +65,9 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
   }, []);
 
   const handleSearchSelect = useCallback((r: ReminderResponse) => {
-    const due = r.end_date ?? r.created_date;
+    const due = effectiveDueDate(r);
     if (due) {
-      const d = new Date(due);
+      const d = parseISODate(due);
       setCurrentDate(d);
       setSelectedDate(d);
       if (viewMode === 'year') {

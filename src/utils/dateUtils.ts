@@ -5,21 +5,27 @@ function formatDateToISO(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+/** 按本地时区解析 YYYY-MM-DD，避免 UTC 午夜导致日期偏移 */
+export function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '';
-  const date = new Date(dateStr);
+  const date = parseLocalDate(dateStr);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   const targetDate = new Date(date);
   targetDate.setHours(0, 0, 0, 0);
-  
+
   const diffTime = targetDate.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
   if (diffDays === 0) return '今天';
   if (diffDays === 1) return '明天';
-  
+
   const month = date.getMonth() + 1;
   const day = date.getDate();
   return `${month}月${day}日`;
@@ -43,11 +49,11 @@ export function formatTime(timeStr: string | null | undefined): string {
 
 export function getDateColor(dateStr: string | null | undefined): string {
   if (!dateStr) return 'text-apple-gray';
-  const date = new Date(dateStr);
+  const date = parseLocalDate(dateStr);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   date.setHours(0, 0, 0, 0);
-  
+
   if (date < today) return 'text-apple-red';
   return 'text-apple-orange';
 }
@@ -167,7 +173,7 @@ export function toISODateStr(date: Date): string {
 }
 
 export function parseISODate(dateStr: string): Date {
-  const date = new Date(dateStr);
+  const date = parseLocalDate(dateStr);
   date.setHours(0, 0, 0, 0);
   return date;
 }

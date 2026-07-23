@@ -1,5 +1,6 @@
 import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
 import { formatDate, formatTime } from '@/utils/dateUtils';
+import { useEffect } from 'react';
 
 interface ReminderDetailModalProps {
   reminder: ReminderResponse;
@@ -49,6 +50,15 @@ export function ReminderDetailModal({
   onEdit,
   onUpdateReminder,
 }: ReminderDetailModalProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const listName = reminder.list_id
@@ -61,8 +71,11 @@ export function ReminderDetailModal({
   const isCustomRecur = reminder.recurrence_frequency === 'custom';
 
   return (
-    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50" onClick={onClose} role="presentation">
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="提醒详情"
         className="bg-white rounded-apple-lg shadow-[0_16px_48px_rgba(0,0,0,0.16)] w-[340px] overflow-hidden animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >

@@ -39,8 +39,10 @@ export function App() {
     lists,
     owners,
     activeFilter,
+    searchQuery,
     clipboard,
     isInitialLoading,
+    isCalendarLoading,
     setIsEditing,
     filterCounts,
     handleFilterChange,
@@ -143,6 +145,7 @@ export function App() {
               lists={lists}
               owners={owners}
               activeFilter={activeFilter}
+              searchQuery={searchQuery}
               filterCounts={filterCounts}
               onFilterChange={handleFilterChange}
               onSearch={handleSearch}
@@ -160,6 +163,13 @@ export function App() {
               onPaste={handlePasteReminder}
               canPaste={clipboard !== null}
             />
+          </div>
+        ) : isCalendarLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="relative">
+              <div className="w-10 h-10 border-3 border-apple-blue border-t-transparent rounded-full animate-spin" />
+              <div className="absolute inset-0 w-10 h-10 border-3 border-apple-blue/30 border-t-transparent rounded-full animate-spin" style={{ animationDuration: '1.5s' }} />
+            </div>
           </div>
         ) : (
           <div className="flex-1 flex overflow-hidden">

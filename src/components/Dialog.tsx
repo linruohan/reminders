@@ -49,13 +49,20 @@ export function Dialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
+    <div
+      className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-50"
+      onClick={onClose}
+      role="presentation"
+    >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dialog-title"
         className="bg-white rounded-[20px] shadow-[0_20px_60px_rgba(0,0,0,0.18)] w-[340px] overflow-hidden animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-4">
-          <div className="text-[17px] font-semibold text-gray-900 mb-3">{title}</div>
+          <div id="dialog-title" className="text-[17px] font-semibold text-gray-900 mb-3">{title}</div>
           <input
             ref={inputRef}
             type="text"
