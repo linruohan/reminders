@@ -3,6 +3,14 @@ export interface TagResponse {
   name: string;
 }
 
+export interface SubtaskResponse {
+  id: string;
+  reminder_id: string;
+  title: string;
+  is_completed: boolean;
+  sort_order: number;
+}
+
 // 优先级类型定义
 export type Priority = "none" | "low" | "medium" | "high";
 
@@ -44,6 +52,7 @@ export interface ReminderResponse {
   remind_before_value: number | null;
   remind_before_unit: TimeUnit | null;
   tags: TagResponse[];
+  subtasks: SubtaskResponse[];
   list_id: string | null;
   owner_id: string | null;
 }
@@ -103,6 +112,17 @@ export interface UpdateReminderRequest {
   /** 传空字符串可清空提前提醒单位（并清空数值） */
   remind_before_unit?: TimeUnit | '' | null;
   tags?: string[];
+}
+
+export interface CreateSubtaskRequest {
+  reminder_id: string;
+  title: string;
+}
+
+export interface UpdateSubtaskRequest {
+  id: string;
+  title?: string;
+  is_completed?: boolean;
 }
 
 export interface CreateListRequest {

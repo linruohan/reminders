@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::database::connection::Database;
 use crate::models::reminder::{Priority, Reminder};
 
-use super::dto::{ReminderResponse, TagResponse};
+use super::dto::{ReminderResponse, SubtaskResponse, TagResponse};
 
 pub(crate) fn get_conn(db: &State<'_, Database>) -> Arc<Mutex<Connection>> {
     db.conn()
@@ -104,10 +104,36 @@ pub(crate) fn get_reminder_with_tags(
 ) -> Result<ReminderResponse, String> {
     let mut resp: ReminderResponse = reminder.into();
     resp.tags = get_reminder_tags_internal(get_conn(db), &resp.id)?;
+    resp.subtasks = get_reminder_subtasks_internal(get_conn(db), &resp.id)?;
     Ok(resp)
 }
 
-/// 批量获取提醒及其标签，使用 JOIN 查询避免 N+1
+pub(crate) fn get_reminder_subtasks_internal(
+    conn: Arc<Mutex<Connection>>,
+    reminder_id: &str,
+) -> Result<Vec<SubtaskResponse>, String> {
+    let conn = conn.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, reminder_id, title, is_completed, sort_order FROM subtasks \
+             WHERE reminder_id = ? ORDER BY sort_order ASC, created_at ASC",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([reminder_id], |row| {
+            Ok(SubtaskResponse {
+                id: row.get(0)?,
+                reminder_id: row.get(1)?,
+                title: row.get(2)?,
+                is_completed: row.get::<_, i32>(3)? != 0,
+                sort_order: row.get(4)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    Ok(rows.filter_map(|r| r.ok()).collect())
+}
+
+/// 批量获取提醒及其标签、子任务，使用 JOIN 查询避免 N+1
 pub(crate) fn map_reminders_with_tags(
     reminders: Vec<Reminder>,
     db: &State<'_, Database>,
@@ -121,15 +147,16 @@ pub(crate) fn map_reminders_with_tags(
 
     let ids: Vec<String> = reminders.iter().map(|r| r.id.to_string()).collect();
     let placeholders: Vec<&str> = ids.iter().map(|_| "?").collect();
-    let sql = format!(
+    let in_clause = placeholders.join(",");
+
+    let tags_sql = format!(
         "SELECT rt.reminder_id, t.id, t.name FROM reminder_tags rt \
          JOIN tags t ON rt.tag_id = t.id \
-         WHERE rt.reminder_id IN ({})",
-        placeholders.join(",")
+         WHERE rt.reminder_id IN ({in_clause})"
     );
 
-    let mut stmt = conn_guard.prepare(&sql).map_err(|e| e.to_string())?;
-    let rows = stmt
+    let mut tags_stmt = conn_guard.prepare(&tags_sql).map_err(|e| e.to_string())?;
+    let tag_rows = tags_stmt
         .query_map(rusqlite::params_from_iter(ids.iter()), |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -143,9 +170,37 @@ pub(crate) fn map_reminders_with_tags(
 
     let mut tags_by_reminder: std::collections::HashMap<String, Vec<TagResponse>> =
         std::collections::HashMap::new();
-    for row_result in rows {
+    for row_result in tag_rows {
         if let Ok((reminder_id, tag)) = row_result {
             tags_by_reminder.entry(reminder_id).or_default().push(tag);
+        }
+    }
+
+    let subtasks_sql = format!(
+        "SELECT id, reminder_id, title, is_completed, sort_order FROM subtasks \
+         WHERE reminder_id IN ({in_clause}) ORDER BY sort_order ASC, created_at ASC"
+    );
+    let mut sub_stmt = conn_guard.prepare(&subtasks_sql).map_err(|e| e.to_string())?;
+    let sub_rows = sub_stmt
+        .query_map(rusqlite::params_from_iter(ids.iter()), |row| {
+            Ok(SubtaskResponse {
+                id: row.get(0)?,
+                reminder_id: row.get(1)?,
+                title: row.get(2)?,
+                is_completed: row.get::<_, i32>(3)? != 0,
+                sort_order: row.get(4)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut subtasks_by_reminder: std::collections::HashMap<String, Vec<SubtaskResponse>> =
+        std::collections::HashMap::new();
+    for row_result in sub_rows {
+        if let Ok(sub) = row_result {
+            subtasks_by_reminder
+                .entry(sub.reminder_id.clone())
+                .or_default()
+                .push(sub);
         }
     }
 
@@ -154,6 +209,7 @@ pub(crate) fn map_reminders_with_tags(
         .map(|r| {
             let mut resp: ReminderResponse = r.into();
             resp.tags = tags_by_reminder.remove(&resp.id).unwrap_or_default();
+            resp.subtasks = subtasks_by_reminder.remove(&resp.id).unwrap_or_default();
             resp
         })
         .collect())

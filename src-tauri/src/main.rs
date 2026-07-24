@@ -64,6 +64,10 @@ fn main() {
             get_reminder_tags,
             get_all_tags,
             search_tags,
+            get_subtasks,
+            create_subtask,
+            update_subtask,
+            delete_subtask,
         ])
         .run(context)
         .expect("error while running tauri application");

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse, SubtaskResponse } from '@/types/api';
 import { buildUpdates } from '@/utils/reminderUpdates';
 import { useVirtualList } from '@/hooks/useVirtualList';
 import { ReminderItem } from './ReminderItem';
@@ -20,6 +20,9 @@ interface ReminderListProps {
   onCopy: (reminder: ReminderResponse) => void;
   onPaste: (listId: string | null) => void;
   canPaste: boolean;
+  onCreateSubtask: (reminderId: string, title: string) => Promise<SubtaskResponse | null>;
+  onUpdateSubtask: (id: string, patch: { title?: string; is_completed?: boolean }) => Promise<SubtaskResponse | null>;
+  onDeleteSubtask: (id: string) => Promise<boolean>;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
@@ -65,6 +68,9 @@ export function ReminderList({
   onCopy,
   onPaste,
   canPaste,
+  onCreateSubtask,
+  onUpdateSubtask,
+  onDeleteSubtask,
   showToast,
 }: ReminderListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -289,6 +295,9 @@ export function ReminderList({
                       onCopy={onCopy}
                   onPaste={onPaste}
                   canPaste={canPaste}
+                  onCreateSubtask={onCreateSubtask}
+                  onUpdateSubtask={onUpdateSubtask}
+                  onDeleteSubtask={onDeleteSubtask}
                   showToast={showToast}
                 />
                   </div>

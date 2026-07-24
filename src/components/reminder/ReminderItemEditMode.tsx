@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
-import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse, SubtaskResponse } from '@/types/api';
 import {
   ReminderFormFields,
   type ReminderFormFieldValues,
 } from './ReminderFormFields';
+import { ReminderSubtasks } from './ReminderSubtasks';
 import { buildUpdates } from '@/utils/reminderUpdates';
 import {
   formFieldsToReminderPatch,
@@ -42,6 +43,9 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   onSaveAndStopEditing,
   onCancelEditing,
   onChange,
+  onCreateSubtask,
+  onUpdateSubtask,
+  onDeleteSubtask,
   showToast,
 }: {
   reminder: ReminderResponse;
@@ -51,6 +55,9 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   onSaveAndStopEditing: (id: string, updates: Partial<ReminderResponse>) => void;
   onCancelEditing: () => void;
   onChange: (updates: Partial<ReminderResponse>) => void;
+  onCreateSubtask: (reminderId: string, title: string) => Promise<SubtaskResponse | null>;
+  onUpdateSubtask: (id: string, patch: { title?: string; is_completed?: boolean }) => Promise<SubtaskResponse | null>;
+  onDeleteSubtask: (id: string) => Promise<boolean>;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }) {
   const [editTitle, setEditTitle] = useState(reminder.title);
@@ -62,6 +69,7 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const draftRef = useRef<Partial<ReminderResponse>>({});
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const reminderIdRef = useRef(reminder.id);
 
   const publishDraft = useCallback((
     title: string,
@@ -79,7 +87,10 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
     onChangeRef.current(draft);
   }, []);
 
+  // 仅在切换编辑目标时重置；子任务缓存更新不要冲掉标题草稿
   useEffect(() => {
+    if (reminderIdRef.current === reminder.id) return;
+    reminderIdRef.current = reminder.id;
     const nextFields = fieldsFromReminder(reminder);
     setEditTitle(reminder.title);
     setEditNotes(reminder.description || '');
@@ -87,6 +98,13 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
     setFields(nextFields);
     publishDraft(reminder.title, reminder.description || '', reminder.url || '', nextFields);
   }, [reminder, publishDraft]);
+
+  useEffect(() => {
+    const nextFields = fieldsFromReminder(reminder);
+    publishDraft(reminder.title, reminder.description || '', reminder.url || '', nextFields);
+    // 首次挂载推送草稿
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -225,6 +243,15 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
               onChange={onFieldsChange}
               variant="edit"
             />
+
+            <ReminderSubtasks
+              reminderId={reminder.id}
+              subtasks={reminder.subtasks ?? []}
+              mode="edit"
+              onCreate={onCreateSubtask}
+              onUpdate={onUpdateSubtask}
+              onDelete={onDeleteSubtask}
+            />
           </div>
         </div>
       </div>
@@ -239,6 +266,9 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
           onDelete={() => { setShowDetail(false); onCancelEditing(); }}
           onToggleCompleted={() => onToggleCompleted(reminder.id)}
           onEdit={() => { setShowDetail(false); }}
+          onCreateSubtask={onCreateSubtask}
+          onUpdateSubtask={onUpdateSubtask}
+          onDeleteSubtask={onDeleteSubtask}
         />
       )}
     </>

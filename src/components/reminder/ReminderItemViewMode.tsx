@@ -1,17 +1,24 @@
 import { memo } from 'react';
-import type { ReminderResponse } from '@/types/api';
+import type { ReminderResponse, SubtaskResponse } from '@/types/api';
 import { formatDate, formatTime } from '@/utils/dateUtils';
+import { ReminderSubtasks } from './ReminderSubtasks';
 
 export const ReminderItemViewMode = memo(function ReminderItemViewMode({ 
   reminder, 
   onToggleCompleted, 
   onStartEditing, 
-  onShowDetail 
+  onShowDetail,
+  onCreateSubtask,
+  onUpdateSubtask,
+  onDeleteSubtask,
 }: {
   reminder: ReminderResponse;
   onToggleCompleted: (id: string) => void;
   onStartEditing: (id: string) => void;
   onShowDetail: () => void;
+  onCreateSubtask: (reminderId: string, title: string) => Promise<SubtaskResponse | null>;
+  onUpdateSubtask: (id: string, patch: { title?: string; is_completed?: boolean }) => Promise<SubtaskResponse | null>;
+  onDeleteSubtask: (id: string) => Promise<boolean>;
 }) {
   return (
     <div
@@ -74,6 +81,15 @@ export const ReminderItemViewMode = memo(function ReminderItemViewMode({
               </span>
             )}
           </div>
+
+          <ReminderSubtasks
+            reminderId={reminder.id}
+            subtasks={reminder.subtasks ?? []}
+            mode="view"
+            onCreate={onCreateSubtask}
+            onUpdate={onUpdateSubtask}
+            onDelete={onDeleteSubtask}
+          />
         </div>
         
         <button

@@ -1,6 +1,6 @@
 import { Sidebar } from '../components/Sidebar';
 import { ReminderList } from '../components/ReminderList';
-import type { ReminderResponse, ListResponse, OwnerResponse } from '../types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse, SubtaskResponse } from '../types/api';
 import type { FilterCounts } from '../types/filters';
 
 interface ReminderPageProps {
@@ -28,6 +28,9 @@ interface ReminderPageProps {
   onCopy: (reminder: ReminderResponse) => void;
   onPaste: (listId: string | null) => void;
   canPaste: boolean;
+  onCreateSubtask: (reminderId: string, title: string) => Promise<SubtaskResponse | null>;
+  onUpdateSubtask: (id: string, patch: { title?: string; is_completed?: boolean }) => Promise<SubtaskResponse | null>;
+  onDeleteSubtask: (id: string) => Promise<boolean>;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
@@ -56,6 +59,9 @@ export function ReminderPage({
   onCopy,
   onPaste,
   canPaste,
+  onCreateSubtask,
+  onUpdateSubtask,
+  onDeleteSubtask,
   showToast,
 }: ReminderPageProps) {
   return (
@@ -91,6 +97,9 @@ export function ReminderPage({
         onCopy={onCopy}
         onPaste={onPaste}
         canPaste={canPaste}
+        onCreateSubtask={onCreateSubtask}
+        onUpdateSubtask={onUpdateSubtask}
+        onDeleteSubtask={onDeleteSubtask}
         showToast={showToast}
       />
     </div>

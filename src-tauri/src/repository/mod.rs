@@ -1,6 +1,7 @@
 pub mod list;
 pub mod owner;
 pub mod reminder;
+pub mod subtask;
 
 use std::sync::{Arc, Mutex, MutexGuard};
 

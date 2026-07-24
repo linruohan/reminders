@@ -65,6 +65,9 @@ export function App() {
     handleCutReminder,
     handleCopyReminder,
     handlePasteReminder,
+    handleCreateSubtask,
+    handleUpdateSubtask,
+    handleDeleteSubtask,
     refreshData,
   } = useReminderData(showToast);
 
@@ -221,6 +224,9 @@ export function App() {
               onCopy={handleCopyReminder}
               onPaste={handlePasteReminder}
               canPaste={clipboard !== null}
+              onCreateSubtask={handleCreateSubtask}
+              onUpdateSubtask={handleUpdateSubtask}
+              onDeleteSubtask={handleDeleteSubtask}
               showToast={showToast}
             />
           </div>

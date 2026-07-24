@@ -42,7 +42,7 @@
 
 - `created_date/time`：创建戳；`end_date/time`：截止（驱动今天/计划/逾期与日历）
 - ID：UUID v4 字符串
-- 扩展字段：全天、旗标、优先级、重复、提前提醒、负责人、标签、URL
+- 扩展字段：全天、旗标、优先级、重复、提前提醒、负责人、标签、URL、子任务
 
 路径：`src-tauri/src/models/`、`src/types/api.ts`
 
@@ -78,7 +78,6 @@ src/
 
 ## 七、仍待（可选产品能力）
 
-- 子任务
 - 可选 lint/format 脚本
 
 ## 八、托盘与通知
@@ -86,3 +85,9 @@ src/
 - 关闭窗口 / Alt+F4 → 隐藏到系统托盘（进程继续，可收通知）
 - 托盘：左键显示窗口；菜单「显示 / 隐藏 / 退出」
 - 到期 / 提前提醒由 `notification_scheduler` 轮询弹出 OS 通知（正文含截止时间）
+
+## 九、子任务
+
+- 表 `subtasks`（级联删除）；随提醒列表批量加载
+- 列表只读勾选；内联编辑 / 详情可增删改
+- 命令：`get_subtasks` / `create_subtask` / `update_subtask` / `delete_subtask`

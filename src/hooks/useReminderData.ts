@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useApi } from './useApi';
-import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, UpdateReminderRequest, CreateReminderRequest } from '@/types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, UpdateReminderRequest, CreateReminderRequest, SubtaskResponse } from '@/types/api';
 import { isDueToday, isOverdue, isPlanned } from '@/utils/reminderDates';
 
 interface ReminderCache {
@@ -33,6 +33,9 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     createOwner,
     updateOwner,
     deleteOwner,
+    createSubtask,
+    updateSubtask,
+    deleteSubtask,
     isLoading,
     error,
   } = useApi();
@@ -371,6 +374,75 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     return result.data;
   }, [clipboard, createReminder, deleteReminder, syncAfterMutation, showToast, loadTags]);
 
+  const patchSubtasksInCaches = useCallback((
+    reminderId: string,
+    updater: (subs: SubtaskResponse[]) => SubtaskResponse[],
+  ) => {
+    const patchList = (list: ReminderResponse[]) =>
+      list.map(r =>
+        r.id === reminderId ? { ...r, subtasks: updater(r.subtasks ?? []) } : r,
+      );
+    setReminders(prev => patchList(prev));
+    setCache(prev => {
+      const next: ReminderCache = { ...prev };
+      for (const key of Object.keys(next)) {
+        next[key] = { ...next[key], data: patchList(next[key].data) };
+      }
+      return next;
+    });
+  }, []);
+
+  const handleCreateSubtask = useCallback(async (reminderId: string, title: string) => {
+    const result = await createSubtask({ reminder_id: reminderId, title });
+    if (result) {
+      patchSubtasksInCaches(reminderId, subs => [...subs, result]);
+    } else {
+      showToast?.('error', '添加子任务失败');
+    }
+    return result;
+  }, [createSubtask, patchSubtasksInCaches, showToast]);
+
+  const handleUpdateSubtask = useCallback(async (
+    id: string,
+    patch: { title?: string; is_completed?: boolean },
+  ) => {
+    const result = await updateSubtask({ id, ...patch });
+    if (result) {
+      patchSubtasksInCaches(result.reminder_id, subs =>
+        subs.map(s => (s.id === id ? result : s)),
+      );
+    } else {
+      showToast?.('error', '更新子任务失败');
+    }
+    return result;
+  }, [updateSubtask, patchSubtasksInCaches, showToast]);
+
+  const handleDeleteSubtask = useCallback(async (id: string) => {
+    let reminderId: string | null = null;
+    for (const r of reminders) {
+      if ((r.subtasks ?? []).some(s => s.id === id)) {
+        reminderId = r.id;
+        break;
+      }
+    }
+    if (!reminderId) {
+      for (const entry of Object.values(cacheRef.current)) {
+        const found = entry.data.find(r => (r.subtasks ?? []).some(s => s.id === id));
+        if (found) {
+          reminderId = found.id;
+          break;
+        }
+      }
+    }
+    const ok = await deleteSubtask(id);
+    if (ok && reminderId) {
+      patchSubtasksInCaches(reminderId, subs => subs.filter(s => s.id !== id));
+    } else if (!ok) {
+      showToast?.('error', '删除子任务失败');
+    }
+    return ok;
+  }, [deleteSubtask, reminders, patchSubtasksInCaches, showToast]);
+
   /** 强制刷新列表、所有者与提醒（all + 当前过滤器） */
   const refreshData = useCallback(async () => {
     await loadLists();
@@ -451,6 +523,9 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     handleCutReminder,
     handleCopyReminder,
     handlePasteReminder,
+    handleCreateSubtask,
+    handleUpdateSubtask,
+    handleDeleteSubtask,
     refreshData,
   };
 }

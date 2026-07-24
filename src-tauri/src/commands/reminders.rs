@@ -9,8 +9,8 @@ use crate::repository::reminder::ReminderRepository;
 
 use super::dto::{CreateReminderRequest, ReminderResponse, UpdateReminderRequest};
 use super::helpers::{
-    get_conn, get_reminder_tags_internal, get_reminder_with_tags, insert_reminder_row,
-    map_reminders_with_tags, parse_date, parse_priority, parse_time,
+    get_conn, get_reminder_subtasks_internal, get_reminder_tags_internal, get_reminder_with_tags,
+    insert_reminder_row, map_reminders_with_tags, parse_date, parse_priority, parse_time,
     sync_reminder_tags_in_tx,
 };
 
@@ -181,6 +181,7 @@ pub fn create_reminder(
 
     let mut resp: ReminderResponse = reminder.into();
     resp.tags = get_reminder_tags_internal(get_conn(&db), &reminder_id)?;
+    resp.subtasks = get_reminder_subtasks_internal(get_conn(&db), &reminder_id)?;
     Ok(resp)
 }
 
@@ -297,6 +298,7 @@ pub fn update_reminder(
 
     let mut resp: ReminderResponse = reminder.into();
     resp.tags = get_reminder_tags_internal(get_conn(&db), &reminder_id)?;
+    resp.subtasks = get_reminder_subtasks_internal(get_conn(&db), &reminder_id)?;
     Ok(resp)
 }
 

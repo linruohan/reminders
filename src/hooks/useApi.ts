@@ -11,6 +11,9 @@ import type {
   UpdateListRequest,
   CreateOwnerRequest,
   UpdateOwnerRequest,
+  CreateSubtaskRequest,
+  UpdateSubtaskRequest,
+  SubtaskResponse,
 } from '@/types/api';
 import { parseInvokeError, getUserFriendlyMessage, type AppError } from '@/types/error';
 
@@ -188,6 +191,25 @@ export function useApi() {
     );
   }, [handleRequest]);
 
+  const createSubtask = useCallback(async (request: CreateSubtaskRequest): Promise<SubtaskResponse | null> => {
+    return handleRequest(`create_subtask_${request.reminder_id}`, () =>
+      invoke<SubtaskResponse>('create_subtask', { request })
+    );
+  }, [handleRequest]);
+
+  const updateSubtask = useCallback(async (request: UpdateSubtaskRequest): Promise<SubtaskResponse | null> => {
+    return handleRequest(`update_subtask_${request.id}`, () =>
+      invoke<SubtaskResponse>('update_subtask', { request })
+    );
+  }, [handleRequest]);
+
+  const deleteSubtask = useCallback(async (id: string): Promise<boolean> => {
+    const result = await handleRequest(`delete_subtask_${id}`, () =>
+      invoke<void>('delete_subtask', { id })
+    );
+    return result !== null;
+  }, [handleRequest]);
+
   const isLoading = useCallback((key?: string) => {
     if (!key) return Object.values(loading).some(Boolean);
     return loading[key] === true;
@@ -230,5 +252,8 @@ export function useApi() {
     getReminderTags,
     getAllTags,
     searchTags,
+    createSubtask,
+    updateSubtask,
+    deleteSubtask,
   };
 }

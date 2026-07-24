@@ -30,8 +30,19 @@ pub struct ReminderResponse {
     pub remind_before_value: Option<i32>,
     pub remind_before_unit: Option<String>,
     pub tags: Vec<TagResponse>,
+    #[serde(default)]
+    pub subtasks: Vec<SubtaskResponse>,
     pub list_id: Option<String>,
     pub owner_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubtaskResponse {
+    pub id: String,
+    pub reminder_id: String,
+    pub title: String,
+    pub is_completed: bool,
+    pub sort_order: i32,
 }
 
 impl From<Reminder> for ReminderResponse {
@@ -61,6 +72,7 @@ impl From<Reminder> for ReminderResponse {
             remind_before_value: r.remind_before_value,
             remind_before_unit: r.remind_before_unit,
             tags: Vec::new(),
+            subtasks: Vec::new(),
             list_id: r.list_id.map(|id| id.to_string()),
             owner_id: r.owner_id.map(|id| id.to_string()),
         }
@@ -111,6 +123,19 @@ pub struct UpdateReminderRequest {
     pub remind_before_value: Option<i32>,
     pub remind_before_unit: Option<String>,
     pub tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateSubtaskRequest {
+    pub reminder_id: String,
+    pub title: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateSubtaskRequest {
+    pub id: String,
+    pub title: Option<String>,
+    pub is_completed: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
