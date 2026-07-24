@@ -183,8 +183,8 @@ impl ReminderRepository {
         rows.collect()
     }
 
-    pub fn update(&self, reminder: &Reminder) -> Result<()> {
-        let conn = lock_conn(&self.conn)?;
+    /// Update a reminder row on an existing connection / transaction (no lock).
+    pub fn update_on_conn(conn: &Connection, reminder: &Reminder) -> Result<()> {
         let now = Local::now();
         conn.execute(
             "UPDATE reminders SET title = ?1, description = ?2, created_date = ?3, created_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, owner_id = ?21 WHERE id = ?22",
@@ -213,8 +213,13 @@ impl ReminderRepository {
                 reminder.id.to_string(),
             ],
         )?;
-        let _ = crate::database::fts::upsert_reminder(&conn, &reminder.id.to_string());
+        let _ = crate::database::fts::upsert_reminder(conn, &reminder.id.to_string());
         Ok(())
+    }
+
+    pub fn update(&self, reminder: &Reminder) -> Result<()> {
+        let conn = lock_conn(&self.conn)?;
+        Self::update_on_conn(&conn, reminder)
     }
 
     pub fn delete(&self, id: &Uuid) -> Result<()> {

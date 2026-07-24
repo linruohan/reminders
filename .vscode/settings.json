@@ -1,0 +1,4 @@
+{
+    "vscode-neovim.neovimExecutablePaths.win32": "C:\\software\\scoop\\shims\\nvim.exe",
+    "vscode-neovim.neovimInitVimPaths.win32": "C:\\Users\\Administrator\\AppData\\Local\\nvim\\init.lua"
+}

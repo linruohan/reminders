@@ -221,6 +221,7 @@ export function App() {
               onCopy={handleCopyReminder}
               onPaste={handlePasteReminder}
               canPaste={clipboard !== null}
+              showToast={showToast}
             />
           </div>
         ) : isCalendarLoading ? (

@@ -20,6 +20,7 @@ interface ReminderListProps {
   onCopy: (reminder: ReminderResponse) => void;
   onPaste: (listId: string | null) => void;
   canPaste: boolean;
+  showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
 function isEventInsideEditingUi(e: MouseEvent): boolean {
@@ -64,6 +65,7 @@ export function ReminderList({
   onCopy,
   onPaste,
   canPaste,
+  showToast,
 }: ReminderListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -285,9 +287,10 @@ export function ReminderList({
                       onUpdateReminder={onUpdateReminder}
                       onCut={onCut}
                       onCopy={onCopy}
-                      onPaste={onPaste}
-                      canPaste={canPaste}
-                    />
+                  onPaste={onPaste}
+                  canPaste={canPaste}
+                  showToast={showToast}
+                />
                   </div>
                 );
               })}

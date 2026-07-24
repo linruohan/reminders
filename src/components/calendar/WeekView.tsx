@@ -26,7 +26,7 @@ interface WeekViewProps {
   onDoubleClickTimeline: (hour: number, minute: number, date: Date) => void;
   onReminderClick: (r: ReminderResponse) => void;
   onAllDayDoubleClick: (date: Date) => void;
-  onRescheduleReminder?: (id: string, updates: { end_date: string; end_time: string }) => void;
+  onRescheduleReminder?: (id: string, updates: { end_date: string; end_time: string | null; is_all_day?: boolean }) => void;
 }
 
 const DRAG_THRESHOLD = 5;
@@ -60,6 +60,16 @@ export function WeekView({
   } | null>(null);
   const dragRef = useRef(drag);
   dragRef.current = drag;
+
+  const [allDayDrag, setAllDayDrag] = useState<{
+    reminder: ReminderResponse;
+    col: number;
+    started: boolean;
+    ox: number;
+    oy: number;
+  } | null>(null);
+  const allDayDragRef = useRef(allDayDrag);
+  allDayDragRef.current = allDayDrag;
 
   useEffect(() => {
     scrollTimelineToHour(timelineRef.current, new Date().getHours());
@@ -162,26 +172,81 @@ export function WeekView({
         className="flex border-b border-apple-divider bg-gray-50/40"
         style={{ height: HOUR_HEIGHT }}
         onDoubleClick={() => onAllDayDoubleClick(weekDates[0])}
+        onPointerMove={(e) => {
+          const d = allDayDragRef.current;
+          if (!d) return;
+          const dist = Math.hypot(e.clientX - d.ox, e.clientY - d.oy);
+          const rect = (e.currentTarget as HTMLElement).querySelector('.allday-grid')?.getBoundingClientRect();
+          if (!rect) return;
+          const colWidth = rect.width / 7;
+          const col = Math.min(6, Math.max(0, Math.floor((e.clientX - rect.left) / colWidth)));
+          if (!d.started && dist < DRAG_THRESHOLD) return;
+          setAllDayDrag({ ...d, started: true, col });
+        }}
+        onPointerUp={(e) => {
+          const d = allDayDragRef.current;
+          setAllDayDrag(null);
+          if (!d) return;
+          try {
+            (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+          } catch { /* ignore */ }
+          if (!d.started) {
+            onReminderClick(d.reminder);
+            return;
+          }
+          onRescheduleReminder?.(d.reminder.id, {
+            end_date: toISODateStr(weekDates[d.col]),
+            end_time: '',
+            is_all_day: true,
+          });
+        }}
       >
         <div className="w-14 flex-shrink-0 flex items-center justify-end pr-2">
           <span className="text-xs text-gray-400 font-medium">全天</span>
         </div>
-        <div className="flex-1 grid grid-cols-7">
+        <div className="flex-1 grid grid-cols-7 allday-grid">
           {weekDates.map((d, i) => {
             const dayAllDay = getRemindersForDate(reminders, d).filter(r => r.is_all_day || !r.end_time);
             return (
-              <div key={i} className="flex items-center gap-1 overflow-x-auto px-2 border-l border-gray-200" onDoubleClick={() => onAllDayDoubleClick(d)}>
+              <div
+                key={i}
+                className={`flex items-center gap-1 overflow-x-auto px-2 border-l border-gray-200 min-h-0 ${
+                  allDayDrag?.started && allDayDrag.col === i ? 'bg-blue-50/60' : ''
+                }`}
+                onDoubleClick={() => onAllDayDoubleClick(d)}
+              >
                 {dayAllDay.map(r => {
+                  if (allDayDrag?.started && allDayDrag.reminder.id === r.id) return null;
                   const color = getListColor(lists, r.list_id);
                   return (
-                    <button key={r.id} onClick={() => onReminderClick(r)}
-                      className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-white/80 hover:bg-white shadow-sm text-xs transition-colors whitespace-nowrap"
+                    <button
+                      key={r.id}
+                      type="button"
+                      onPointerDown={(e) => {
+                        if (e.button !== 0 || !onRescheduleReminder) return;
+                        e.stopPropagation();
+                        setAllDayDrag({
+                          reminder: r,
+                          col: i,
+                          started: false,
+                          ox: e.clientX,
+                          oy: e.clientY,
+                        });
+                        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                      }}
+                      className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-white/80 hover:bg-white shadow-sm text-xs transition-colors whitespace-nowrap cursor-grab active:cursor-grabbing"
                     >
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                       <span className={r.is_completed ? 'text-gray-400 line-through' : 'text-gray-700'}>{r.title}</span>
                     </button>
                   );
                 })}
+                {allDayDrag?.started && allDayDrag.col === i && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-blue-50 border border-apple-blue/30 text-xs whitespace-nowrap opacity-90 pointer-events-none">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getListColor(lists, allDayDrag.reminder.list_id) }} />
+                    <span className="text-gray-800">{allDayDrag.reminder.title}</span>
+                  </div>
+                )}
               </div>
             );
           })}

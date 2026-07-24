@@ -21,6 +21,7 @@ interface ReminderItemProps {
   onCopy: (reminder: ReminderResponse) => void;
   onPaste: (listId: string | null) => void;
   canPaste: boolean;
+  showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
 export const ReminderItem = memo(function ReminderItem({ 
@@ -39,6 +40,7 @@ export const ReminderItem = memo(function ReminderItem({
   onCopy,
   onPaste,
   canPaste,
+  showToast,
 }: ReminderItemProps) {
   const [showDetail, setShowDetail] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; x: number; y: number }>({ isOpen: false, x: 0, y: 0 });
@@ -76,6 +78,7 @@ export const ReminderItem = memo(function ReminderItem({
         onSaveAndStopEditing={onSaveAndStopEditing}
         onCancelEditing={onCancelEditing}
         onChange={onChange}
+        showToast={showToast}
       />
     );
   }

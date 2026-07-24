@@ -28,6 +28,7 @@ interface ReminderPageProps {
   onCopy: (reminder: ReminderResponse) => void;
   onPaste: (listId: string | null) => void;
   canPaste: boolean;
+  showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
 export function ReminderPage({
@@ -55,6 +56,7 @@ export function ReminderPage({
   onCopy,
   onPaste,
   canPaste,
+  showToast,
 }: ReminderPageProps) {
   return (
     <div className="flex-1 flex overflow-hidden bg-white">
@@ -89,6 +91,7 @@ export function ReminderPage({
         onCopy={onCopy}
         onPaste={onPaste}
         canPaste={canPaste}
+        showToast={showToast}
       />
     </div>
   );

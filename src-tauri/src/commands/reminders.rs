@@ -10,7 +10,7 @@ use crate::repository::reminder::ReminderRepository;
 use super::dto::{CreateReminderRequest, ReminderResponse, UpdateReminderRequest};
 use super::helpers::{
     get_conn, get_reminder_tags_internal, get_reminder_with_tags, insert_reminder_row,
-    map_reminders_with_tags, parse_date, parse_priority, parse_time, priority_str,
+    map_reminders_with_tags, parse_date, parse_priority, parse_time,
     sync_reminder_tags_in_tx,
 };
 
@@ -281,39 +281,10 @@ pub fn update_reminder(
     let mut conn_guard = conn.lock().map_err(|e| e.to_string())?;
     let tx = conn_guard.transaction().map_err(|e| e.to_string())?;
 
-    tx.execute(
-        "UPDATE reminders SET title = ?1, description = ?2, created_date = ?3, created_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, owner_id = ?21 WHERE id = ?22",
-        rusqlite::params![
-            reminder.title,
-            reminder.description,
-            reminder.created_date.map(|d| d.format("%Y-%m-%d").to_string()),
-            reminder.created_time.map(|t| t.format("%H:%M:%S").to_string()),
-            reminder.end_date.map(|d| d.format("%Y-%m-%d").to_string()),
-            reminder.end_time.map(|t| t.format("%H:%M:%S").to_string()),
-            reminder.is_all_day as i32,
-            reminder.is_completed as i32,
-            reminder.is_flagged as i32,
-            priority_str(&reminder.priority),
-            reminder.list_id.map(|id| id.to_string()),
-            Local::now().to_rfc3339(),
-            reminder.url,
-            reminder.completion_date.map(|d| d.to_rfc3339()),
-            reminder.recurrence_frequency,
-            reminder.recurrence_interval,
-            reminder.custom_recurrence_unit,
-            reminder.recurrence_end_date.map(|d| d.format("%Y-%m-%d").to_string()),
-            reminder.remind_before_value,
-            reminder.remind_before_unit,
-            reminder.owner_id.map(|id| id.to_string()),
-            reminder.id.to_string(),
-        ],
-    )
-    .map_err(|e| e.to_string())?;
+    ReminderRepository::update_on_conn(&tx, &reminder).map_err(|e| e.to_string())?;
 
     if let Some(tag_names) = request.tags {
         sync_reminder_tags_in_tx(&tx, &reminder_id, &tag_names)?;
-    } else {
-        crate::database::fts::upsert_reminder(&tx, &reminder_id).map_err(|e| e.to_string())?;
     }
 
     tx.commit().map_err(|e| e.to_string())?;

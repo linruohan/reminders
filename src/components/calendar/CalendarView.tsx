@@ -339,6 +339,7 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
               setViewMode('day');
             }}
             onReminderClick={handleTimelineReminderClick}
+            onRescheduleReminder={(id, updates) => onUpdateReminder(id, updates)}
           />
         )}
         {viewMode === 'year' && (

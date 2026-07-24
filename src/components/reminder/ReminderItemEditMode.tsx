@@ -4,7 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, TimeUnit, Priority, RecurrenceFrequency } from '@/types/api';
 import { formatDate, formatTime } from '@/utils/dateUtils';
 import { buildUpdates } from '@/utils/reminderUpdates';
-import { normalizeCustomRecurrenceUnit, resolveRemindFields, tagNamesToResponses } from '@/utils/reminderForm';
+import { normalizeCustomRecurrenceUnit, resolveRemindFields, tagNamesToResponses, validateReminderFields } from '@/utils/reminderForm';
 import { ReminderDetailModal } from '../ReminderDetailModal';
 import { recurrenceOptions, remindOptions, priorityOptions, encodeRemindValue } from './formOptions';
 import { ReminderDateDropdown } from './ReminderDateDropdown';
@@ -22,7 +22,8 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   onToggleCompleted,
   onSaveAndStopEditing,
   onCancelEditing,
-  onChange
+  onChange,
+  showToast,
 }: {
   reminder: ReminderResponse;
   lists: ListResponse[];
@@ -31,6 +32,7 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   onSaveAndStopEditing: (id: string, updates: Partial<ReminderResponse>) => void;
   onCancelEditing: () => void;
   onChange: (updates: Partial<ReminderResponse>) => void;
+  showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }) {
   const [editTitle, setEditTitle] = useState(reminder.title);
   const [editNotes, setEditNotes] = useState(reminder.description || '');
@@ -182,9 +184,18 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   }, []);
 
   const handleSave = useCallback(() => {
-    const updates = buildUpdates(reminder, draftRef.current);
+    const draft = draftRef.current;
+    const fieldError = validateReminderFields({
+      title: draft.title ?? reminder.title,
+      url: draft.url ?? reminder.url,
+    });
+    if (fieldError) {
+      showToast?.('error', fieldError);
+      return;
+    }
+    const updates = buildUpdates(reminder, draft);
     onSaveAndStopEditing(reminder.id, updates);
-  }, [onSaveAndStopEditing, reminder]);
+  }, [onSaveAndStopEditing, reminder, showToast]);
 
   const handleCancel = useCallback(() => {
     onCancelEditing();
