@@ -1,8 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { ListResponse, TagResponse, Priority, RecurrenceFrequency, TimeUnit } from '@/types/api';
 import { invoke } from '@tauri-apps/api/core';
-import { recurrenceOptions, remindOptions, priorityOptions, parseRemindValue } from './reminder/formOptions';
+import { recurrenceOptions, remindOptions, priorityOptions } from './reminder/formOptions';
 import { DatePicker } from './DatePicker';
+import {
+  resolveRecurrenceFields,
+  resolveRemindFields,
+  splitDateTime,
+} from '@/utils/reminderForm';
 
 interface AddReminderModalProps {
   lists: ListResponse[];
@@ -73,13 +78,6 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, show
     }
   }, []);
 
-  function splitDateTime(dt: string): { date: string; time: string } | null {
-    if (!dt) return null;
-    const parts = dt.split('T');
-    if (parts.length !== 2) return { date: parts[0], time: '' };
-    return { date: parts[0], time: parts[1] || '' };
-  }
-
   /** 验证 URL 格式 */
   function isValidUrl(str: string): boolean {
     if (!str.trim()) return true; // 空值允许
@@ -120,14 +118,14 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, show
 
     setIsSubmitting(true);
 
-    let remindData: { remind_before_value: number | null; remind_before_unit: TimeUnit | null };
-    if (remindValue === 'custom') {
-      remindData = { remind_before_value: customRemindNum, remind_before_unit: customRemindUnit as TimeUnit };
-    } else {
-      remindData = parseRemindValue(remindValue);
-    }
-
     const end = splitDateTime(endDateTime);
+    const recurrence = resolveRecurrenceFields(
+      recurrenceFreq,
+      recurrenceInterval,
+      customUnit,
+      showEndRepeat,
+      recurrenceEndDate,
+    );
 
     try {
       onSubmit({
@@ -139,11 +137,8 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, show
         list_id: selectedListId || null,
         is_flagged: isFlagged,
         priority: priority as Priority,
-        recurrence_frequency: (recurrenceFreq || null) as RecurrenceFrequency | null,
-        recurrence_interval: recurrenceFreq === 'custom' ? recurrenceInterval : null,
-        custom_recurrence_unit: (recurrenceFreq === 'custom' ? customUnit : null) as TimeUnit | null,
-        recurrence_end_date: showEndRepeat && recurrenceEndDate ? recurrenceEndDate : null,
-        ...remindData,
+        ...recurrence,
+        ...resolveRemindFields(remindValue, customRemindNum, customRemindUnit),
         tags: tags.length > 0 ? tags : undefined,
       });
     } finally {

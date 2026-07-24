@@ -1,4 +1,5 @@
 import type { ReminderResponse } from '@/types/api';
+import { tagsEqual } from '@/utils/reminderForm';
 
 /** Compare local edit values against the reminder and return only changed fields. */
 export function buildUpdates(
@@ -50,6 +51,13 @@ export function buildUpdates(
   }
   if (values.is_all_day !== undefined && values.is_all_day !== reminder.is_all_day) {
     updates.is_all_day = values.is_all_day;
+  }
+  if (values.tags !== undefined) {
+    const nextNames = values.tags.map(t => t.name);
+    const prevNames = reminder.tags?.map(t => t.name) ?? [];
+    if (!tagsEqual(prevNames, nextNames)) {
+      updates.tags = values.tags;
+    }
   }
   return updates;
 }

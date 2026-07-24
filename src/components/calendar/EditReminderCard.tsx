@@ -1,14 +1,22 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { ReminderResponse, ListResponse, Priority, TagResponse, TimeUnit, RecurrenceFrequency } from '@/types/api';
+import type { ReminderResponse, ListResponse, Priority, TagResponse, TimeUnit } from '@/types/api';
 import { DatePicker } from '../DatePicker';
 import {
   recurrenceOptions,
   remindOptions,
   priorityOptions,
-  encodeRemindValue,
-  parseRemindValue,
 } from '../reminder/formOptions';
+import { buildUpdates } from '@/utils/reminderUpdates';
+import {
+  initRemindUiState,
+  joinEndDateTime,
+  normalizeCustomRecurrenceUnit,
+  resolveRecurrenceFields,
+  resolveRemindFields,
+  splitDateTime,
+  tagNamesToResponses,
+} from '@/utils/reminderForm';
 
 interface EditReminderCardProps {
   reminder: ReminderResponse;
@@ -32,7 +40,7 @@ export function EditReminderCard({
   const [description, setDescription] = useState(reminder.description || '');
   const [url, setUrl] = useState(reminder.url || '');
   const [endDateTime, setEndDateTime] = useState(
-    reminder.end_date && reminder.end_time ? `${reminder.end_date}T${reminder.end_time}` : reminder.end_date || ''
+    joinEndDateTime(reminder.end_date, reminder.end_time, reminder.is_all_day ?? false)
   );
   const [isAllDay, setIsAllDay] = useState(reminder.is_all_day ?? false);
   const [selectedListId, setSelectedListId] = useState(reminder.list_id || '');
@@ -41,21 +49,16 @@ export function EditReminderCard({
 
   const [recurrenceFreq, setRecurrenceFreq] = useState(reminder.recurrence_frequency ?? '');
   const [recurrenceInterval, setRecurrenceInterval] = useState(reminder.recurrence_interval ?? 1);
-  const [customUnit, setCustomUnit] = useState<string>(
-    reminder.custom_recurrence_unit === 'hours' || reminder.custom_recurrence_unit === 'minutes'
-      ? 'days'
-      : (reminder.custom_recurrence_unit ?? 'days')
+  const [customUnit, setCustomUnit] = useState(
+    normalizeCustomRecurrenceUnit(reminder.custom_recurrence_unit)
   );
   const [showEndRepeat, setShowEndRepeat] = useState(Boolean(reminder.recurrence_end_date));
   const [recurrenceEndDate, setRecurrenceEndDate] = useState(reminder.recurrence_end_date || '');
 
-  const initialRemind = encodeRemindValue(reminder.remind_before_value, reminder.remind_before_unit);
-  const isPresetRemind = remindOptions.some(o => o.value === initialRemind);
-  const [remindValue, setRemindValue] = useState(
-    !initialRemind ? '' : isPresetRemind ? initialRemind : 'custom'
-  );
-  const [customRemindNum, setCustomRemindNum] = useState(reminder.remind_before_value ?? 1);
-  const [customRemindUnit, setCustomRemindUnit] = useState<string>(reminder.remind_before_unit ?? 'days');
+  const initialRemind = initRemindUiState(reminder.remind_before_value, reminder.remind_before_unit);
+  const [remindValue, setRemindValue] = useState(initialRemind.remindValue);
+  const [customRemindNum, setCustomRemindNum] = useState(initialRemind.customRemindNum);
+  const [customRemindUnit, setCustomRemindUnit] = useState(initialRemind.customRemindUnit);
 
   const [tags, setTags] = useState<string[]>(reminder.tags?.map(t => t.name) || []);
   const [tagInput, setTagInput] = useState('');
@@ -82,13 +85,6 @@ export function EditReminderCard({
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
-
-  function splitDateTime(dt: string): { date: string; time: string } | null {
-    if (!dt) return null;
-    const parts = dt.split('T');
-    if (parts.length !== 2) return { date: parts[0], time: '' };
-    return { date: parts[0], time: parts[1] || '' };
-  }
 
   const searchTags = useCallback(async (q: string) => {
     if (!q.trim()) {
@@ -119,56 +115,28 @@ export function EditReminderCard({
     setTags(prev => prev.filter(t => t !== name));
   }, []);
 
-  const resolveRemind = () => {
-    if (remindValue === 'custom') {
-      return {
-        remind_before_value: customRemindNum,
-        remind_before_unit: customRemindUnit as TimeUnit,
-      };
-    }
-    return parseRemindValue(remindValue);
-  };
-
   const handleSave = useCallback(() => {
-    const updates: Partial<ReminderResponse> = {};
     const end = splitDateTime(endDateTime);
-    if (title !== reminder.title) updates.title = title;
-    if ((description || null) !== reminder.description) updates.description = description || null;
-    if ((url || null) !== reminder.url) updates.url = url || null;
-    if ((end?.date || null) !== reminder.end_date) updates.end_date = end?.date || null;
-    if ((isAllDay ? null : (end?.time || null)) !== reminder.end_time) {
-      updates.end_time = isAllDay ? null : (end?.time || null);
-    }
-    if (isAllDay !== reminder.is_all_day) updates.is_all_day = isAllDay;
-    if (selectedListId !== (reminder.list_id || '')) updates.list_id = selectedListId || null;
-    if (isFlagged !== reminder.is_flagged) updates.is_flagged = isFlagged;
-    if (priority !== reminder.priority) updates.priority = priority;
-
-    const nextFreq = (recurrenceFreq || null) as RecurrenceFrequency | null;
-    if (nextFreq !== reminder.recurrence_frequency) updates.recurrence_frequency = nextFreq;
-    if (recurrenceFreq === 'custom') {
-      if (recurrenceInterval !== reminder.recurrence_interval) updates.recurrence_interval = recurrenceInterval;
-      if (customUnit !== reminder.custom_recurrence_unit) updates.custom_recurrence_unit = customUnit as TimeUnit;
-    } else if (reminder.recurrence_interval != null || reminder.custom_recurrence_unit != null) {
-      updates.recurrence_interval = null;
-      updates.custom_recurrence_unit = null;
-    }
-    const nextEndRepeat = showEndRepeat && recurrenceFreq ? (recurrenceEndDate || null) : null;
-    if (nextEndRepeat !== reminder.recurrence_end_date) updates.recurrence_end_date = nextEndRepeat;
-
-    const remind = resolveRemind();
-    if (remind.remind_before_value !== reminder.remind_before_value) {
-      updates.remind_before_value = remind.remind_before_value;
-    }
-    if (remind.remind_before_unit !== reminder.remind_before_unit) {
-      updates.remind_before_unit = remind.remind_before_unit;
-    }
-
-    const prevTags = (reminder.tags?.map(t => t.name) || []).slice().sort().join('\0');
-    const nextTags = tags.slice().sort().join('\0');
-    if (prevTags !== nextTags) {
-      updates.tags = tags.map(name => ({ id: name, name }));
-    }
+    const updates = buildUpdates(reminder, {
+      title,
+      description: description || null,
+      url: url || null,
+      end_date: end?.date || null,
+      end_time: isAllDay ? null : (end?.time || null),
+      is_all_day: isAllDay,
+      list_id: selectedListId || null,
+      is_flagged: isFlagged,
+      priority,
+      ...resolveRecurrenceFields(
+        recurrenceFreq,
+        recurrenceInterval,
+        customUnit,
+        showEndRepeat,
+        recurrenceEndDate,
+      ),
+      ...resolveRemindFields(remindValue, customRemindNum, customRemindUnit),
+      tags: tagNamesToResponses(tags),
+    });
 
     onSave(reminder.id, updates);
     onClose();
@@ -289,7 +257,7 @@ export function EditReminderCard({
                 />
                 <select
                   value={customUnit}
-                  onChange={(e) => setCustomUnit(e.target.value)}
+                  onChange={(e) => setCustomUnit(e.target.value as TimeUnit)}
                   className="px-2 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none"
                 >
                   <option value="days">天</option>

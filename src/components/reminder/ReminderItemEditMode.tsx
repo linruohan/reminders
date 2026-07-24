@@ -4,8 +4,9 @@ import { invoke } from '@tauri-apps/api/core';
 import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, TimeUnit, Priority, RecurrenceFrequency } from '@/types/api';
 import { formatDate, formatTime } from '@/utils/dateUtils';
 import { buildUpdates } from '@/utils/reminderUpdates';
+import { normalizeCustomRecurrenceUnit, resolveRemindFields } from '@/utils/reminderForm';
 import { ReminderDetailModal } from '../ReminderDetailModal';
-import { recurrenceOptions, remindOptions, priorityOptions, encodeRemindValue, parseRemindValue } from './formOptions';
+import { recurrenceOptions, remindOptions, priorityOptions, encodeRemindValue } from './formOptions';
 import { ReminderDateDropdown } from './ReminderDateDropdown';
 import { ReminderTimeDropdown } from './ReminderTimeDropdown';
 import { ReminderRemindDropdown } from './ReminderRemindDropdown';
@@ -42,7 +43,9 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const [editIsFlagged, setEditIsFlagged] = useState(reminder.is_flagged ?? false);
   const [editRecurrenceFreq, setEditRecurrenceFreq] = useState<string>(reminder.recurrence_frequency ?? '');
   const [editRecurrenceInterval, setEditRecurrenceInterval] = useState(reminder.recurrence_interval ?? 1);
-  const [editCustomUnit, setEditCustomUnit] = useState<TimeUnit>(reminder.custom_recurrence_unit ?? 'days');
+  const [editCustomUnit, setEditCustomUnit] = useState<TimeUnit>(
+    normalizeCustomRecurrenceUnit(reminder.custom_recurrence_unit)
+  );
   const [editRecurrenceEndDate, setEditRecurrenceEndDate] = useState(reminder.recurrence_end_date || '');
   const [editRemindValue, setEditRemindValue] = useState(() =>
     encodeRemindValue(reminder.remind_before_value, reminder.remind_before_unit)
@@ -59,12 +62,10 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  const toRemindFields = useCallback((remindValue: string) => {
-    if (remindValue === 'custom') {
-      return { remind_before_value: 1, remind_before_unit: 'days' as TimeUnit };
-    }
-    return parseRemindValue(remindValue);
-  }, []);
+  const toRemindFields = useCallback(
+    (remindValue: string) => resolveRemindFields(remindValue, 1, 'days'),
+    [],
+  );
 
   const publishDraft = useCallback((patch: Partial<ReminderResponse>) => {
     draftRef.current = { ...draftRef.current, ...patch };
