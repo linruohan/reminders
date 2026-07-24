@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use tauri::{AppHandle, Builder, Manager};
+use tauri::{AppHandle, Builder, Manager, WindowEvent};
 
 use crate::commands::*;
 use crate::database::connection::Database;
@@ -11,6 +11,7 @@ mod models;
 mod notification_scheduler;
 mod recurrence;
 mod repository;
+mod tray;
 
 fn get_data_dir(app_handle: &AppHandle) -> PathBuf {
     app_handle
@@ -29,7 +30,15 @@ fn main() {
             let db = Database::open(&db_path).expect("Failed to open database");
             app.manage(db);
             notification_scheduler::start(app.handle().clone());
+            tray::setup(app).expect("Failed to create system tray");
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                // 关闭键 / Alt+F4：隐藏到托盘，进程继续跑以便收到期通知
+                api.prevent_close();
+                let _ = window.hide();
+            }
         })
         .invoke_handler(tauri::generate_handler![
             get_all_reminders,

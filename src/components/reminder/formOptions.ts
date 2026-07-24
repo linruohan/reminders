@@ -11,7 +11,7 @@ export const recurrenceOptions = [
   { value: 'custom', label: '自定义' },
 ];
 
-/** 提前提醒选项；应用运行时由 notification_scheduler 轮询触发（关闭应用后不会弹出） */
+/** 提前提醒选项；应用托盘常驻时由 notification_scheduler 轮询触发 */
 export const remindOptions = [
   { value: '', label: '无' },
   { value: '1d', label: '1天前' },

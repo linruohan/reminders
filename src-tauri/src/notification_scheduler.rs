@@ -124,15 +124,22 @@ fn due_notification(
     }
 
     let key = format!("{}@{}", reminder.id, notify_at.timestamp());
-    let title = if reminder.remind_before_value.is_some() {
+    let is_early = reminder.remind_before_value.is_some();
+    let title = if is_early {
         "即将到期".to_string()
     } else {
         "提醒事项".to_string()
     };
-    let body = if let Some(desc) = reminder.description.as_ref().filter(|s| !s.is_empty()) {
-        format!("{} — {}", reminder.title, desc)
+
+    let due_label = if reminder.is_all_day || reminder.end_time.is_none() {
+        due.format("%m月%d日").to_string()
     } else {
-        reminder.title.clone()
+        due.format("%m月%d日 %H:%M").to_string()
+    };
+
+    let body = match reminder.description.as_ref().filter(|s| !s.is_empty()) {
+        Some(desc) => format!("{} · {} — {}", reminder.title, due_label, desc),
+        None => format!("{} · {}", reminder.title, due_label),
     };
 
     Some((key, title, body))

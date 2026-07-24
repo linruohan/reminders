@@ -28,7 +28,7 @@ export function TitleBar({ currentView, onViewChange }: TitleBarProps) {
           <button
             onClick={handleClose}
             className="w-3 h-3 rounded-full bg-[#FF5F56] hover:bg-[#FF3B30] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_1px_0_rgba(0,0,0,0.1)] transition-all duration-200 spring-transition hover:scale-110 active:scale-95"
-            title="关闭"
+            title="关闭到托盘"
           />
           <button
             onClick={handleMinimize}

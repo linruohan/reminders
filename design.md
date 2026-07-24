@@ -32,11 +32,11 @@
 
 | 层 | 技术 |
 |----|------|
-| 桌面壳 | Tauri 2（无边框、透明窗口） |
+| 桌面壳 | Tauri 2（无边框、透明窗口、系统托盘） |
 | 前端 | React 18 + TypeScript + Vite + Tailwind（`apple-*` 设计 token） |
 | 后端 | Rust：`commands` + Repository + SQLite（rusqlite bundled） |
 | 搜索 | FTS5 + LIKE 回退 |
-| 通知 | `tauri-plugin-notification` + 本地调度器 |
+| 通知 | `tauri-plugin-notification` + 本地调度器 + 托盘常驻 |
 
 ## 三、数据模型（要点）
 
@@ -79,5 +79,10 @@ src/
 ## 七、仍待（可选产品能力）
 
 - 子任务
-- OS 级通知体验细化 / 托盘常驻
 - 可选 lint/format 脚本
+
+## 八、托盘与通知
+
+- 关闭窗口 / Alt+F4 → 隐藏到系统托盘（进程继续，可收通知）
+- 托盘：左键显示窗口；菜单「显示 / 隐藏 / 退出」
+- 到期 / 提前提醒由 `notification_scheduler` 轮询弹出 OS 通知（正文含截止时间）
