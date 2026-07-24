@@ -56,6 +56,29 @@ pub fn get_reminders_by_list(
 }
 
 #[command]
+pub fn get_reminders_by_owner(
+    db: State<'_, Database>,
+    owner_id: String,
+) -> Result<Vec<ReminderResponse>, String> {
+    let repo = ReminderRepository::new(get_conn(&db));
+    let id = Uuid::parse_str(&owner_id).map_err(|e| e.to_string())?;
+    repo.get_by_owner_id(&id)
+        .map_err(|e| e.to_string())
+        .and_then(|reminders| map_reminders_with_tags(reminders, &db))
+}
+
+#[command]
+pub fn get_reminders_by_tag(
+    db: State<'_, Database>,
+    tag_name: String,
+) -> Result<Vec<ReminderResponse>, String> {
+    let repo = ReminderRepository::new(get_conn(&db));
+    repo.get_by_tag_name(&tag_name)
+        .map_err(|e| e.to_string())
+        .and_then(|reminders| map_reminders_with_tags(reminders, &db))
+}
+
+#[command]
 pub fn get_reminder_by_id(
     db: State<'_, Database>,
     id: String,
@@ -114,6 +137,15 @@ pub fn create_reminder(
     if let Some(p) = request.priority.as_deref() {
         reminder.priority = parse_priority(p);
     }
+    if let Some(owner) = request.owner_id.as_deref().and_then(|s| {
+        if s.is_empty() {
+            None
+        } else {
+            Uuid::parse_str(s).ok()
+        }
+    }) {
+        reminder.owner_id = Some(owner);
+    }
 
     reminder.recurrence_frequency = request.recurrence_frequency;
     reminder.recurrence_interval = request.recurrence_interval;
@@ -153,6 +185,7 @@ pub fn update_reminder(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Reminder not found".to_string())?;
     let reminder_id = reminder.id.to_string();
+    let was_completed = reminder.is_completed;
 
     if let Some(title) = request.title {
         reminder.title = title;
@@ -272,6 +305,11 @@ pub fn update_reminder(
     tx.commit().map_err(|e| e.to_string())?;
     drop(conn_guard);
 
+    let becoming_completed = !was_completed && reminder.is_completed;
+    if becoming_completed {
+        maybe_spawn_next_occurrence(&db, &reminder)?;
+    }
+
     let mut resp: ReminderResponse = reminder.into();
     resp.tags = get_reminder_tags_internal(get_conn(&db), &reminder_id)?;
     Ok(resp)
@@ -308,23 +346,31 @@ pub fn toggle_reminder_completed(
     repo.update(&reminder).map_err(|e| e.to_string())?;
 
     if becoming_completed {
-        if let Some(freq) = reminder.recurrence_frequency.clone() {
-            let base_date = reminder
-                .end_date
-                .unwrap_or_else(|| Local::now().date_naive());
-            if let Some(next_date) = next_due_date(
-                base_date,
-                &freq,
-                reminder.recurrence_interval,
-                reminder.custom_recurrence_unit.as_deref(),
-                reminder.recurrence_end_date,
-            ) {
-                spawn_next_occurrence(&db, &reminder, next_date)?;
-            }
-        }
+        maybe_spawn_next_occurrence(&db, &reminder)?;
     }
 
     get_reminder_with_tags(reminder, &db)
+}
+
+fn maybe_spawn_next_occurrence(
+    db: &State<'_, Database>,
+    reminder: &Reminder,
+) -> Result<(), String> {
+    if let Some(freq) = reminder.recurrence_frequency.clone() {
+        let base_date = reminder
+            .end_date
+            .unwrap_or_else(|| Local::now().date_naive());
+        if let Some(next_date) = next_due_date(
+            base_date,
+            &freq,
+            reminder.recurrence_interval,
+            reminder.custom_recurrence_unit.as_deref(),
+            reminder.recurrence_end_date,
+        ) {
+            spawn_next_occurrence(db, reminder, next_date)?;
+        }
+    }
+    Ok(())
 }
 
 fn spawn_next_occurrence(

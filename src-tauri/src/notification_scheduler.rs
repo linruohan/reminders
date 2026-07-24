@@ -16,7 +16,8 @@ use crate::repository::reminder::ReminderRepository;
 
 const POLL_SECS: u64 = 20;
 /// 通知窗口：到达触发时间后多久内仍可弹出（秒）
-const FIRE_WINDOW_SECS: i64 = 90;
+/// 放大窗口以覆盖睡眠/卡顿后的补扫；去重 key 防止重复弹
+const FIRE_WINDOW_SECS: i64 = 600;
 /// 已通知记录保留时长，超时淘汰，避免重复弹与无限增长
 const NOTIFIED_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 const NOTIFIED_SOFT_MAX: usize = 400;
@@ -28,6 +29,13 @@ pub fn start(app: AppHandle) {
 
     thread::spawn(move || {
         let _ = app.notification().request_permission();
+
+        // 启动后立即扫一次，补发休眠/关闭前错过的通知
+        if let Some(db) = app.try_state::<Database>() {
+            if let Err(e) = tick(&app, &db, &notified) {
+                eprintln!("[notification] initial tick error: {e}");
+            }
+        }
 
         loop {
             thread::sleep(Duration::from_secs(POLL_SECS));
@@ -132,6 +140,7 @@ fn due_notification(
 
 fn due_datetime(reminder: &Reminder) -> Option<chrono::DateTime<Local>> {
     let date = reminder.end_date?;
+    // 全天提醒：当天 09:00；有具体时间则用截止时间
     let time = reminder.end_time.unwrap_or_else(|| {
         chrono::NaiveTime::from_hms_opt(9, 0, 0).unwrap()
     });

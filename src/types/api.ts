@@ -68,6 +68,7 @@ export interface CreateReminderRequest {
   end_date?: string | null;
   end_time?: string | null;
   list_id?: string | null;
+  owner_id?: string | null;
   is_all_day?: boolean;
   is_flagged?: boolean;
   priority?: Priority;

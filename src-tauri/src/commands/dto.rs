@@ -87,6 +87,7 @@ pub struct CreateReminderRequest {
     pub remind_before_value: Option<i32>,
     pub remind_before_unit: Option<String>,
     pub tags: Option<Vec<String>>,
+    pub owner_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

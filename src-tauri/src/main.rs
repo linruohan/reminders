@@ -35,6 +35,8 @@ fn main() {
             get_all_reminders,
             get_reminders_by_filter,
             get_reminders_by_list,
+            get_reminders_by_owner,
+            get_reminders_by_tag,
             get_reminder_by_id,
             search_reminders,
             create_reminder,

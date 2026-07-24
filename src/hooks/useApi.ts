@@ -56,6 +56,18 @@ export function useApi() {
     );
   }, [handleRequest]);
 
+  const getRemindersByOwner = useCallback(async (ownerId: string): Promise<ReminderResponse[] | null> => {
+    return handleRequest(`get_reminders_owner_${ownerId}`, () =>
+      invoke<ReminderResponse[]>('get_reminders_by_owner', { ownerId })
+    );
+  }, [handleRequest]);
+
+  const getRemindersByTag = useCallback(async (tagName: string): Promise<ReminderResponse[] | null> => {
+    return handleRequest(`get_reminders_tag_${tagName}`, () =>
+      invoke<ReminderResponse[]>('get_reminders_by_tag', { tagName })
+    );
+  }, [handleRequest]);
+
   const getReminderById = useCallback(async (id: string): Promise<ReminderResponse | null> => {
     const result = await handleRequest(`get_reminder_${id}`, () => 
       invoke<ReminderResponse | null>('get_reminder_by_id', { id })
@@ -192,6 +204,8 @@ export function useApi() {
     clearError,
     getReminders,
     getRemindersByList,
+    getRemindersByOwner,
+    getRemindersByTag,
     getReminderById,
     searchReminders,
     createReminder,

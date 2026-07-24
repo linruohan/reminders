@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useApi } from './useApi';
-import type { ReminderResponse, ListResponse, OwnerResponse, UpdateReminderRequest, CreateReminderRequest } from '@/types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, UpdateReminderRequest, CreateReminderRequest } from '@/types/api';
 import { isDueToday, isOverdue, isPlanned } from '@/utils/reminderDates';
 
 interface ReminderCache {
@@ -17,9 +17,12 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
   const {
     getReminders,
     getRemindersByList,
+    getRemindersByOwner,
+    getRemindersByTag,
     searchReminders,
     getLists,
     getOwners,
+    getAllTags,
     createReminder,
     updateReminder,
     deleteReminder,
@@ -37,6 +40,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
   const [reminders, setReminders] = useState<ReminderResponse[]>([]);
   const [lists, setLists] = useState<ListResponse[]>([]);
   const [owners, setOwners] = useState<OwnerResponse[]>([]);
+  const [tags, setTags] = useState<TagResponse[]>([]);
   const [activeFilter, setActiveFilter] = useState('today');
   const [cache, setCache] = useState<ReminderCache>({});
   const [activeFilterLoaded, setActiveFilterLoaded] = useState(false);
@@ -86,8 +90,14 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     try {
       let data: ReminderResponse[] | null;
       if (filter.startsWith('list:')) {
-        const listId = filter.split(':')[1];
+        const listId = filter.slice('list:'.length);
         data = await getRemindersByList(listId);
+      } else if (filter.startsWith('owner:')) {
+        const ownerId = filter.slice('owner:'.length);
+        data = await getRemindersByOwner(ownerId);
+      } else if (filter.startsWith('tag:')) {
+        const tagName = decodeURIComponent(filter.slice('tag:'.length));
+        data = await getRemindersByTag(tagName);
       } else {
         data = await getReminders(filter);
       }
@@ -107,7 +117,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
         setActiveFilterLoaded(true);
       }
     }
-  }, [getReminders, getRemindersByList, getCachedReminders, setCachedReminders, showToast]);
+  }, [getReminders, getRemindersByList, getRemindersByOwner, getRemindersByTag, getCachedReminders, setCachedReminders, showToast]);
 
   /** 处理搜索查询 */
   const handleSearch = useCallback(async (query: string) => {
@@ -142,11 +152,17 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     if (data) setOwners(data);
   }, [getOwners]);
 
-  // 初始加载 lists 与 owners
+  const loadTags = useCallback(async () => {
+    const data = await getAllTags();
+    if (data) setTags(data);
+  }, [getAllTags]);
+
+  // 初始加载 lists / owners / tags
   useEffect(() => {
     loadLists();
     loadOwners();
-  }, [loadLists, loadOwners]);
+    loadTags();
+  }, [loadLists, loadOwners, loadTags]);
 
   // 切换过滤器时加载对应数据
   useEffect(() => {
@@ -207,11 +223,12 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     const result = await updateReminder(request);
     if (result) {
       await syncAfterMutation();
+      await loadTags();
     } else {
       const errorMsg = error[`update_reminder_${id}`] || '更新提醒失败';
       showToast?.('error', errorMsg);
     }
-  }, [updateReminder, syncAfterMutation, showToast, error]);
+  }, [updateReminder, syncAfterMutation, showToast, error, loadTags]);
 
   const handleAddList = useCallback(async (name: string, icon?: string, color?: string) => {
     const result = await createList({ name, icon: icon || 'list', color });
@@ -237,9 +254,10 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     const result = await createReminder(data);
     if (result.data) {
       await syncAfterMutation();
+      await loadTags();
     }
     return result;
-  }, [createReminder, syncAfterMutation]);
+  }, [createReminder, syncAfterMutation, loadTags]);
 
   const handleDeleteList = useCallback(async (id: string) => {
     const success = await deleteList(id);
@@ -292,12 +310,15 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     const success = await deleteOwner(id);
     if (success) {
       await loadOwners();
+      if (activeFilter === `owner:${id}`) {
+        setActiveFilter('all');
+      }
     } else {
       const errorMsg = error[`delete_owner_${id}`] || '删除所有者失败';
       showToast?.('error', errorMsg);
     }
     return success;
-  }, [deleteOwner, loadOwners, showToast, error]);
+  }, [deleteOwner, loadOwners, showToast, error, activeFilter]);
 
   const handleCutReminder = useCallback((reminder: ReminderResponse) => {
     setClipboard({ action: 'cut', reminder });
@@ -319,6 +340,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
       end_date: clipboard.reminder.end_date,
       end_time: clipboard.reminder.end_time,
       list_id: targetListId ?? clipboard.reminder.list_id,
+      owner_id: clipboard.reminder.owner_id,
       is_all_day: clipboard.reminder.is_all_day,
       is_flagged: clipboard.reminder.is_flagged,
       priority: clipboard.reminder.priority,
@@ -340,42 +362,59 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
         showToast?.('success', '提醒已粘贴');
       }
       await syncAfterMutation();
+      await loadTags();
     } else {
       showToast?.('error', result.error || '粘贴提醒失败');
     }
     
     setClipboard(null);
     return result.data;
-  }, [clipboard, createReminder, deleteReminder, syncAfterMutation, showToast]);
+  }, [clipboard, createReminder, deleteReminder, syncAfterMutation, showToast, loadTags]);
 
   /** 强制刷新列表、所有者与提醒（all + 当前过滤器） */
   const refreshData = useCallback(async () => {
     await loadLists();
     await loadOwners();
+    await loadTags();
     await loadReminders('all', true, true);
     if (activeFilter !== 'all') {
       await loadReminders(activeFilter, true);
     } else {
       await loadReminders('all', true);
     }
-  }, [loadLists, loadOwners, loadReminders, activeFilter]);
+  }, [loadLists, loadOwners, loadTags, loadReminders, activeFilter]);
 
   /** 基于全量数据计算各过滤器计数，避免用当前过滤器数据误算 */
   const filterCounts = useMemo(() => {
+    const incomplete = allReminders.filter(r => !r.is_completed);
+    const tagCountMap = new Map<string, number>();
+    for (const r of incomplete) {
+      for (const t of r.tags ?? []) {
+        tagCountMap.set(t.name, (tagCountMap.get(t.name) ?? 0) + 1);
+      }
+    }
     return {
       all: allReminders.length,
       today: allReminders.filter(isDueToday).length,
       planned: allReminders.filter(isPlanned).length,
       overdue: allReminders.filter(isOverdue).length,
       completed: allReminders.filter(r => r.is_completed).length,
-      urgent: allReminders.filter(r => !r.is_completed && r.priority === 'high').length,
-      flagged: allReminders.filter(r => !r.is_completed && r.is_flagged).length,
+      urgent: incomplete.filter(r => r.priority === 'high').length,
+      flagged: incomplete.filter(r => r.is_flagged).length,
       lists: lists.map(list => ({
         id: list.id,
-        count: allReminders.filter(r => r.list_id === list.id).length,
+        count: incomplete.filter(r => r.list_id === list.id).length,
+      })),
+      owners: owners.map(owner => ({
+        id: owner.id,
+        count: incomplete.filter(r => r.owner_id === owner.id).length,
+      })),
+      tags: tags.map(tag => ({
+        name: tag.name,
+        count: tagCountMap.get(tag.name) ?? 0,
       })),
     };
-  }, [allReminders, lists]);
+  }, [allReminders, lists, owners, tags]);
 
   const isInitialLoading = 
     (activeFilterLoaded === false || allDataLoaded === false) && reminders.length === 0;
@@ -387,6 +426,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     allReminders,
     lists,
     owners,
+    tags,
     activeFilter,
     searchQuery,
     clipboard,

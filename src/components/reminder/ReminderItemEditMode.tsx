@@ -4,7 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, TimeUnit, Priority, RecurrenceFrequency } from '@/types/api';
 import { formatDate, formatTime } from '@/utils/dateUtils';
 import { buildUpdates } from '@/utils/reminderUpdates';
-import { normalizeCustomRecurrenceUnit, resolveRemindFields } from '@/utils/reminderForm';
+import { normalizeCustomRecurrenceUnit, resolveRemindFields, tagNamesToResponses } from '@/utils/reminderForm';
 import { ReminderDetailModal } from '../ReminderDetailModal';
 import { recurrenceOptions, remindOptions, priorityOptions, encodeRemindValue } from './formOptions';
 import { ReminderDateDropdown } from './ReminderDateDropdown';
@@ -88,6 +88,7 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
       recurrence_interval: reminder.recurrence_frequency === 'custom' ? (reminder.recurrence_interval ?? 1) : null,
       custom_recurrence_unit: reminder.recurrence_frequency === 'custom' ? (reminder.custom_recurrence_unit ?? 'days') : null,
       recurrence_end_date: reminder.recurrence_end_date || null,
+      tags: reminder.tags ?? [],
       ...toRemindFields(encodeRemindValue(reminder.remind_before_value, reminder.remind_before_unit)),
     };
     draftRef.current = initial;
@@ -203,14 +204,18 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const addTag = useCallback((name: string) => {
     const trimmed = name.trim().replace(/^#/, '');
     if (trimmed && !editTags.includes(trimmed)) {
-      setEditTags(prev => [...prev, trimmed]);
+      const next = [...editTags, trimmed];
+      setEditTags(next);
+      publishDraft({ tags: tagNamesToResponses(next) });
     }
     setTagInput(''); setTagSuggestions([]); setShowTagSuggestions(false);
-  }, [editTags]);
+  }, [editTags, publishDraft]);
 
   const removeTag = useCallback((name: string) => {
-    setEditTags(prev => prev.filter(t => t !== name));
-  }, []);
+    const next = editTags.filter(t => t !== name);
+    setEditTags(next);
+    publishDraft({ tags: tagNamesToResponses(next) });
+  }, [editTags, publishDraft]);
 
   return (
     <>

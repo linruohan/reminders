@@ -111,6 +111,30 @@ impl ReminderRepository {
         rows.collect()
     }
 
+    pub fn get_by_owner_id(&self, owner_id: &Uuid) -> Result<Vec<Reminder>> {
+        let conn = lock_conn(&self.conn)?;
+        let query = format!(
+            "SELECT {REMINDER_FIELDS} FROM reminders WHERE owner_id = ? AND is_completed = 0 ORDER BY created_at DESC"
+        );
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map([owner_id.to_string()], Self::row_to_reminder)?;
+        rows.collect()
+    }
+
+    pub fn get_by_tag_name(&self, tag_name: &str) -> Result<Vec<Reminder>> {
+        let conn = lock_conn(&self.conn)?;
+        let query = format!(
+            "SELECT {REMINDER_FIELDS} FROM reminders WHERE id IN ( \
+               SELECT rt.reminder_id FROM reminder_tags rt \
+               INNER JOIN tags t ON rt.tag_id = t.id \
+               WHERE t.name = ?1 \
+             ) AND is_completed = 0 ORDER BY created_at DESC"
+        );
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map([tag_name], Self::row_to_reminder)?;
+        rows.collect()
+    }
+
     pub fn search(&self, query: &str) -> Result<Vec<Reminder>> {
         let conn = lock_conn(&self.conn)?;
         let like_query = format!("%{}%", query);

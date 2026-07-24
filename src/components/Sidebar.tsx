@@ -108,23 +108,78 @@ function ListItem({
 
 function OwnerItem({
   owner,
+  active,
+  count,
+  onClick,
   onContextMenu,
 }: {
   owner: OwnerResponse;
+  active: boolean;
+  count: number;
+  onClick: () => void;
   onContextMenu: (e: React.MouseEvent, owner: OwnerResponse) => void;
 }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       onContextMenu={(e) => onContextMenu(e, owner)}
-      aria-label={`负责人 ${owner.name}`}
-      className="w-full flex items-center gap-3 px-4 py-2 rounded-[14px] text-gray-700 hover:bg-white/90 transition-all duration-250 spring-transition"
+      aria-label={`负责人 ${owner.name}，${count} 项`}
+      aria-current={active ? 'page' : undefined}
+      className={`w-full flex items-center justify-between px-4 py-2 rounded-[14px] transition-all duration-250 spring-transition ${
+        active
+          ? 'bg-apple-blue/10 text-apple-blue shadow-[0_2px_8px_rgba(0,122,255,0.12)]'
+          : 'text-gray-700 hover:bg-white/90'
+      }`}
     >
-      <div
-        className="w-5 h-5 rounded-full shadow-sm shrink-0"
-        style={{ backgroundColor: owner.color }}
-      />
-      <span className="text-sm font-semibold truncate">{owner.name}</span>
+      <div className="flex items-center gap-3 min-w-0">
+        <div
+          className="w-5 h-5 rounded-full shadow-sm shrink-0"
+          style={{ backgroundColor: owner.color }}
+        />
+        <span className="text-sm font-semibold truncate">{owner.name}</span>
+      </div>
+      <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full transition-all shrink-0 ${
+        active ? 'bg-apple-blue text-white' : 'bg-gray-100 text-gray-600'
+      }`}>
+        {count}
+      </span>
+    </button>
+  );
+}
+
+function TagItem({
+  name,
+  active,
+  count,
+  onClick,
+}: {
+  name: string;
+  active: boolean;
+  count: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`标签 ${name}，${count} 项`}
+      aria-current={active ? 'page' : undefined}
+      className={`w-full flex items-center justify-between px-4 py-2 rounded-[14px] transition-all duration-250 spring-transition ${
+        active
+          ? 'bg-apple-blue/10 text-apple-blue shadow-[0_2px_8px_rgba(0,122,255,0.12)]'
+          : 'text-gray-700 hover:bg-white/90'
+      }`}
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="text-xs font-bold text-apple-gray shrink-0">#</span>
+        <span className="text-sm font-semibold truncate">{name}</span>
+      </div>
+      <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full transition-all shrink-0 ${
+        active ? 'bg-apple-blue text-white' : 'bg-gray-100 text-gray-600'
+      }`}>
+        {count}
+      </span>
     </button>
   );
 }
@@ -168,6 +223,7 @@ export function Sidebar({
 }: SidebarProps) {
   const [listsExpanded, setListsExpanded] = useState(true);
   const [ownersExpanded, setOwnersExpanded] = useState(true);
+  const [tagsExpanded, setTagsExpanded] = useState(true);
   const [sortOrder, setSortOrder] = useState<SortOrder>('name-asc');
   const [ctxMenu, setCtxMenu] = useState<CtxMenu>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -202,6 +258,13 @@ export function Sidebar({
     const found = filterCounts.lists.find(l => l.id === listId);
     return found?.count || 0;
   };
+
+  const getOwnerCount = (ownerId: string) => {
+    const found = filterCounts.owners?.find(o => o.id === ownerId);
+    return found?.count || 0;
+  };
+
+  const tagCounts = filterCounts.tags ?? [];
 
   const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     onSearch(e.target.value);
@@ -374,11 +437,14 @@ export function Sidebar({
       </div>
 
       {ownersExpanded && (
-        <div className="flex-1 overflow-y-auto px-3 pb-2 space-y-0.5 min-h-0">
+        <div className="max-h-[28%] overflow-y-auto px-3 pb-2 space-y-0.5">
           {owners.map((owner) => (
             <OwnerItem
               key={owner.id}
               owner={owner}
+              active={activeFilter === `owner:${owner.id}`}
+              count={getOwnerCount(owner.id)}
+              onClick={() => handleFilterClick(`owner:${owner.id}`)}
               onContextMenu={openOwnerMenu}
             />
           ))}
@@ -393,6 +459,35 @@ export function Sidebar({
             </button>
           )}
         </div>
+      )}
+
+      {tagCounts.length > 0 && (
+        <>
+          <div className="px-4 py-2 flex items-center justify-between">
+            <button
+              onClick={() => setTagsExpanded(!tagsExpanded)}
+              className="flex items-center gap-2 text-xs font-semibold text-apple-gray uppercase tracking-wide hover:text-gray-700 transition-colors spring-transition"
+            >
+              <Icon name={tagsExpanded ? 'chevronDown' : 'chevronRight'} size={14} />
+              <span>标签</span>
+              <span className="text-gray-400">({tagCounts.length})</span>
+            </button>
+          </div>
+
+          {tagsExpanded && (
+            <div className="flex-1 overflow-y-auto px-3 pb-2 space-y-0.5 min-h-0">
+              {tagCounts.map((tag) => (
+                <TagItem
+                  key={tag.name}
+                  name={tag.name}
+                  active={activeFilter === `tag:${encodeURIComponent(tag.name)}`}
+                  count={tag.count}
+                  onClick={() => handleFilterClick(`tag:${encodeURIComponent(tag.name)}`)}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       <div className="px-3 py-3">

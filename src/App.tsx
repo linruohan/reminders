@@ -238,6 +238,7 @@ export function App() {
               onUpdateReminder={handleUpdateReminder}
               onDeleteReminder={requestDeleteReminder}
               onCreateReminder={handleCreateReminder}
+              showToast={showToast}
             />
           </div>
         )}
@@ -245,8 +246,10 @@ export function App() {
         {showAddModal && (
           <AddReminderModal
             lists={lists}
+            initialListId={activeFilter.startsWith('list:') ? activeFilter.slice('list:'.length) : null}
             onClose={() => setShowAddModal(false)}
             onSubmit={handleCreateReminderCallback}
+            showToast={showToast}
           />
         )}
 

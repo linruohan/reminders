@@ -12,6 +12,8 @@ import {
 interface AddReminderModalProps {
   lists: ListResponse[];
   initialListId?: string | null;
+  initialEndDateTime?: string | null;
+  initialIsAllDay?: boolean;
   onClose: () => void;
   onSubmit: (data: {
     title: string;
@@ -20,6 +22,7 @@ interface AddReminderModalProps {
     end_date?: string | null;
     end_time?: string | null;
     list_id?: string | null;
+    is_all_day?: boolean;
     is_flagged?: boolean;
     priority?: Priority;
     recurrence_frequency?: RecurrenceFrequency | null;
@@ -33,7 +36,15 @@ interface AddReminderModalProps {
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
-export function AddReminderModal({ lists, initialListId, onClose, onSubmit, showToast }: AddReminderModalProps) {
+export function AddReminderModal({
+  lists,
+  initialListId,
+  initialEndDateTime,
+  initialIsAllDay = false,
+  onClose,
+  onSubmit,
+  showToast,
+}: AddReminderModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
@@ -47,7 +58,8 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, show
     const min = String(now.getMinutes()).padStart(2, '0');
     return `${y}-${m}-${d}T${h}:${min}`;
   });
-  const [endDateTime, setEndDateTime] = useState('');
+  const [endDateTime, setEndDateTime] = useState(initialEndDateTime || '');
+  const [isAllDay, setIsAllDay] = useState(initialIsAllDay);
   const [selectedListId, setSelectedListId] = useState<string>(initialListId || '');
   const [isFlagged, setIsFlagged] = useState(false);
   const [priority, setPriority] = useState('none');
@@ -133,8 +145,9 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, show
         description: description.trim() || null,
         url: url.trim() || null,
         end_date: end?.date || null,
-        end_time: end?.time || null,
+        end_time: isAllDay ? null : (end?.time || null),
         list_id: selectedListId || null,
+        is_all_day: isAllDay,
         is_flagged: isFlagged,
         priority: priority as Priority,
         ...recurrence,
@@ -144,7 +157,7 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, show
     } finally {
       setIsSubmitting(false);
     }
-  }, [title, description, url, startDateTime, endDateTime, selectedListId, isFlagged, priority, recurrenceFreq, recurrenceInterval, customUnit, showEndRepeat, recurrenceEndDate, remindValue, customRemindNum, customRemindUnit, tags, onSubmit, showToast]);
+  }, [title, description, url, startDateTime, endDateTime, isAllDay, selectedListId, isFlagged, priority, recurrenceFreq, recurrenceInterval, customUnit, showEndRepeat, recurrenceEndDate, remindValue, customRemindNum, customRemindUnit, tags, onSubmit, showToast]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -285,11 +298,28 @@ export function AddReminderModal({ lists, initialListId, onClose, onSubmit, show
             <span className="text-sm font-semibold text-gray-700">截止日期</span>
           </div>
 
+          <div className="flex items-center gap-2 mb-2">
+            <button
+              type="button"
+              onClick={() => setIsAllDay(true)}
+              className={`px-3 py-1 text-xs rounded-[8px] font-medium ${isAllDay ? 'bg-apple-blue text-white' : 'bg-[#F2F2F7] text-gray-600'}`}
+            >
+              全天
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAllDay(false)}
+              className={`px-3 py-1 text-xs rounded-[8px] font-medium ${!isAllDay ? 'bg-apple-blue text-white' : 'bg-[#F2F2F7] text-gray-600'}`}
+            >
+              指定时间
+            </button>
+          </div>
+
           <DatePicker
             value={endDateTime}
             onChange={setEndDateTime}
-            mode="datetime-local"
-            placeholder="选择截止时间"
+            mode={isAllDay ? 'date' : 'datetime-local'}
+            placeholder={isAllDay ? '选择截止日期' : '选择截止时间'}
           />
 
           {/* 重复 */}

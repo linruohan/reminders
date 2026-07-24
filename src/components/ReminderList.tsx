@@ -95,8 +95,15 @@ export function ReminderList({
 
   const getTitle = () => {
     if (activeFilter.startsWith('list:')) {
-      const listId = activeFilter.split(':')[1];
+      const listId = activeFilter.slice('list:'.length);
       return lists.find(l => l.id === listId)?.name || '提醒事项';
+    }
+    if (activeFilter.startsWith('owner:')) {
+      const ownerId = activeFilter.slice('owner:'.length);
+      return owners.find(o => o.id === ownerId)?.name || '负责人';
+    }
+    if (activeFilter.startsWith('tag:')) {
+      return `#${decodeURIComponent(activeFilter.slice('tag:'.length))}`;
     }
     const filterMap: Record<string, string> = {
       today: '今天',
@@ -111,6 +118,13 @@ export function ReminderList({
   };
 
   const completedCount = useMemo(() => reminders.filter(r => r.is_completed).length, [reminders]);
+  /** 「完成」筛选本身全是已完成项，不能再被「隐藏已完成」滤掉 */
+  const isCompletedFilter = activeFilter === 'completed';
+  const visibleReminders = useMemo(
+    () =>
+      reminders.filter(r => isCompletedFilter || showCompleted || !r.is_completed),
+    [reminders, isCompletedFilter, showCompleted],
+  );
 
   const commitEditing = useCallback((id: string | null) => {
     if (!id) return;
@@ -189,7 +203,7 @@ export function ReminderList({
       <div className="flex items-start justify-between px-8 pt-6 pb-5">
         <div>
           <h1 className="text-32 font-bold text-gray-900 tracking-tight text-title">{getTitle()}</h1>
-          {completedCount > 0 && (
+          {completedCount > 0 && !isCompletedFilter && (
             <div className="flex items-center gap-2 mt-1.5">
               <span className="text-sm text-apple-gray">{completedCount}项已完成</span>
               <button
@@ -204,13 +218,13 @@ export function ReminderList({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-36 font-bold text-apple-orange tracking-tight">{reminders.length}</span>
+          <span className="text-36 font-bold text-apple-orange tracking-tight">{visibleReminders.length}</span>
           <span className="text-sm text-apple-gray mt-2">项</span>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pb-24">
-        {reminders.length === 0 ? (
+        {visibleReminders.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-apple-gray">
             <div className="w-16 h-16 rounded-[24px] bg-[#F2F2F7] flex items-center justify-center mb-4">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
@@ -222,34 +236,34 @@ export function ReminderList({
             <span className="text-base font-medium">
               {searchQuery.trim()
                 ? `未找到「${searchQuery.trim()}」相关提醒`
-                : '没有提醒事项'}
+                : reminders.length > 0 && !isCompletedFilter
+                  ? '没有未完成的提醒事项'
+                  : '没有提醒事项'}
             </span>
           </div>
         ) : (
           <div className="space-y-1">
-            {reminders
-              .filter(r => showCompleted || !r.is_completed)
-              .map((reminder, index) => (
-                <div key={reminder.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 30}ms` }}>
-                  <ReminderItem
-                    reminder={reminder}
-                    lists={lists}
-                    owners={owners}
-                    isEditing={editingId === reminder.id}
-                    onToggleCompleted={onToggleCompleted}
-                    onDelete={onDeleteReminder}
-                    onStartEditing={handleStartEditing}
-                    onSaveAndStopEditing={handleSaveAndStopEditing}
-                    onCancelEditing={handleCancelEditing}
-                    onChange={handleChangeEditing}
-                    onUpdateReminder={onUpdateReminder}
-                    onCut={onCut}
-                    onCopy={onCopy}
-                    onPaste={onPaste}
-                    canPaste={canPaste}
-                  />
-                </div>
-              ))}
+            {visibleReminders.map((reminder, index) => (
+              <div key={reminder.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 30}ms` }}>
+                <ReminderItem
+                  reminder={reminder}
+                  lists={lists}
+                  owners={owners}
+                  isEditing={editingId === reminder.id}
+                  onToggleCompleted={onToggleCompleted}
+                  onDelete={onDeleteReminder}
+                  onStartEditing={handleStartEditing}
+                  onSaveAndStopEditing={handleSaveAndStopEditing}
+                  onCancelEditing={handleCancelEditing}
+                  onChange={handleChangeEditing}
+                  onUpdateReminder={onUpdateReminder}
+                  onCut={onCut}
+                  onCopy={onCopy}
+                  onPaste={onPaste}
+                  canPaste={canPaste}
+                />
+              </div>
+            ))}
           </div>
         )}
       </div>
