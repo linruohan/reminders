@@ -79,6 +79,18 @@ pub fn get_reminders_by_tag(
 }
 
 #[command]
+pub fn get_reminders_by_date_range(
+    db: State<'_, Database>,
+    start_date: String,
+    end_date: String,
+) -> Result<Vec<ReminderResponse>, String> {
+    let repo = ReminderRepository::new(get_conn(&db));
+    repo.get_by_date_range(&start_date, &end_date)
+        .map_err(|e| e.to_string())
+        .and_then(|reminders| map_reminders_with_tags(reminders, &db))
+}
+
+#[command]
 pub fn get_reminder_by_id(
     db: State<'_, Database>,
     id: String,

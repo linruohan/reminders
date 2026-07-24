@@ -62,7 +62,7 @@ export function AllDaySection({
             <button
               key={r.id}
               onClick={() => onReminderClick(r)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-white/80 hover:bg-white shadow-sm text-xs transition-colors spring-transition whitespace-nowrap"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-white/80 hover:bg-white shadow-sm text-xs transition-colors whitespace-nowrap"
             >
               <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
               <span className={r.is_completed ? 'text-gray-400 line-through' : 'text-gray-700'}>{r.title}</span>
@@ -78,24 +78,40 @@ export function ReminderBlock({
   reminder,
   listColor,
   onClick,
+  onPointerDown,
+  dragTop,
+  isDragging,
 }: {
   reminder: ReminderResponse;
   listColor: string;
   onClick: (reminder: ReminderResponse) => void;
+  onPointerDown?: (e: React.PointerEvent, reminder: ReminderResponse) => void;
+  dragTop?: number;
+  isDragging?: boolean;
 }) {
   const dueTime = reminder.end_time;
   const hour = dueTime ? parseInt(dueTime.split(':')[0], 10) : 9;
   const minute = dueTime ? parseInt(dueTime.split(':')[1], 10) : 0;
-  const top = hourMinuteToTop(hour, minute);
+  const top = dragTop ?? hourMinuteToTop(hour, minute);
   const height = (30 / 60) * HOUR_HEIGHT;
 
   return (
     <div
-      className="absolute left-16 right-1 z-10 cursor-pointer"
+      className={`absolute left-16 right-1 z-10 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-80 z-30' : ''}`}
       style={{ top, height }}
-      onClick={(e) => { e.stopPropagation(); onClick(reminder); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!isDragging) onClick(reminder);
+      }}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        onPointerDown?.(e, reminder);
+      }}
     >
-      <div className="mx-1 h-full rounded-apple-sm border-l-[3px] bg-blue-50/60 border-blue-400 shadow-sm hover:shadow-md transition-shadow spring-transition flex items-center px-2" style={{ borderLeftColor: listColor }}>
+      <div
+        className="mx-1 h-full rounded-apple-sm border-l-[3px] bg-blue-50/60 border-blue-400 shadow-sm hover:shadow-md transition-shadow flex items-center px-2"
+        style={{ borderLeftColor: listColor }}
+      >
         <div className="flex items-center gap-3 w-full">
           <span className={`flex-1 text-xs font-medium truncate ${reminder.is_completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
             {reminder.title}

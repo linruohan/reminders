@@ -121,6 +121,19 @@ impl ReminderRepository {
         rows.collect()
     }
 
+    /// 按截止日期闭区间查询（含已完成，供日历渲染）
+    pub fn get_by_date_range(&self, start: &str, end: &str) -> Result<Vec<Reminder>> {
+        let conn = lock_conn(&self.conn)?;
+        let query = format!(
+            "SELECT {REMINDER_FIELDS} FROM reminders \
+             WHERE end_date IS NOT NULL AND end_date >= ?1 AND end_date <= ?2 \
+             ORDER BY end_date ASC, end_time ASC, created_at DESC"
+        );
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map(params![start, end], Self::row_to_reminder)?;
+        rows.collect()
+    }
+
     pub fn get_by_tag_name(&self, tag_name: &str) -> Result<Vec<Reminder>> {
         let conn = lock_conn(&self.conn)?;
         let query = format!(

@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { ReminderResponse, ListResponse, CreateReminderRequest, Priority, RecurrenceFrequency, TimeUnit } from '@/types/api';
-import { getDaysInMonth, parseISODate } from '@/utils/dateUtils';
+import { getDaysInMonth, parseISODate, toISODateStr } from '@/utils/dateUtils';
 import { effectiveDueDate } from '@/utils/reminderDates';
 import { AddReminderModal } from '../AddReminderModal';
 import { DayView } from './DayView';
@@ -39,6 +39,12 @@ function formatDraftDate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+function addDays(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
 export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteReminder, onCreateReminder, showToast }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -49,6 +55,7 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
   const [showAddModal, setShowAddModal] = useState(false);
   const [addDraft, setAddDraft] = useState<{ endDateTime?: string; isAllDay?: boolean } | null>(null);
   const [editReminder, setEditReminder] = useState<ReminderResponse | null>(null);
+  const [rangeReminders, setRangeReminders] = useState<ReminderResponse[]>([]);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const year = currentDate.getFullYear();
@@ -58,6 +65,51 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
   const weeksStartMon = useMemo(() => getWeekStartMon(currentDate), [currentDate]);
 
   const today = useMemo(() => { const t = new Date(); t.setHours(0, 0, 0, 0); return t; }, []);
+
+  const visibleRange = useMemo(() => {
+    if (viewMode === 'day') {
+      return { start: selectedDate, end: selectedDate };
+    }
+    if (viewMode === 'week') {
+      return { start: weeksStartMon, end: addDays(weeksStartMon, 6) };
+    }
+    if (viewMode === 'month') {
+      const first = days[0] ?? new Date(year, month, 1);
+      const last = days[days.length - 1] ?? new Date(year, month + 1, 0);
+      return { start: first, end: last };
+    }
+    return { start: new Date(year, 0, 1), end: new Date(year, 11, 31) };
+  }, [viewMode, selectedDate, weeksStartMon, days, year, month]);
+
+  // 按可见日期范围拉取，父级 all 变更时同步刷新
+  useEffect(() => {
+    let cancelled = false;
+    const start = toISODateStr(visibleRange.start);
+    const end = toISODateStr(visibleRange.end);
+    invoke<ReminderResponse[]>('get_reminders_by_date_range', {
+      startDate: start,
+      endDate: end,
+    })
+      .then((data) => {
+        if (!cancelled) setRangeReminders(data);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          // 回退：从全量 props 过滤
+          setRangeReminders(
+            reminders.filter((r) => {
+              const due = effectiveDueDate(r);
+              return due !== null && due >= start && due <= end;
+            }),
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visibleRange, reminders]);
+
+  const calendarReminders = rangeReminders;
 
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) { setSearchResults([]); return; }
@@ -254,21 +306,23 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
         {viewMode === 'day' && (
           <DayView
             date={selectedDate}
-            reminders={reminders}
+            reminders={calendarReminders}
             lists={lists}
             onDoubleClickTimeline={(h, m) => handleDoubleClickTimeline(h, m, selectedDate)}
             onReminderClick={handleTimelineReminderClick}
             onAllDayDoubleClick={() => handleAllDayDoubleClick(selectedDate)}
+            onRescheduleReminder={(id, updates) => onUpdateReminder(id, updates)}
           />
         )}
         {viewMode === 'week' && (
           <WeekView
             startDate={weeksStartMon}
-            reminders={reminders}
+            reminders={calendarReminders}
             lists={lists}
             onDoubleClickTimeline={(h, m, d) => handleDoubleClickTimeline(h, m, d)}
             onReminderClick={handleTimelineReminderClick}
             onAllDayDoubleClick={(d) => handleAllDayDoubleClick(d)}
+            onRescheduleReminder={(id, updates) => onUpdateReminder(id, updates)}
           />
         )}
         {viewMode === 'month' && (
@@ -277,7 +331,7 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
             days={days}
             today={today}
             selectedDate={selectedDate}
-            reminders={reminders}
+            reminders={calendarReminders}
             lists={lists}
             onSelectDate={(d) => {
               setSelectedDate(d);
@@ -288,7 +342,7 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
           />
         )}
         {viewMode === 'year' && (
-          <YearView year={year} reminders={reminders} onMonthClick={(y, m) => { setCurrentDate(new Date(y, m, 1)); setViewMode('month'); }} />
+          <YearView year={year} reminders={calendarReminders} onMonthClick={(y, m) => { setCurrentDate(new Date(y, m, 1)); setViewMode('month'); }} />
         )}
       </div>
 

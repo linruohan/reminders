@@ -68,6 +68,12 @@ export function useApi() {
     );
   }, [handleRequest]);
 
+  const getRemindersByDateRange = useCallback(async (startDate: string, endDate: string): Promise<ReminderResponse[] | null> => {
+    return handleRequest(`get_reminders_range_${startDate}_${endDate}`, () =>
+      invoke<ReminderResponse[]>('get_reminders_by_date_range', { startDate, endDate })
+    );
+  }, [handleRequest]);
+
   const getReminderById = useCallback(async (id: string): Promise<ReminderResponse | null> => {
     const result = await handleRequest(`get_reminder_${id}`, () => 
       invoke<ReminderResponse | null>('get_reminder_by_id', { id })
@@ -206,6 +212,7 @@ export function useApi() {
     getRemindersByList,
     getRemindersByOwner,
     getRemindersByTag,
+    getRemindersByDateRange,
     getReminderById,
     searchReminders,
     createReminder,

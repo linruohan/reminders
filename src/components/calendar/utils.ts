@@ -29,6 +29,17 @@ export function formatHourMinute(hour: number, minute: number): string {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
+export function minuteOfDayToTimeString(minuteOfDay: number): string {
+  const clamped = clampMinuteOfDay(minuteOfDay);
+  const h = TIMELINE_START_HOUR + Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return formatHourMinute(h, m);
+}
+
+export function snapMinute(minute: number, step = 15): number {
+  return clampMinuteOfDay(Math.round(minute / step) * step);
+}
+
 /** 打开日/周视图时滚到当前时刻附近（略往上留一点） */
 export function scrollTimelineToHour(container: HTMLElement | null, hour: number) {
   if (!container) return;

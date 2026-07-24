@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import type { ReminderResponse, ListResponse } from '@/types/api';
-import { isSameDay } from '@/utils/dateUtils';
+import { isSameDay, toISODateStr } from '@/utils/dateUtils';
 import {
   getRemindersForDate,
   getWeekStartMon,
@@ -10,6 +10,9 @@ import {
   timelineHours,
   clampMinuteOfDay,
   scrollTimelineToHour,
+  snapMinute,
+  minuteOfDayToTimeString,
+  minuteOfDayToTop,
 } from './utils';
 import { TimelineSlot, HoverLine, AllDaySection, ReminderBlock } from './TimelineComponents';
 import { getListColor } from './utils';
@@ -21,7 +24,10 @@ interface DayViewProps {
   onDoubleClickTimeline: (hour: number, minute: number) => void;
   onReminderClick: (r: ReminderResponse) => void;
   onAllDayDoubleClick: () => void;
+  onRescheduleReminder?: (id: string, updates: { end_date: string; end_time: string }) => void;
 }
+
+const DRAG_THRESHOLD = 5;
 
 export function DayView({
   date,
@@ -30,11 +36,21 @@ export function DayView({
   onDoubleClickTimeline,
   onReminderClick,
   onAllDayDoubleClick,
+  onRescheduleReminder,
 }: DayViewProps) {
   const dayAllDay = useMemo(() => getRemindersForDate(reminders, date).filter(r => r.is_all_day || !r.end_time), [reminders, date]);
   const dayTimed = useMemo(() => getRemindersForDate(reminders, date).filter(r => !r.is_all_day && !!r.end_time), [reminders, date]);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverMinute, setHoverMinute] = useState<number | null>(null);
+  const [drag, setDrag] = useState<{
+    reminder: ReminderResponse;
+    minute: number;
+    started: boolean;
+    ox: number;
+    oy: number;
+  } | null>(null);
+  const dragRef = useRef(drag);
+  dragRef.current = drag;
 
   const weekDates = useMemo(() => {
     const start = getWeekStartMon(date);
@@ -55,25 +71,63 @@ export function DayView({
   const getMinuteFromY = useCallback((clientY: number) => {
     if (!timelineRef.current) return null;
     const rect = timelineRef.current.getBoundingClientRect();
-    const scrollTop = timelineRef.current.scrollTop;
-    const y = clientY - rect.top + scrollTop;
+    const y = clientY - rect.top + timelineRef.current.scrollTop;
     return clampMinuteOfDay((y / HOUR_HEIGHT) * 60);
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (dragRef.current?.started) return;
     const m = getMinuteFromY(e.clientY);
     if (m !== null) setHoverMinute(m);
   }, [getMinuteFromY]);
 
-  const handleMouseLeave = useCallback(() => setHoverMinute(null), []);
+  const handleMouseLeave = useCallback(() => {
+    if (!dragRef.current) setHoverMinute(null);
+  }, []);
 
   const handleDblClick = useCallback((e: React.MouseEvent) => {
+    if (dragRef.current?.started) return;
     const m = getMinuteFromY(e.clientY);
     if (m === null) return;
-    const hour = TIMELINE_START_HOUR + Math.floor(m / 60);
-    const minute = m % 60;
-    onDoubleClickTimeline(hour, minute);
+    onDoubleClickTimeline(TIMELINE_START_HOUR + Math.floor(m / 60), m % 60);
   }, [getMinuteFromY, onDoubleClickTimeline]);
+
+  const handleBlockPointerDown = useCallback((e: React.PointerEvent, reminder: ReminderResponse) => {
+    if (e.button !== 0 || !onRescheduleReminder) return;
+    const m = getMinuteFromY(e.clientY);
+    if (m === null) return;
+    setDrag({ reminder, minute: m, started: false, ox: e.clientX, oy: e.clientY });
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }, [getMinuteFromY, onRescheduleReminder]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const dist = Math.hypot(e.clientX - d.ox, e.clientY - d.oy);
+    const m = getMinuteFromY(e.clientY);
+    if (m === null) return;
+    if (!d.started && dist < DRAG_THRESHOLD) return;
+    setDrag({ ...d, started: true, minute: snapMinute(m) });
+    setHoverMinute(snapMinute(m));
+  }, [getMinuteFromY]);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    const d = dragRef.current;
+    setDrag(null);
+    setHoverMinute(null);
+    if (!d) return;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch { /* ignore */ }
+    if (!d.started) {
+      onReminderClick(d.reminder);
+      return;
+    }
+    onRescheduleReminder?.(d.reminder.id, {
+      end_date: toISODateStr(date),
+      end_time: minuteOfDayToTimeString(d.minute),
+    });
+  }, [date, onReminderClick, onRescheduleReminder]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -101,15 +155,30 @@ export function DayView({
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onDoubleClick={handleDblClick}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
       >
         <div className="relative" style={{ height: TIMELINE_HEIGHT }}>
           {timelineHours.map(hour => (
             <TimelineSlot key={hour} hour={hour} />
           ))}
-          {hoverMinute !== null && <HoverLine minute={hoverMinute} />}
-          {dayTimed.map(r => (
-            <ReminderBlock key={r.id} reminder={r} listColor={getListColor(lists, r.list_id)} onClick={onReminderClick} />
-          ))}
+          {(hoverMinute !== null || drag?.started) && (
+            <HoverLine minute={drag?.started ? drag.minute : (hoverMinute ?? 0)} />
+          )}
+          {dayTimed.map(r => {
+            const isDragging = drag?.started && drag.reminder.id === r.id;
+            return (
+              <ReminderBlock
+                key={r.id}
+                reminder={r}
+                listColor={getListColor(lists, r.list_id)}
+                onClick={onReminderClick}
+                onPointerDown={onRescheduleReminder ? handleBlockPointerDown : undefined}
+                dragTop={isDragging ? minuteOfDayToTop(drag.minute) : undefined}
+                isDragging={isDragging}
+              />
+            );
+          })}
         </div>
       </div>
     </div>
