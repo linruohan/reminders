@@ -16,6 +16,7 @@ import {
   resolveRemindFields,
   splitDateTime,
   tagNamesToResponses,
+  validateReminderFields,
 } from '@/utils/reminderForm';
 
 interface EditReminderCardProps {
@@ -29,16 +30,6 @@ interface EditReminderCardProps {
 
 const chipBase = 'inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-sm font-medium text-gray-700 hover:bg-[#E5E5EA] transition-colors';
 const activeChip = 'inline-flex items-center gap-1.5 px-3 py-1.5 bg-apple-blue/10 text-apple-blue rounded-[10px] text-sm font-medium transition-colors';
-
-function isValidUrl(str: string): boolean {
-  if (!str.trim()) return true;
-  try {
-    const parsed = new URL(str);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
 
 export function EditReminderCard({
   reminder,
@@ -128,12 +119,9 @@ export function EditReminderCard({
   }, []);
 
   const handleSave = useCallback(() => {
-    if (!title.trim()) {
-      showToast?.('error', '标题不能为空');
-      return;
-    }
-    if (url.trim() && !isValidUrl(url)) {
-      showToast?.('error', 'URL 格式无效，请输入 http:// 或 https:// 开头的链接');
+    const fieldError = validateReminderFields({ title, url });
+    if (fieldError) {
+      showToast?.('error', fieldError);
       return;
     }
 

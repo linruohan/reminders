@@ -7,6 +7,7 @@ import {
   resolveRecurrenceFields,
   resolveRemindFields,
   splitDateTime,
+  validateReminderFields,
 } from '@/utils/reminderForm';
 
 interface AddReminderModalProps {
@@ -90,17 +91,6 @@ export function AddReminderModal({
     }
   }, []);
 
-  /** 验证 URL 格式 */
-  function isValidUrl(str: string): boolean {
-    if (!str.trim()) return true; // 空值允许
-    try {
-      const url = new URL(str);
-      return url.protocol === 'http:' || url.protocol === 'https:';
-    } catch {
-      return false;
-    }
-  }
-
   /** 验证日期范围：结束日期应晚于或等于开始日期 */
   function isValidDateRange(start: string, end: string): boolean {
     if (!start || !end) return true; // 任一为空则允许
@@ -110,15 +100,9 @@ export function AddReminderModal({
   }
 
   const handleSubmit = useCallback(async () => {
-    // 验证标题
-    if (!title.trim()) {
-      showToast?.('error', '标题不能为空');
-      return;
-    }
-
-    // 验证 URL 格式
-    if (url.trim() && !isValidUrl(url)) {
-      showToast?.('error', 'URL 格式无效，请输入 http:// 或 https:// 开头的链接');
+    const fieldError = validateReminderFields({ title, url });
+    if (fieldError) {
+      showToast?.('error', fieldError);
       return;
     }
 

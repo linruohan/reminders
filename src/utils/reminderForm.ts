@@ -87,3 +87,29 @@ export function tagsEqual(a: string[] | undefined, b: string[] | undefined): boo
 export function tagNamesToResponses(names: string[]): ReminderResponse['tags'] {
   return names.map(name => ({ id: name, name }));
 }
+
+/** 校验 http(s) URL；空字符串视为合法（表示未填写） */
+export function isValidHttpUrl(str: string): boolean {
+  if (!str.trim()) return true;
+  try {
+    const parsed = new URL(str);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/** 返回错误文案；通过则返回 null */
+export function validateReminderFields(input: {
+  title: string;
+  url?: string | null;
+}): string | null {
+  if (!input.title.trim()) {
+    return '标题不能为空';
+  }
+  if (input.url?.trim() && !isValidHttpUrl(input.url)) {
+    return 'URL 格式无效，请输入 http:// 或 https:// 开头的链接';
+  }
+  return null;
+}
+

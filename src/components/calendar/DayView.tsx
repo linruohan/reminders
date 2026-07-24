@@ -1,7 +1,16 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import type { ReminderResponse, ListResponse } from '@/types/api';
 import { isSameDay } from '@/utils/dateUtils';
-import { getRemindersForDate, getWeekStartMon, HOUR_HEIGHT, timelineHours } from './utils';
+import {
+  getRemindersForDate,
+  getWeekStartMon,
+  HOUR_HEIGHT,
+  TIMELINE_HEIGHT,
+  TIMELINE_START_HOUR,
+  timelineHours,
+  clampMinuteOfDay,
+  scrollTimelineToHour,
+} from './utils';
 import { TimelineSlot, HoverLine, AllDaySection, ReminderBlock } from './TimelineComponents';
 import { getListColor } from './utils';
 
@@ -38,12 +47,17 @@ export function DayView({
 
   const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
+  useEffect(() => {
+    const hour = isSameDay(date, new Date()) ? new Date().getHours() : 8;
+    scrollTimelineToHour(timelineRef.current, hour);
+  }, [date]);
+
   const getMinuteFromY = useCallback((clientY: number) => {
     if (!timelineRef.current) return null;
     const rect = timelineRef.current.getBoundingClientRect();
     const scrollTop = timelineRef.current.scrollTop;
     const y = clientY - rect.top + scrollTop;
-    return Math.max(0, Math.min(12 * 60, Math.round((y / HOUR_HEIGHT) * 60)));
+    return clampMinuteOfDay((y / HOUR_HEIGHT) * 60);
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -56,7 +70,7 @@ export function DayView({
   const handleDblClick = useCallback((e: React.MouseEvent) => {
     const m = getMinuteFromY(e.clientY);
     if (m === null) return;
-    const hour = 9 + Math.floor(m / 60);
+    const hour = TIMELINE_START_HOUR + Math.floor(m / 60);
     const minute = m % 60;
     onDoubleClickTimeline(hour, minute);
   }, [getMinuteFromY, onDoubleClickTimeline]);
@@ -88,7 +102,7 @@ export function DayView({
         onMouseLeave={handleMouseLeave}
         onDoubleClick={handleDblClick}
       >
-        <div className="relative" style={{ height: 13 * HOUR_HEIGHT }}>
+        <div className="relative" style={{ height: TIMELINE_HEIGHT }}>
           {timelineHours.map(hour => (
             <TimelineSlot key={hour} hour={hour} />
           ))}

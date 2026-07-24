@@ -300,6 +300,8 @@ pub fn update_reminder(
 
     if let Some(tag_names) = request.tags {
         sync_reminder_tags_in_tx(&tx, &reminder_id, &tag_names)?;
+    } else {
+        crate::database::fts::upsert_reminder(&tx, &reminder_id).map_err(|e| e.to_string())?;
     }
 
     tx.commit().map_err(|e| e.to_string())?;

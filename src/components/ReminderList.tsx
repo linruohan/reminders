@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
 import { buildUpdates } from '@/utils/reminderUpdates';
+import { useVirtualList } from '@/hooks/useVirtualList';
 import { ReminderItem } from './ReminderItem';
 
 interface ReminderListProps {
@@ -126,6 +127,14 @@ export function ReminderList({
     [reminders, isCompletedFilter, showCompleted],
   );
 
+  const { containerRef, shouldVirtualize, start, end, offsetY, totalHeight } = useVirtualList(
+    visibleReminders.length,
+    editingId === null,
+  );
+  const renderedReminders = shouldVirtualize
+    ? visibleReminders.slice(start, end)
+    : visibleReminders;
+
   const commitEditing = useCallback((id: string | null) => {
     if (!id) return;
     const reminder = remindersRef.current.find(r => r.id === id);
@@ -223,7 +232,7 @@ export function ReminderList({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-24">
+      <div ref={containerRef} className="flex-1 overflow-y-auto px-6 pb-24">
         {visibleReminders.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-apple-gray">
             <div className="w-16 h-16 rounded-[24px] bg-[#F2F2F7] flex items-center justify-center mb-4">
@@ -242,28 +251,47 @@ export function ReminderList({
             </span>
           </div>
         ) : (
-          <div className="space-y-1">
-            {visibleReminders.map((reminder, index) => (
-              <div key={reminder.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 30}ms` }}>
-                <ReminderItem
-                  reminder={reminder}
-                  lists={lists}
-                  owners={owners}
-                  isEditing={editingId === reminder.id}
-                  onToggleCompleted={onToggleCompleted}
-                  onDelete={onDeleteReminder}
-                  onStartEditing={handleStartEditing}
-                  onSaveAndStopEditing={handleSaveAndStopEditing}
-                  onCancelEditing={handleCancelEditing}
-                  onChange={handleChangeEditing}
-                  onUpdateReminder={onUpdateReminder}
-                  onCut={onCut}
-                  onCopy={onCopy}
-                  onPaste={onPaste}
-                  canPaste={canPaste}
-                />
-              </div>
-            ))}
+          <div
+            className="relative"
+            style={shouldVirtualize ? { height: totalHeight } : undefined}
+          >
+            <div
+              className="space-y-1"
+              style={shouldVirtualize ? { transform: `translateY(${offsetY}px)` } : undefined}
+            >
+              {renderedReminders.map((reminder, index) => {
+                const absoluteIndex = shouldVirtualize ? start + index : index;
+                return (
+                  <div
+                    key={reminder.id}
+                    className="animate-fade-in-up"
+                    style={
+                      shouldVirtualize
+                        ? undefined
+                        : { animationDelay: `${Math.min(absoluteIndex, 20) * 30}ms` }
+                    }
+                  >
+                    <ReminderItem
+                      reminder={reminder}
+                      lists={lists}
+                      owners={owners}
+                      isEditing={editingId === reminder.id}
+                      onToggleCompleted={onToggleCompleted}
+                      onDelete={onDeleteReminder}
+                      onStartEditing={handleStartEditing}
+                      onSaveAndStopEditing={handleSaveAndStopEditing}
+                      onCancelEditing={handleCancelEditing}
+                      onChange={handleChangeEditing}
+                      onUpdateReminder={onUpdateReminder}
+                      onCut={onCut}
+                      onCopy={onCopy}
+                      onPaste={onPaste}
+                      canPaste={canPaste}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

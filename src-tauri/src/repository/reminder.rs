@@ -138,6 +138,25 @@ impl ReminderRepository {
     pub fn search(&self, query: &str) -> Result<Vec<Reminder>> {
         let conn = lock_conn(&self.conn)?;
         let like_query = format!("%{}%", query);
+
+        if let Some(fts_q) = crate::database::fts::build_match_query(query) {
+            let query_sql = format!(
+                "SELECT {REMINDER_FIELDS} FROM reminders WHERE id IN ( \
+                   SELECT reminder_id FROM reminders_fts WHERE reminders_fts MATCH ?1 \
+                 ) OR id IN ( \
+                   SELECT r.id FROM reminders r \
+                   LEFT JOIN reminder_tags rt ON r.id = rt.reminder_id \
+                   LEFT JOIN tags t ON rt.tag_id = t.id \
+                   WHERE r.title LIKE ?2 OR IFNULL(r.description,'') LIKE ?2 OR IFNULL(r.url,'') LIKE ?2 OR IFNULL(t.name,'') LIKE ?2 \
+                 ) ORDER BY created_at DESC"
+            );
+            if let Ok(mut stmt) = conn.prepare(&query_sql) {
+                if let Ok(rows) = stmt.query_map(params![fts_q, like_query], Self::row_to_reminder) {
+                    return rows.collect();
+                }
+            }
+        }
+
         let query_sql = format!(
             "SELECT {REMINDER_FIELDS} FROM reminders WHERE id IN ( \
                SELECT r.id FROM reminders r \
@@ -181,12 +200,15 @@ impl ReminderRepository {
                 reminder.id.to_string(),
             ],
         )?;
+        let _ = crate::database::fts::upsert_reminder(&conn, &reminder.id.to_string());
         Ok(())
     }
 
     pub fn delete(&self, id: &Uuid) -> Result<()> {
         let conn = lock_conn(&self.conn)?;
-        conn.execute("DELETE FROM reminders WHERE id = ?", [id.to_string()])?;
+        let id_str = id.to_string();
+        let _ = crate::database::fts::delete_reminder(&conn, &id_str);
+        conn.execute("DELETE FROM reminders WHERE id = ?", [id_str])?;
         Ok(())
     }
 

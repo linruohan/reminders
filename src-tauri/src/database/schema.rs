@@ -102,6 +102,8 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
         [],
     )?;
 
+    crate::database::fts::ensure_fts(conn)?;
+
     Ok(())
 }
 
@@ -254,6 +256,8 @@ fn migrate_schema(conn: &Connection) -> Result<()> {
             [],
         )?;
     }
+
+    crate::database::fts::ensure_fts(conn)?;
 
     Ok(())
 }

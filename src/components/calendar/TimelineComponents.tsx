@@ -1,9 +1,15 @@
-import { HOUR_HEIGHT } from './utils';
+import {
+  HOUR_HEIGHT,
+  TIMELINE_START_HOUR,
+  formatHourMinute,
+  hourMinuteToTop,
+  minuteOfDayToTop,
+} from './utils';
 import type { ReminderResponse, ListResponse } from '@/types/api';
 import { getListColor } from './utils';
 
 export function TimelineSlot({ hour }: { hour: number }) {
-  const label = `${String(hour).padStart(2, '0')}:00`;
+  const label = formatHourMinute(hour, 0);
   return (
     <div className="flex border-b border-apple-divider" style={{ height: HOUR_HEIGHT }}>
       <div className="w-14 flex-shrink-0 flex items-center justify-end pr-2">
@@ -15,14 +21,14 @@ export function TimelineSlot({ hour }: { hour: number }) {
 }
 
 export function HoverLine({ minute }: { minute: number }) {
-  const h = 9 + Math.floor(minute / 60);
+  const h = TIMELINE_START_HOUR + Math.floor(minute / 60);
   const m = minute % 60;
   return (
-    <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: (minute / 60) * HOUR_HEIGHT }}>
+    <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: minuteOfDayToTop(minute) }}>
       <div className="flex items-center ml-14">
         <div className="flex-1 border-t border-red-400/70" />
         <span className="text-[10px] font-medium text-red-500 bg-white/90 px-1 rounded-sm leading-tight whitespace-nowrap">
-          {String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}
+          {formatHourMinute(h, m)}
         </span>
       </div>
     </div>
@@ -78,9 +84,9 @@ export function ReminderBlock({
   onClick: (reminder: ReminderResponse) => void;
 }) {
   const dueTime = reminder.end_time;
-  const hour = dueTime ? parseInt(dueTime.split(':')[0]) : 9;
-  const minute = dueTime ? parseInt(dueTime.split(':')[1]) : 0;
-  const top = (hour - 9) * HOUR_HEIGHT + (minute / 60) * HOUR_HEIGHT;
+  const hour = dueTime ? parseInt(dueTime.split(':')[0], 10) : 9;
+  const minute = dueTime ? parseInt(dueTime.split(':')[1], 10) : 0;
+  const top = hourMinuteToTop(hour, minute);
   const height = (30 / 60) * HOUR_HEIGHT;
 
   return (

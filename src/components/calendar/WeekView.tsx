@@ -1,7 +1,19 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import type { ReminderResponse, ListResponse } from '@/types/api';
 import { isSameDay } from '@/utils/dateUtils';
-import { getRemindersForDate, HOUR_HEIGHT, timelineHours, weekDays } from './utils';
+import {
+  getRemindersForDate,
+  HOUR_HEIGHT,
+  TIMELINE_HEIGHT,
+  TIMELINE_START_HOUR,
+  timelineHours,
+  weekDays,
+  clampMinuteOfDay,
+  formatHourMinute,
+  hourMinuteToTop,
+  minuteOfDayToTop,
+  scrollTimelineToHour,
+} from './utils';
 import { TimelineSlot } from './TimelineComponents';
 import { getListColor } from './utils';
 
@@ -33,6 +45,10 @@ export function WeekView({
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverInfo, setHoverInfo] = useState<{ minute: number; col: number } | null>(null);
 
+  useEffect(() => {
+    scrollTimelineToHour(timelineRef.current, new Date().getHours());
+  }, [startDate]);
+
   const getHoverInfo = useCallback((clientX: number, clientY: number) => {
     if (!timelineRef.current) return null;
     const rect = timelineRef.current.getBoundingClientRect();
@@ -41,7 +57,7 @@ export function WeekView({
     const y = clientY - rect.top + scrollTop;
     const colWidth = rect.width / 7;
     const col = Math.min(6, Math.max(0, Math.floor(x / colWidth)));
-    const minute = Math.max(0, Math.min(12 * 60, Math.round((y / HOUR_HEIGHT) * 60)));
+    const minute = clampMinuteOfDay((y / HOUR_HEIGHT) * 60);
     return { minute, col };
   }, []);
 
@@ -55,7 +71,7 @@ export function WeekView({
   const handleDblClick = useCallback((e: React.MouseEvent) => {
     const info = getHoverInfo(e.clientX, e.clientY);
     if (!info) return;
-    const hour = 9 + Math.floor(info.minute / 60);
+    const hour = TIMELINE_START_HOUR + Math.floor(info.minute / 60);
     const minute = info.minute % 60;
     onDoubleClickTimeline(hour, minute, weekDates[info.col]);
   }, [getHoverInfo, onDoubleClickTimeline, weekDates]);
@@ -112,7 +128,7 @@ export function WeekView({
         onMouseLeave={handleMouseLeave}
         onDoubleClick={handleDblClick}
       >
-        <div className="flex relative" style={{ height: 13 * HOUR_HEIGHT }}>
+        <div className="flex relative" style={{ height: TIMELINE_HEIGHT }}>
           <div className="w-14 flex-shrink-0">
             {timelineHours.map(hour => (
               <TimelineSlot key={hour} hour={hour} />
@@ -125,9 +141,9 @@ export function WeekView({
                 <div key={colIdx} className="relative border-l border-gray-200">
                   {dayTimed.map(r => {
                     const dueTime = r.end_time;
-                    const hour = dueTime ? parseInt(dueTime.split(':')[0]) : 9;
-                    const minute = dueTime ? parseInt(dueTime.split(':')[1]) : 0;
-                    const top = (hour - 9) * HOUR_HEIGHT + (minute / 60) * HOUR_HEIGHT;
+                    const hour = dueTime ? parseInt(dueTime.split(':')[0], 10) : 9;
+                    const minute = dueTime ? parseInt(dueTime.split(':')[1], 10) : 0;
+                    const top = hourMinuteToTop(hour, minute);
                     const height = (30 / 60) * HOUR_HEIGHT;
                     const color = getListColor(lists, r.list_id);
                     return (
@@ -155,11 +171,14 @@ export function WeekView({
             })}
           </div>
           {hoverInfo !== null && (
-            <div className="absolute left-0 right-0 z-30 pointer-events-none" style={{ top: (hoverInfo.minute / 60) * HOUR_HEIGHT }}>
+            <div className="absolute left-0 right-0 z-30 pointer-events-none" style={{ top: minuteOfDayToTop(hoverInfo.minute) }}>
               <div className="flex items-center ml-14">
                 <div className="flex-1 border-t border-red-400/70" />
                 <span className="text-[10px] font-medium text-red-500 bg-white/90 px-1 rounded-sm leading-tight whitespace-nowrap">
-                  {`${String(9 + Math.floor(hoverInfo.minute / 60)).padStart(2, '0')}:${String(hoverInfo.minute % 60).padStart(2, '0')}`}
+                  {formatHourMinute(
+                    TIMELINE_START_HOUR + Math.floor(hoverInfo.minute / 60),
+                    hoverInfo.minute % 60,
+                  )}
                 </span>
               </div>
             </div>

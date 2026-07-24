@@ -73,6 +73,7 @@ pub(crate) fn sync_reminder_tags_in_tx(
         )
         .map_err(|e| e.to_string())?;
     }
+    crate::database::fts::upsert_reminder(tx, reminder_id).map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -191,5 +192,6 @@ pub(crate) fn insert_reminder_row(
         ],
     )
     .map_err(|e| e.to_string())?;
+    crate::database::fts::upsert_reminder(tx, &reminder.id.to_string()).map_err(|e| e.to_string())?;
     Ok(())
 }
