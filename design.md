@@ -1,185 +1,83 @@
-# 📋 设计方案：Mac风格提醒与日历工具
+# 设计方案：Apple 风格提醒与日历工具
 
-## 一、整体架构设计
+> 与当前实现对齐（Tauri 2 + React）。早期 GPUI 草案已废弃。
+
+## 一、整体架构
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                    TitleBar                         │
+│                    TitleBar（无边框自定义）            │
 │  ┌─────────────┐ ┌─────────────┐                   │
-│  │   Todo图标   │ │  日历图标    │  ← 页面切换按钮    │
+│  │   提醒事项   │ │    日历     │  ← App 视图切换      │
 │  └─────────────┘ └─────────────┘                   │
 ├─────────────────────────────────────────────────────┤
+│  ReminderPage                                       │
+│  ┌──────────┬──────────────────────────────────┐   │
+│  │ Sidebar  │  ReminderList（筛选 / 搜索 / 虚拟化）│   │
+│  │ 智能列表  │  ReminderItem / ReminderItemEditMode│   │
+│  │ 我的列表  │  AddReminderModal + ReminderFormFields│
+│  │ 负责人    │                                      │
+│  │ 标签      │                                      │
+│  └──────────┴──────────────────────────────────┘   │
 │                                                     │
-│              Content Area (切换视图)                 │
-│                                                     │
-│  ┌─────────────────────────────────────────────┐   │
-│  │  ReminderView (提醒页面)                     │   │
-│  │  ┌──────────────────────────────────────┐   │   │
-│  │  │  顶部导航栏：标题"提醒事项"           │   │   │
-│  │  │  左侧编辑按钮 / 右侧添加按钮         │   │   │
-│  │  ├──────────────────────────────────────┤   │   │
-│  │  │  分段切换栏：[今天] [计划] [全部]     │   │   │
-│  │  ├──────────┬───────────────────────────┤   │   │
-│  │  │ 侧边列表区│      主内容区             │   │   │
-│  │  │          │                           │   │   │
-│  │  │ 我的列表  │   提醒事项列表            │   │   │
-│  │  │ ┌──────┐ │                           │   │   │
-│  │  │ │提醒事项│ │   （无提醒时显示：        │   │   │
-│  │  │ └──────┘ │    "没有提醒事项"）        │   │   │
-│  │  │          │                           │   │   │
-│  │  └──────────┴───────────────────────────┘   │   │
-│  └─────────────────────────────────────────────┘   │
-│                                                     │
-│  ┌─────────────────────────────────────────────┐   │
-│  │  CalendarView (日历页面)                    │   │
-│  │  ┌─────────────────────────────────────┐    │   │
-│  │  │  顶部工具栏                          │    │   │
-│  │  │  [日][周][月][年]  🔍  2021年8月 <今天>│    │   │
-│  │  ├─────────────────────────────────────┤    │   │
-│  │  │  日历网格                            │    │   │
-│  │  │  周日 周一 周二 周三 周四 周五 周六    │    │   │
-│  │  │   1    2    3   [4]   5    6    7     │    │   │
-│  │  │                  ↑ 选中高亮           │    │   │
-│  │  ├──────────┬──────────────────────────┤    │   │
-│  │  │  时间轴   │     事件区域             │    │   │
-│  │  │          │                          │    │   │
-│  │  │  全天     │  已有事件 / 新建事件表单  │    │   │
-│  │  │  上午9时  │                          │    │   │
-│  │  │  ...     │                          │    │   │
-│  │  │  下午5时  │                          │    │   │
-│  │  └──────────┴──────────────────────────┘    │   │
-│  └─────────────────────────────────────────────┘   │
-│                                                     │
+│  CalendarPage → CalendarView                        │
+│  ┌ 日 / 周 / 月 ┐  搜索 · 日期导航 · 今天            │
+│  │ DayView / WeekView / MonthView                   │
+│  │ 全天行 · 0–23 时间轴 · 拖拽改期 · 双击新建        │
+│  └──────────────────────────────────────────────────┘
 └─────────────────────────────────────────────────────┘
 ```
 
-## 二、核心数据模型设计
+## 二、技术栈
 
-```rust
-#[derive(Debug, Clone, PartialEq)]
-pub struct Reminder {
-    pub id: Uuid,                    // 唯一标识符
-    pub title: String,               // 提醒标题
-    pub description: Option<String>, // 描述
-    pub due_date: Option<NaiveDate>, // 截止日期
-    pub due_time: Option<NaiveTime>, // 截止时间
-    pub is_completed: bool,          // 是否已完成
-    pub priority: Priority,          // 优先级（高/中/低）
-    pub list_id: Option<Uuid>,       // 所属列表ID
-    pub created_at: DateTime<Local>, // 创建时间
-    pub updated_at: DateTime<Local>, // 更新时间
-}
+| 层 | 技术 |
+|----|------|
+| 桌面壳 | Tauri 2（无边框、透明窗口） |
+| 前端 | React 18 + TypeScript + Vite + Tailwind（`apple-*` 设计 token） |
+| 后端 | Rust：`commands` + Repository + SQLite（rusqlite bundled） |
+| 搜索 | FTS5 + LIKE 回退 |
+| 通知 | `tauri-plugin-notification` + 本地调度器 |
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Priority {
-    High,
-    Medium,
-    Low,
-}
+## 三、数据模型（要点）
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct ReminderList {
-    pub id: Uuid,
-    pub name: String,
-    pub color: ThemeColor,
-    pub icon: IconName,
-}
+- `created_date/time`：创建戳；`end_date/time`：截止（驱动今天/计划/逾期与日历）
+- ID：UUID v4 字符串
+- 扩展字段：全天、旗标、优先级、重复、提前提醒、负责人、标签、URL
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum AppView {
-    Reminder,
-    Calendar,
-}
-```
+路径：`src-tauri/src/models/`、`src/types/api.ts`
 
-## 三、文件结构设计
+## 四、前端结构（摘要）
 
 ```
 src/
-├── main.rs                          # 应用入口
-├── app.rs                           # 主应用组件
-├── state.rs                         # 全局状态管理
-├── models/
-│   └── reminder.rs                  # 提醒数据模型
-├── views/
-│   ├── reminder_view.rs             # 提醒页面视图
-│   ├── calendar_view.rs             # 日历页面视图
-│   └── header.rs                    # 顶部切换按钮
+├── App.tsx                 # 视图切换、Toast、数据钩子
+├── pages/                  # ReminderPage / CalendarPage
 ├── components/
-│   ├── reminder_list.rs             # 提醒列表组件
-│   ├── reminder_item.rs             # 单个提醒项
-│   ├── add_reminder_modal.rs        # 添加/编辑提醒弹窗
-│   ├── sidebar.rs                   # 左侧列表导航
-│   └── calendar_event.rs            # 日历事件显示
-├── data/
-│   └── store.rs                     # 数据持久化存储
-└── utils/
-    └── date.rs                      # 日期工具函数
+│   ├── reminder/           # FormFields、内联编辑、表单选项
+│   ├── calendar/           # 日/周/月视图与编辑卡片
+│   └── ...
+├── hooks/                  # useApi、useReminderData、useVirtualList
+└── utils/                  # reminderForm、reminderUpdates、dateUtils
 ```
 
-## 四、关键组件设计
+后端：`src-tauri/src/commands/`、`repository/`、`database/`（含 `fts.rs`）
 
-### 1. Header（顶部切换按钮）
+## 五、表单与编辑
 
-| 功能 | 说明 |
+- **共享字段**：`ReminderFormFields`（新建弹窗 / 日历编辑 / 列表内联编辑）
+- **校验**：`validateReminderFields`（标题、URL）
+- **补丁转换**：`formFieldsToReminderPatch` → `buildUpdates` 差分提交
+
+## 六、日历交互
+
+| 能力 | 说明 |
 |------|------|
-| Todo图标按钮 | 点击切换到提醒页面，选中状态高亮 |
-| 日历图标按钮 | 点击切换到日历页面，选中状态高亮 |
-| 样式 | Mac风格圆角、阴影、悬停动画 |
+| 视图 | 日 / 周 / 月；按可见日期范围拉取 |
+| 新建 | 双击时间轴预填时刻；全天行预填全天 |
+| 改期 | 有时事件拖拽（15 分钟吸附）；全天/月视图拖到其它日 |
 
-### 2. ReminderView（提醒页面）
+## 七、仍待（可选产品能力）
 
-| 区域 | 功能 |
-|------|------|
-| 顶部导航栏 | 标题为"提醒事项"，左侧可放置编辑按钮，右侧可放置添加按钮 |
-| 分段切换栏 | "今天""计划""全部"三个标签，用于筛选不同时间范围的提醒 |
-| 侧边列表区 | 显示"我的列表"分组，默认包含一个名为"提醒事项"的列表，支持后续添加自定义列表 |
-| 主内容区 | 显示当前选中列表的提醒事项；当列表为空时，显示提示文字"没有提醒事项" |
-
-### 3. CalendarView（日历页面）
-
-| 区域 | 功能 |
-|------|------|
-| 顶部工具栏 | 左侧"日/周/月/年"视图切换按钮；右侧搜索框（🔍）；中间显示当前月份标题（如"2021年8月"）；"<今天>"按钮快速回到今日 |
-| 日历网格 | 根据当前视图（日/周/月/年）显示对应日期网格，选中日期高亮显示，支持点击选择日期 |
-| 时间轴 | 左侧从"全天"到具体时段（如"下午5时"）列出时间行，右侧对应显示已有事件和新建事件表单 |
-
-### 4. AddReminderModal（添加提醒弹窗）
-
-| 字段 | 类型 | 必填 |
-|------|------|------|
-| 标题 | 输入框 | ✅ |
-| 描述 | 文本域 | ❌ |
-| 截止日期 | 日期选择器 | ❌ |
-| 截止时间 | 时间选择器 | ❌ |
-| 优先级 | 单选（高/中/低） | ❌ |
-| 所属列表 | 下拉选择 | ❌ |
-
-## 五、技术选型
-
-| 依赖 | 版本 | 用途 |
-|------|------|------|
-| gpui | 0.2.2 | UI框架核心 |
-| gpui-component | 0.5.1 | UI组件库 |
-| chrono | 0.4 | 日期时间处理 |
-| uuid | 1.0 | 唯一标识符 |
-| serde | 1.0 | 数据序列化（用于持久化） |
-| gpui-rsx | 0.4 | JSX风格语法（可选） |
-
-## 六、状态管理方案
-
-使用GPUI的`Model`模式进行状态管理：
-
-```rust
-pub struct AppState {
-    reminders: Vec<Reminder>,
-    lists: Vec<ReminderList>,
-    current_view: AppView,
-    selected_list_id: Option<Uuid>,
-    selected_date: Option<NaiveDate>,
-    show_modal: bool,
-    editing_reminder: Option<Reminder>,
-}
-```
-
-通过`cx.subscribe`实现响应式更新，当状态变化时自动重新渲染相关组件。
+- 子任务
+- OS 级通知体验细化 / 托盘常驻
+- 可选 lint/format 脚本

@@ -88,6 +88,45 @@ export function tagNamesToResponses(names: string[]): ReminderResponse['tags'] {
   return names.map(name => ({ id: name, name }));
 }
 
+/** 将共享表单字段转为提醒更新补丁（不含 title/description/url） */
+export function formFieldsToReminderPatch(
+  fields: {
+    endDateTime: string;
+    isAllDay: boolean;
+    recurrenceFreq: string;
+    recurrenceInterval: number;
+    customUnit: string;
+    showEndRepeat: boolean;
+    recurrenceEndDate: string;
+    remindValue: string;
+    customRemindNum: number;
+    customRemindUnit: string;
+    selectedListId: string;
+    isFlagged: boolean;
+    priority: string;
+    tags: string[];
+  },
+): Partial<ReminderResponse> {
+  const end = splitDateTime(fields.endDateTime);
+  return {
+    end_date: end?.date || null,
+    end_time: fields.isAllDay ? null : (end?.time || null),
+    is_all_day: fields.isAllDay,
+    list_id: fields.selectedListId || null,
+    is_flagged: fields.isFlagged,
+    priority: fields.priority as ReminderResponse['priority'],
+    ...resolveRecurrenceFields(
+      fields.recurrenceFreq,
+      fields.recurrenceInterval,
+      fields.customUnit,
+      fields.showEndRepeat,
+      fields.recurrenceEndDate,
+    ),
+    ...resolveRemindFields(fields.remindValue, fields.customRemindNum, fields.customRemindUnit),
+    tags: tagNamesToResponses(fields.tags),
+  };
+}
+
 /** 校验 http(s) URL；空字符串视为合法（表示未填写） */
 export function isValidHttpUrl(str: string): boolean {
   if (!str.trim()) return true;

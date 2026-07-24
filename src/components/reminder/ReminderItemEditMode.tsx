@@ -1,19 +1,38 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
-import { createPortal } from 'react-dom';
-import { invoke } from '@tauri-apps/api/core';
-import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, TimeUnit, Priority, RecurrenceFrequency } from '@/types/api';
-import { formatDate, formatTime } from '@/utils/dateUtils';
+import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
+import {
+  ReminderFormFields,
+  type ReminderFormFieldValues,
+} from './ReminderFormFields';
 import { buildUpdates } from '@/utils/reminderUpdates';
-import { normalizeCustomRecurrenceUnit, resolveRemindFields, tagNamesToResponses, validateReminderFields } from '@/utils/reminderForm';
+import {
+  formFieldsToReminderPatch,
+  initRemindUiState,
+  joinEndDateTime,
+  normalizeCustomRecurrenceUnit,
+  validateReminderFields,
+} from '@/utils/reminderForm';
 import { ReminderDetailModal } from '../ReminderDetailModal';
-import { recurrenceOptions, remindOptions, priorityOptions, encodeRemindValue } from './formOptions';
-import { ReminderDateDropdown } from './ReminderDateDropdown';
-import { ReminderTimeDropdown } from './ReminderTimeDropdown';
-import { ReminderRemindDropdown } from './ReminderRemindDropdown';
-import { ReminderTagsDropdown } from './ReminderTagsDropdown';
-import { ReminderRepeatDropdown } from './ReminderRepeatDropdown';
-import { ReminderEndRepeatDropdown } from './ReminderEndRepeatDropdown';
-import { ReminderListDropdown } from './ReminderListDropdown';
+
+function fieldsFromReminder(reminder: ReminderResponse): ReminderFormFieldValues {
+  const initialRemind = initRemindUiState(reminder.remind_before_value, reminder.remind_before_unit);
+  return {
+    endDateTime: joinEndDateTime(reminder.end_date, reminder.end_time, reminder.is_all_day ?? false),
+    isAllDay: reminder.is_all_day ?? false,
+    recurrenceFreq: reminder.recurrence_frequency ?? '',
+    recurrenceInterval: reminder.recurrence_interval ?? 1,
+    customUnit: normalizeCustomRecurrenceUnit(reminder.custom_recurrence_unit),
+    showEndRepeat: Boolean(reminder.recurrence_end_date),
+    recurrenceEndDate: reminder.recurrence_end_date || '',
+    remindValue: initialRemind.remindValue,
+    customRemindNum: initialRemind.customRemindNum,
+    customRemindUnit: initialRemind.customRemindUnit,
+    selectedListId: reminder.list_id || '',
+    isFlagged: reminder.is_flagged ?? false,
+    priority: reminder.priority || 'none',
+    tags: reminder.tags?.map(t => t.name) || [],
+  };
+}
 
 export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   reminder,
@@ -37,143 +56,37 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const [editTitle, setEditTitle] = useState(reminder.title);
   const [editNotes, setEditNotes] = useState(reminder.description || '');
   const [editUrl, setEditUrl] = useState(reminder.url || '');
-  const [editEndDate, setEditEndDate] = useState(reminder.end_date || '');
-  const [editEndTime, setEditEndTime] = useState(reminder.end_time || '');
-  const [editIsAllDay, setEditIsAllDay] = useState(reminder.is_all_day ?? false);
-  const [editPriority, setEditPriority] = useState<Priority>(reminder.priority || 'none');
-  const [editListId, setEditListId] = useState(reminder.list_id || '');
-  const [editIsFlagged, setEditIsFlagged] = useState(reminder.is_flagged ?? false);
-  const [editRecurrenceFreq, setEditRecurrenceFreq] = useState<string>(reminder.recurrence_frequency ?? '');
-  const [editRecurrenceInterval, setEditRecurrenceInterval] = useState(reminder.recurrence_interval ?? 1);
-  const [editCustomUnit, setEditCustomUnit] = useState<TimeUnit>(
-    normalizeCustomRecurrenceUnit(reminder.custom_recurrence_unit)
-  );
-  const [editRecurrenceEndDate, setEditRecurrenceEndDate] = useState(reminder.recurrence_end_date || '');
-  const [editRemindValue, setEditRemindValue] = useState(() =>
-    encodeRemindValue(reminder.remind_before_value, reminder.remind_before_unit)
-  );
-  const [editTags, setEditTags] = useState<string[]>(reminder.tags?.map(t => t.name) || []);
-  const [tagInput, setTagInput] = useState('');
-  const [tagSuggestions, setTagSuggestions] = useState<TagResponse[]>([]);
-  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number } | null>(null);
+  const [fields, setFields] = useState<ReminderFormFieldValues>(() => fieldsFromReminder(reminder));
   const [showDetail, setShowDetail] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const draftRef = useRef<Partial<ReminderResponse>>({});
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  const toRemindFields = useCallback(
-    (remindValue: string) => resolveRemindFields(remindValue, 1, 'days'),
-    [],
-  );
-
-  const publishDraft = useCallback((patch: Partial<ReminderResponse>) => {
-    draftRef.current = { ...draftRef.current, ...patch };
-    onChangeRef.current(draftRef.current);
-  }, []);
-
-  // 初始化草稿，保证外部点击保存能读到完整字段
-  useEffect(() => {
-    const initial: Partial<ReminderResponse> = {
-      title: reminder.title,
-      description: reminder.description || null,
-      url: reminder.url || null,
-      end_date: reminder.end_date || null,
-      end_time: reminder.end_time || null,
-      is_all_day: reminder.is_all_day ?? false,
-      is_flagged: reminder.is_flagged ?? false,
-      priority: reminder.priority || 'none',
-      list_id: reminder.list_id || null,
-      recurrence_frequency: reminder.recurrence_frequency ?? null,
-      recurrence_interval: reminder.recurrence_frequency === 'custom' ? (reminder.recurrence_interval ?? 1) : null,
-      custom_recurrence_unit: reminder.recurrence_frequency === 'custom' ? (reminder.custom_recurrence_unit ?? 'days') : null,
-      recurrence_end_date: reminder.recurrence_end_date || null,
-      tags: reminder.tags ?? [],
-      ...toRemindFields(encodeRemindValue(reminder.remind_before_value, reminder.remind_before_unit)),
+  const publishDraft = useCallback((
+    title: string,
+    notes: string,
+    url: string,
+    nextFields: ReminderFormFieldValues,
+  ) => {
+    const draft: Partial<ReminderResponse> = {
+      title,
+      description: notes || null,
+      url: url || null,
+      ...formFieldsToReminderPatch(nextFields),
     };
-    draftRef.current = initial;
-    onChangeRef.current(initial);
-  }, [reminder, toRemindFields]);
-
-  const closeDropdown = useCallback(() => {
-    setActiveDropdown(null);
-    setDropdownRect(null);
+    draftRef.current = draft;
+    onChangeRef.current(draft);
   }, []);
 
-  const toggleDropdown = useCallback((name: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    if (activeDropdown === name) {
-      closeDropdown();
-    } else {
-      setActiveDropdown(name);
-      setDropdownRect({ top: rect.bottom + 4, left: rect.left });
-    }
-  }, [activeDropdown, closeDropdown]);
-
-  const updateTitle = (value: string) => {
-    setEditTitle(value);
-    publishDraft({ title: value });
-  };
-  const updateNotes = (value: string) => {
-    setEditNotes(value);
-    publishDraft({ description: value || null });
-  };
-  const updateUrl = (value: string) => {
-    setEditUrl(value);
-    publishDraft({ url: value || null });
-  };
-  const updateListId = (value: string) => {
-    setEditListId(value);
-    publishDraft({ list_id: value || null });
-  };
-  const updateFlagged = (value: boolean) => {
-    setEditIsFlagged(value);
-    publishDraft({ is_flagged: value });
-  };
-  const updateRecurrenceFreq = (value: string) => {
-    setEditRecurrenceFreq(value);
-    publishDraft({
-      recurrence_frequency: (value || null) as RecurrenceFrequency | null,
-      recurrence_interval: value === 'custom' ? editRecurrenceInterval : null,
-      custom_recurrence_unit: value === 'custom' ? editCustomUnit : null,
-    });
-  };
-  const updateRecurrenceInterval = (value: number) => {
-    setEditRecurrenceInterval(value);
-    publishDraft({ recurrence_interval: value });
-  };
-  const updateCustomUnit = (value: TimeUnit) => {
-    setEditCustomUnit(value);
-    publishDraft({ custom_recurrence_unit: value });
-  };
-  const updateRecurrenceEndDate = (value: string) => {
-    setEditRecurrenceEndDate(value);
-    publishDraft({ recurrence_end_date: value || null });
-  };
-  const updateRemindValue = (value: string) => {
-    setEditRemindValue(value);
-    publishDraft(toRemindFields(value));
-  };
-  const updateEndDate = (value: string) => {
-    setEditEndDate(value);
-    publishDraft({ end_date: value || null });
-  };
-  const updateEndTime = (value: string) => {
-    setEditEndTime(value);
-    publishDraft({ end_time: value || null });
-  };
-  const updateIsAllDay = (value: boolean) => {
-    setEditIsAllDay(value);
-    publishDraft({ is_all_day: value });
-  };
-  const updatePriority = (value: Priority) => {
-    setEditPriority(value);
-    publishDraft({ priority: value });
-  };
+  useEffect(() => {
+    const nextFields = fieldsFromReminder(reminder);
+    setEditTitle(reminder.title);
+    setEditNotes(reminder.description || '');
+    setEditUrl(reminder.url || '');
+    setFields(nextFields);
+    publishDraft(reminder.title, reminder.description || '', reminder.url || '', nextFields);
+  }, [reminder, publishDraft]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -182,6 +95,27 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
     }, 50);
     return () => clearTimeout(timer);
   }, []);
+
+  const updateTitle = (value: string) => {
+    setEditTitle(value);
+    publishDraft(value, editNotes, editUrl, fields);
+  };
+  const updateNotes = (value: string) => {
+    setEditNotes(value);
+    publishDraft(editTitle, value, editUrl, fields);
+  };
+  const updateUrl = (value: string) => {
+    setEditUrl(value);
+    publishDraft(editTitle, editNotes, value, fields);
+  };
+
+  const onFieldsChange = useCallback((patch: Partial<ReminderFormFieldValues>) => {
+    setFields(prev => {
+      const next = { ...prev, ...patch };
+      publishDraft(editTitle, editNotes, editUrl, next);
+      return next;
+    });
+  }, [editTitle, editNotes, editUrl, publishDraft]);
 
   const handleSave = useCallback(() => {
     const draft = draftRef.current;
@@ -193,40 +127,18 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
       showToast?.('error', fieldError);
       return;
     }
-    const updates = buildUpdates(reminder, draft);
+    const updates = buildUpdates(reminder, {
+      title: (draft.title ?? reminder.title).trim(),
+      description: draft.description ?? null,
+      url: draft.url ?? null,
+      ...formFieldsToReminderPatch(fields),
+    });
     onSaveAndStopEditing(reminder.id, updates);
-  }, [onSaveAndStopEditing, reminder, showToast]);
+  }, [fields, onSaveAndStopEditing, reminder, showToast]);
 
   const handleCancel = useCallback(() => {
     onCancelEditing();
   }, [onCancelEditing]);
-
-  const handleTagInputChange = useCallback(async (value: string) => {
-    setTagInput(value);
-    if (!value.trim()) { setTagSuggestions([]); setShowTagSuggestions(false); return; }
-    try {
-      const data = await invoke<TagResponse[]>('search_tags', { query: value.trim() });
-      const filtered = data.filter(t => !editTags.includes(t.name));
-      setTagSuggestions(filtered);
-      setShowTagSuggestions(filtered.length > 0);
-    } catch { setTagSuggestions([]); setShowTagSuggestions(false); }
-  }, [editTags]);
-
-  const addTag = useCallback((name: string) => {
-    const trimmed = name.trim().replace(/^#/, '');
-    if (trimmed && !editTags.includes(trimmed)) {
-      const next = [...editTags, trimmed];
-      setEditTags(next);
-      publishDraft({ tags: tagNamesToResponses(next) });
-    }
-    setTagInput(''); setTagSuggestions([]); setShowTagSuggestions(false);
-  }, [editTags, publishDraft]);
-
-  const removeTag = useCallback((name: string) => {
-    const next = editTags.filter(t => t !== name);
-    setEditTags(next);
-    publishDraft({ tags: tagNamesToResponses(next) });
-  }, [editTags, publishDraft]);
 
   return (
     <>
@@ -254,7 +166,7 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
               </svg>
             )}
           </button>
-          
+
           <div className="flex-1 min-w-0">
             <div className="flex items-start gap-2">
               <div className="flex-1 min-w-0">
@@ -291,7 +203,7 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
                   placeholder="URL"
                 />
               </div>
-              
+
               <button
                 type="button"
                 onClick={(e) => {
@@ -307,61 +219,12 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
 
             <div className="border-t border-apple-divider mt-3 mb-3" />
 
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={(e) => toggleDropdown('endDate', e)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-700 hover:bg-[#E5E5EA] transition-all duration-200 spring-transition">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-                  {editEndDate ? formatDate(editEndDate) : '截止日期'}
-                </button>
-                <button type="button" onClick={(e) => toggleDropdown('endTime', e)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-700 hover:bg-[#E5E5EA] transition-all duration-200 spring-transition">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
-                  {editEndTime ? formatTime(editEndTime) : '截止时间'}
-                </button>
-                <button type="button" onClick={() => updateIsAllDay(!editIsAllDay)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-[13px] font-medium transition-all duration-200 spring-transition ${editIsAllDay ? 'bg-apple-blue/10 text-apple-blue' : 'bg-[#F2F2F7] text-gray-700 hover:bg-[#E5E5EA]'}`}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-                  全天
-                </button>
-                <button type="button" onClick={(e) => toggleDropdown('remind', e)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-700 hover:bg-[#E5E5EA] transition-all duration-200 spring-transition">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                  {editRemindValue ? (remindOptions.find(o => o.value === editRemindValue)?.label || '自定义') : '提醒'}
-                </button>
-                <button type="button" onClick={(e) => toggleDropdown('tags', e)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-700 hover:bg-[#E5E5EA] transition-all duration-200 spring-transition">
-                  <span className="text-xs font-bold leading-none">#</span>
-                  {editTags.length > 0 ? `${editTags.length}个标签` : '标签'}
-                </button>
-                <button type="button" onClick={() => updateFlagged(!editIsFlagged)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-[13px] font-medium transition-all duration-200 spring-transition ${editIsFlagged ? 'bg-orange-100 text-orange-500' : 'bg-[#F2F2F7] text-gray-700 hover:bg-[#E5E5EA]'}`}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill={editIsFlagged ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>
-                </button>
-                <button type="button" onClick={(e) => toggleDropdown('priority', e)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-[13px] font-medium transition-all duration-200 spring-transition ${
-                    editPriority === 'high' ? 'bg-red-50 text-red-600' :
-                    editPriority === 'medium' ? 'bg-orange-50 text-orange-600' :
-                    editPriority === 'low' ? 'bg-green-50 text-green-600' :
-                    'bg-[#F2F2F7] text-gray-700 hover:bg-[#E5E5EA]'
-                  }`}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
-                  {priorityOptions.find(o => o.value === editPriority)?.label || '优先级'}
-                </button>
-                <button type="button" onClick={(e) => toggleDropdown('repeat', e)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-700 hover:bg-[#E5E5EA] transition-all duration-200 spring-transition">
-                  {editRecurrenceFreq ? (recurrenceOptions.find(o => o.value === editRecurrenceFreq)?.label || '自定义') : '重复'}
-                </button>
-                <button type="button" onClick={(e) => toggleDropdown('endRepeat', e)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-700 hover:bg-[#E5E5EA] transition-all duration-200 spring-transition">
-                  {editRecurrenceEndDate ? `${formatDate(editRecurrenceEndDate)}结束` : '结束重复'}
-                </button>
-                <button type="button" onClick={(e) => toggleDropdown('list', e)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-700 hover:bg-[#E5E5EA] transition-all duration-200 spring-transition">
-                  {editListId ? (lists.find(l => l.id === editListId)?.name || '列表') : '提醒事项'}
-                </button>
-              </div>
-            </div>
+            <ReminderFormFields
+              lists={lists}
+              values={fields}
+              onChange={onFieldsChange}
+              variant="edit"
+            />
           </div>
         </div>
       </div>
@@ -377,96 +240,6 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
           onToggleCompleted={() => onToggleCompleted(reminder.id)}
           onEdit={() => { setShowDetail(false); }}
         />
-      )}
-
-      {activeDropdown && dropdownRect && createPortal(
-        <div
-          className="reminder-edit-dropdown fixed z-[10000]"
-          style={{ top: dropdownRect.top, left: dropdownRect.left }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {activeDropdown === 'endDate' && (
-            <ReminderDateDropdown
-              editDate={editEndDate}
-              onDateChange={updateEndDate}
-              onClose={closeDropdown}
-            />
-          )}
-          {activeDropdown === 'endTime' && (
-            <ReminderTimeDropdown
-              editTime={editEndTime}
-              onTimeChange={updateEndTime}
-              onClose={closeDropdown}
-            />
-          )}
-          {activeDropdown === 'priority' && (
-            <div className="bg-white rounded-apple-lg shadow-lg border border-apple-divider py-1 min-w-[120px]">
-              {priorityOptions.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => { updatePriority(opt.value as Priority); closeDropdown(); }}
-                  className={`w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
-                    editPriority === opt.value
-                      ? opt.value === 'high' ? 'bg-red-50 text-red-600' :
-                        opt.value === 'medium' ? 'bg-orange-50 text-orange-600' :
-                        opt.value === 'low' ? 'bg-green-50 text-green-600' :
-                        'bg-apple-blue/10 text-apple-blue'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
-          {activeDropdown === 'remind' && (
-            <ReminderRemindDropdown
-              editRemindValue={editRemindValue}
-              onRemindChange={updateRemindValue}
-              onClose={closeDropdown}
-            />
-          )}
-          {activeDropdown === 'tags' && (
-            <ReminderTagsDropdown
-              editTags={editTags}
-              tagInput={tagInput}
-              tagSuggestions={tagSuggestions}
-              showTagSuggestions={showTagSuggestions}
-              onTagInputChange={handleTagInputChange}
-              onTagAdd={addTag}
-              onTagRemove={removeTag}
-              onTagInputKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(tagInput); } }}
-            />
-          )}
-          {activeDropdown === 'repeat' && (
-            <ReminderRepeatDropdown
-              editRecurrenceFreq={editRecurrenceFreq}
-              editRecurrenceInterval={editRecurrenceInterval}
-              editCustomUnit={editCustomUnit}
-              onFreqChange={updateRecurrenceFreq}
-              onIntervalChange={updateRecurrenceInterval}
-              onUnitChange={updateCustomUnit}
-              onClose={closeDropdown}
-            />
-          )}
-          {activeDropdown === 'endRepeat' && (
-            <ReminderEndRepeatDropdown
-              editRecurrenceEndDate={editRecurrenceEndDate}
-              onEndDateChange={updateRecurrenceEndDate}
-              onClose={closeDropdown}
-            />
-          )}
-          {activeDropdown === 'list' && (
-            <ReminderListDropdown
-              editListId={editListId}
-              lists={lists}
-              onListChange={updateListId}
-              onClose={closeDropdown}
-            />
-          )}
-        </div>,
-        document.body
       )}
     </>
   );

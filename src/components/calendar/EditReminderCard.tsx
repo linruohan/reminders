@@ -1,18 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { ReminderResponse, ListResponse, Priority } from '@/types/api';
+import type { ReminderResponse, ListResponse } from '@/types/api';
 import {
   ReminderFormFields,
   type ReminderFormFieldValues,
 } from '../reminder/ReminderFormFields';
 import { buildUpdates } from '@/utils/reminderUpdates';
 import {
+  formFieldsToReminderPatch,
   initRemindUiState,
   joinEndDateTime,
   normalizeCustomRecurrenceUnit,
-  resolveRecurrenceFields,
-  resolveRemindFields,
-  splitDateTime,
-  tagNamesToResponses,
   validateReminderFields,
 } from '@/utils/reminderForm';
 
@@ -70,26 +67,11 @@ export function EditReminderCard({
       return;
     }
 
-    const end = splitDateTime(fields.endDateTime);
     const updates = buildUpdates(reminder, {
       title: title.trim(),
       description: description || null,
       url: url || null,
-      end_date: end?.date || null,
-      end_time: fields.isAllDay ? null : (end?.time || null),
-      is_all_day: fields.isAllDay,
-      list_id: fields.selectedListId || null,
-      is_flagged: fields.isFlagged,
-      priority: fields.priority as Priority,
-      ...resolveRecurrenceFields(
-        fields.recurrenceFreq,
-        fields.recurrenceInterval,
-        fields.customUnit,
-        fields.showEndRepeat,
-        fields.recurrenceEndDate,
-      ),
-      ...resolveRemindFields(fields.remindValue, fields.customRemindNum, fields.customRemindUnit),
-      tags: tagNamesToResponses(fields.tags),
+      ...formFieldsToReminderPatch(fields),
     });
 
     onSave(reminder.id, updates);
