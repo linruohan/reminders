@@ -43,6 +43,8 @@ pub struct Reminder {
     pub remind_before_unit: Option<String>,
     pub owner_id: Option<Uuid>,
     pub list_id: Option<Uuid>,
+    /// 父任务 ID（子提醒挂在该提醒下）
+    pub parent_id: Option<Uuid>,
     pub created_at: DateTime<Local>,
     pub updated_at: DateTime<Local>,
 }
@@ -80,6 +82,7 @@ impl Reminder {
             remind_before_unit: None,
             owner_id: None,
             list_id: None,
+            parent_id: None,
             created_at: now,
             updated_at: now,
         }

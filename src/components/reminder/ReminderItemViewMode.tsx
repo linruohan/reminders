@@ -54,6 +54,11 @@ export const ReminderItemViewMode = memo(function ReminderItemViewMode({
           }`}>
             {reminder.title}
           </div>
+          {reminder.parent_title && (
+            <div className="text-[12px] text-apple-gray mt-0.5 truncate">
+              父任务：{reminder.parent_title}
+            </div>
+          )}
           
           <div className="flex items-center gap-3 mt-1">
             {reminder.description && (
@@ -84,6 +89,7 @@ export const ReminderItemViewMode = memo(function ReminderItemViewMode({
 
           <ReminderSubtasks
             reminderId={reminder.id}
+            parentTitle={reminder.title}
             subtasks={reminder.subtasks ?? []}
             mode="view"
             onCreate={onCreateSubtask}

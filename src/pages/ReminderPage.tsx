@@ -16,6 +16,7 @@ interface ReminderPageProps {
   onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
   onDeleteReminder: (id: string) => void;
   onCreateReminder: () => void;
+  onAddChildReminder?: (parent: { id: string; title: string; listId: string | null }) => void;
   onAddList: () => void;
   onEditList?: (list: ListResponse) => void;
   onDeleteList?: (id: string) => void;
@@ -47,6 +48,7 @@ export function ReminderPage({
   onUpdateReminder,
   onDeleteReminder,
   onCreateReminder,
+  onAddChildReminder,
   onAddList,
   onEditList,
   onDeleteList,
@@ -91,6 +93,7 @@ export function ReminderPage({
         onUpdateReminder={onUpdateReminder}
         onDeleteReminder={onDeleteReminder}
         onCreateReminder={onCreateReminder}
+        onAddChildReminder={onAddChildReminder}
         onEditStart={onEditStart}
         onEditEnd={onEditEnd}
         onCut={onCut}

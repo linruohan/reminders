@@ -1,11 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SubtaskResponse } from '@/types/api';
 
 interface ReminderSubtasksProps {
+  /** 父任务 ID（创建子任务时写入 reminder_id） */
   reminderId: string;
+  /** 可选：父任务标题，用于展示层级关系 */
+  parentTitle?: string;
   subtasks: SubtaskResponse[];
   /** view：只读勾选；edit：可改标题 / 新增 / 删除 */
   mode?: 'view' | 'edit';
+  /** 紧凑模式：无分区标题与顶部分隔线 */
+  compact?: boolean;
+  /** 隐藏底部「添加」输入行（由外部加号触发添加时使用） */
+  hideAddInput?: boolean;
+  /** 递增时聚焦添加输入框并展开编辑区 */
+  focusAddToken?: number;
   onCreate: (reminderId: string, title: string) => Promise<SubtaskResponse | null>;
   onUpdate: (id: string, patch: { title?: string; is_completed?: boolean }) => Promise<SubtaskResponse | null>;
   onDelete: (id: string) => Promise<boolean>;
@@ -13,18 +22,52 @@ interface ReminderSubtasksProps {
 
 export function ReminderSubtasks({
   reminderId,
+  parentTitle,
   subtasks: initial,
   mode = 'view',
+  compact = false,
+  hideAddInput = false,
+  focusAddToken,
   onCreate,
   onUpdate,
   onDelete,
 }: ReminderSubtasksProps) {
   const [items, setItems] = useState(initial);
   const [draft, setDraft] = useState('');
+  const [editingNewId, setEditingNewId] = useState<string | null>(null);
+  const draftRef = useRef<HTMLInputElement>(null);
+  const newInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setItems(initial);
   }, [initial]);
+
+  useEffect(() => {
+    if (focusAddToken == null || focusAddToken <= 0 || mode !== 'edit') return;
+    if (hideAddInput) {
+      void (async () => {
+        const created = await onCreate(reminderId, '新子任务');
+        if (created) {
+          setItems(prev => (prev.some(s => s.id === created.id) ? prev : [...prev, created]));
+          setEditingNewId(created.id);
+        }
+      })();
+      return;
+    }
+    const t = setTimeout(() => {
+      draftRef.current?.focus();
+    }, 30);
+    return () => clearTimeout(t);
+  }, [focusAddToken, hideAddInput, mode, onCreate, reminderId]);
+
+  useEffect(() => {
+    if (!editingNewId) return;
+    const t = setTimeout(() => {
+      newInputRef.current?.focus();
+      newInputRef.current?.select();
+    }, 30);
+    return () => clearTimeout(t);
+  }, [editingNewId]);
 
   const toggle = useCallback(async (item: SubtaskResponse) => {
     const next = !item.is_completed;
@@ -39,6 +82,7 @@ export function ReminderSubtasks({
     const trimmed = title.trim();
     if (!trimmed || trimmed === item.title) {
       setItems(prev => prev.map(s => (s.id === item.id ? { ...s, title: item.title } : s)));
+      setEditingNewId(null);
       return;
     }
     setItems(prev => prev.map(s => (s.id === item.id ? { ...s, title: trimmed } : s)));
@@ -46,6 +90,7 @@ export function ReminderSubtasks({
     if (!result) {
       setItems(prev => prev.map(s => (s.id === item.id ? { ...s, title: item.title } : s)));
     }
+    setEditingNewId(null);
   }, [onUpdate]);
 
   const remove = useCallback(async (id: string) => {
@@ -70,21 +115,38 @@ export function ReminderSubtasks({
   if (mode === 'view' && items.length === 0) return null;
 
   const done = items.filter(s => s.is_completed).length;
+  const showPanel = mode === 'edit' || items.length > 0;
+
+  if (!showPanel) return null;
 
   return (
     <div
-      className={mode === 'edit' ? 'mt-3 pt-3 border-t border-apple-divider' : 'mt-2'}
+      className={
+        compact
+          ? ''
+          : mode === 'edit'
+            ? 'mt-3 pt-3 border-t border-apple-divider'
+            : 'mt-2'
+      }
       onClick={(e) => e.stopPropagation()}
     >
-      {mode === 'edit' && (
-        <div className="text-xs font-semibold text-gray-500 mb-2">
-          子任务{items.length > 0 ? ` · ${done}/${items.length}` : ''}
+      {mode === 'edit' && !compact && (
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs font-semibold text-gray-500">
+            子任务{items.length > 0 ? ` · ${done}/${items.length}` : ''}
+          </div>
+          {parentTitle && (
+            <div className="text-[11px] text-apple-gray truncate max-w-[50%]" title={`父任务：${parentTitle}`}>
+              父任务：{parentTitle}
+            </div>
+          )}
         </div>
       )}
       {mode === 'view' && items.length > 0 && (
         <div className="text-[12px] text-apple-gray mb-1">{done}/{items.length} 已完成</div>
       )}
-      <ul className="space-y-1">
+
+      <ul className={`space-y-1 ${mode === 'view' || mode === 'edit' ? 'pl-3 border-l-2 border-apple-divider/80' : ''}`}>
         {items.map(item => (
           <li key={item.id} className="flex items-center gap-2 group/sub">
             <button
@@ -106,6 +168,7 @@ export function ReminderSubtasks({
             {mode === 'edit' ? (
               <>
                 <input
+                  ref={item.id === editingNewId ? newInputRef : undefined}
                   type="text"
                   defaultValue={item.title}
                   key={`${item.id}-${item.title}`}
@@ -122,6 +185,7 @@ export function ReminderSubtasks({
                   onClick={() => remove(item.id)}
                   className="opacity-0 group-hover/sub:opacity-100 text-apple-gray hover:text-red-500 p-0.5 transition-opacity"
                   aria-label="删除子任务"
+                  title="删除子任务"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -136,9 +200,11 @@ export function ReminderSubtasks({
           </li>
         ))}
       </ul>
-      {mode === 'edit' && (
-        <div className="flex items-center gap-2 mt-2">
+
+      {mode === 'edit' && !hideAddInput && (
+        <div className="flex items-center gap-2 mt-2 pl-3">
           <input
+            ref={draftRef}
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}

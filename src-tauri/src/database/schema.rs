@@ -53,8 +53,10 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             remind_before_value INTEGER,
             remind_before_unit TEXT,
             owner_id TEXT,
+            parent_id TEXT,
             FOREIGN KEY (list_id) REFERENCES reminder_lists(id) ON DELETE SET NULL,
-            FOREIGN KEY (owner_id) REFERENCES owners(id) ON DELETE SET NULL
+            FOREIGN KEY (owner_id) REFERENCES owners(id) ON DELETE SET NULL,
+            FOREIGN KEY (parent_id) REFERENCES reminders(id) ON DELETE CASCADE
         )"#,
         [],
     )?;
@@ -219,6 +221,14 @@ fn migrate_schema(conn: &Connection) -> Result<()> {
     add_column(
         "remind_before_unit",
         "ALTER TABLE reminders ADD COLUMN remind_before_unit TEXT",
+    )?;
+    add_column(
+        "parent_id",
+        "ALTER TABLE reminders ADD COLUMN parent_id TEXT REFERENCES reminders(id) ON DELETE CASCADE",
+    )?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_reminders_parent_id ON reminders(parent_id)",
+        [],
     )?;
 
     // 重命名 due_date/due_time → created_date/created_time

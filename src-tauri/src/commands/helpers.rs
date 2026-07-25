@@ -212,7 +212,19 @@ pub(crate) fn map_reminders_with_tags(
             resp.subtasks = subtasks_by_reminder.remove(&resp.id).unwrap_or_default();
             resp
         })
-        .collect())
+        .collect::<Vec<_>>())
+        .map(|mut list| {
+            let titles: std::collections::HashMap<String, String> = list
+                .iter()
+                .map(|r| (r.id.clone(), r.title.clone()))
+                .collect();
+            for r in &mut list {
+                if let Some(pid) = r.parent_id.as_ref() {
+                    r.parent_title = titles.get(pid).cloned();
+                }
+            }
+            list
+        })
 }
 
 pub(crate) fn insert_reminder_row(
@@ -220,7 +232,7 @@ pub(crate) fn insert_reminder_row(
     reminder: &Reminder,
 ) -> Result<(), String> {
     tx.execute(
-        "INSERT INTO reminders (id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, owner_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)",
+        "INSERT INTO reminders (id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, owner_id, parent_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)",
         rusqlite::params![
             reminder.id.to_string(),
             reminder.title,
@@ -245,6 +257,7 @@ pub(crate) fn insert_reminder_row(
             reminder.remind_before_value,
             reminder.remind_before_unit,
             reminder.owner_id.map(|id| id.to_string()),
+            reminder.parent_id.map(|id| id.to_string()),
         ],
     )
     .map_err(|e| e.to_string())?;

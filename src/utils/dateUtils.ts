@@ -92,7 +92,7 @@ export const suggestedTimes = [
   { value: '09:00', label: '9:00', period: '上午' },
   { value: '10:00', label: '10:00', period: '上午' },
   { value: '11:00', label: '11:00', period: '上午' },
-  { value: '12:00', label: '12:00', period: '中午' },
+  { value: '12:00', label: '12:00', period: '下午' },
   { value: '13:00', label: '13:00', period: '下午' },
   { value: '14:00', label: '14:00', period: '下午' },
   { value: '15:00', label: '15:00', period: '下午' },
@@ -109,7 +109,6 @@ export const suggestedTimes = [
 
 export const groupedTimes = {
   上午: suggestedTimes.filter(t => t.period === '上午'),
-  中午: suggestedTimes.filter(t => t.period === '中午'),
   下午: suggestedTimes.filter(t => t.period === '下午'),
   晚上: suggestedTimes.filter(t => t.period === '晚上'),
   夜间: suggestedTimes.filter(t => t.period === '夜间'),

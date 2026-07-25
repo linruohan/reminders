@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::models::reminder::{Priority, Reminder};
 use super::lock_conn;
 
-const REMINDER_FIELDS: &str = "id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, owner_id";
+const REMINDER_FIELDS: &str = "id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, owner_id, parent_id";
 
 pub struct ReminderRepository {
     conn: Arc<Mutex<Connection>>,
@@ -187,7 +187,7 @@ impl ReminderRepository {
     pub fn update_on_conn(conn: &Connection, reminder: &Reminder) -> Result<()> {
         let now = Local::now();
         conn.execute(
-            "UPDATE reminders SET title = ?1, description = ?2, created_date = ?3, created_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, owner_id = ?21 WHERE id = ?22",
+            "UPDATE reminders SET title = ?1, description = ?2, created_date = ?3, created_time = ?4, end_date = ?5, end_time = ?6, is_all_day = ?7, is_completed = ?8, is_flagged = ?9, priority = ?10, list_id = ?11, updated_at = ?12, url = ?13, completion_date = ?14, recurrence_frequency = ?15, recurrence_interval = ?16, custom_recurrence_unit = ?17, recurrence_end_date = ?18, remind_before_value = ?19, remind_before_unit = ?20, owner_id = ?21, parent_id = ?22 WHERE id = ?23",
             params![
                 reminder.title,
                 reminder.description,
@@ -210,6 +210,7 @@ impl ReminderRepository {
                 reminder.remind_before_value,
                 reminder.remind_before_unit,
                 reminder.owner_id.map(|id| id.to_string()),
+                reminder.parent_id.map(|id| id.to_string()),
                 reminder.id.to_string(),
             ],
         )?;
@@ -261,6 +262,8 @@ impl ReminderRepository {
         let list_id = list_id_str.as_deref().and_then(|s| Uuid::parse_str(s).ok());
         let owner_id_str: Option<String> = row.get("owner_id").unwrap_or(None);
         let owner_id = owner_id_str.as_deref().and_then(|s| Uuid::parse_str(s).ok());
+        let parent_id_str: Option<String> = row.get("parent_id").unwrap_or(None);
+        let parent_id = parent_id_str.as_deref().and_then(|s| Uuid::parse_str(s).ok());
 
         let created_at_str: String = row.get("created_at")?;
         let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_str)
@@ -309,6 +312,7 @@ impl ReminderRepository {
             remind_before_unit: row.get("remind_before_unit").unwrap_or(None),
             owner_id,
             list_id,
+            parent_id,
             created_at,
             updated_at,
         })

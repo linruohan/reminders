@@ -22,6 +22,7 @@ function AuroraBackground() {
 export function App() {
   const [currentView, setCurrentView] = useState<'reminder' | 'calendar'>('reminder');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addParent, setAddParent] = useState<{ id: string; title: string; listId: string | null } | null>(null);
   const [listEditor, setListEditor] = useState<
     { mode: 'create' } | { mode: 'edit'; list: ListResponse } | null
   >(null);
@@ -82,11 +83,22 @@ export function App() {
     const result = await handleCreateReminder(data);
     if (result.data) {
       setShowAddModal(false);
+      setAddParent(null);
       showToast('success', '提醒事项已创建');
     } else {
       showToast('error', result.error || '创建提醒事项失败');
     }
   }, [handleCreateReminder, showToast]);
+
+  const handleOpenAddChild = useCallback((parent: { id: string; title: string; listId: string | null }) => {
+    setAddParent(parent);
+    setShowAddModal(true);
+  }, []);
+
+  const handleCloseAddModal = useCallback(() => {
+    setShowAddModal(false);
+    setAddParent(null);
+  }, []);
 
   const handleListEditorSubmit = useCallback(async (values: ListEditorValues) => {
     if (!listEditor) return;
@@ -211,7 +223,8 @@ export function App() {
               onToggleCompleted={handleToggleCompleted}
               onUpdateReminder={handleUpdateReminder}
               onDeleteReminder={requestDeleteReminder}
-              onCreateReminder={() => setShowAddModal(true)}
+              onCreateReminder={() => { setAddParent(null); setShowAddModal(true); }}
+              onAddChildReminder={handleOpenAddChild}
               onAddList={() => setListEditor({ mode: 'create' })}
               onEditList={(list) => setListEditor({ mode: 'edit', list })}
               onDeleteList={handleDeleteListCallback}
@@ -253,8 +266,13 @@ export function App() {
         {showAddModal && (
           <AddReminderModal
             lists={lists}
-            initialListId={activeFilter.startsWith('list:') ? activeFilter.slice('list:'.length) : null}
-            onClose={() => setShowAddModal(false)}
+            initialListId={
+              addParent?.listId
+              ?? (activeFilter.startsWith('list:') ? activeFilter.slice('list:'.length) : null)
+            }
+            initialParentId={addParent?.id ?? null}
+            initialParentTitle={addParent?.title ?? null}
+            onClose={handleCloseAddModal}
             onSubmit={handleCreateReminderCallback}
             showToast={showToast}
           />

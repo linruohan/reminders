@@ -24,6 +24,7 @@ interface ReminderItemProps {
   onCreateSubtask: (reminderId: string, title: string) => Promise<SubtaskResponse | null>;
   onUpdateSubtask: (id: string, patch: { title?: string; is_completed?: boolean }) => Promise<SubtaskResponse | null>;
   onDeleteSubtask: (id: string) => Promise<boolean>;
+  onAddChildReminder?: (parent: ReminderResponse) => void;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
@@ -46,6 +47,7 @@ export const ReminderItem = memo(function ReminderItem({
   onCreateSubtask,
   onUpdateSubtask,
   onDeleteSubtask,
+  onAddChildReminder,
   showToast,
 }: ReminderItemProps) {
   const [showDetail, setShowDetail] = useState(false);
@@ -89,6 +91,7 @@ export const ReminderItem = memo(function ReminderItem({
         onCreateSubtask={onCreateSubtask}
         onUpdateSubtask={onUpdateSubtask}
         onDeleteSubtask={onDeleteSubtask}
+        onAddChildReminder={onAddChildReminder}
         showToast={showToast}
       />
     );

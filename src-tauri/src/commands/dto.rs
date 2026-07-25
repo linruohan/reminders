@@ -34,11 +34,18 @@ pub struct ReminderResponse {
     pub subtasks: Vec<SubtaskResponse>,
     pub list_id: Option<String>,
     pub owner_id: Option<String>,
+    /// 父任务 ID
+    pub parent_id: Option<String>,
+    /// 父任务标题（列表展示用，可为空）
+    #[serde(default)]
+    pub parent_title: Option<String>,
 }
 
+/// 子任务；`reminder_id` 为父任务 ID
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubtaskResponse {
     pub id: String,
+    /// 父任务 ID
     pub reminder_id: String,
     pub title: String,
     pub is_completed: bool,
@@ -75,6 +82,8 @@ impl From<Reminder> for ReminderResponse {
             subtasks: Vec::new(),
             list_id: r.list_id.map(|id| id.to_string()),
             owner_id: r.owner_id.map(|id| id.to_string()),
+            parent_id: r.parent_id.map(|id| id.to_string()),
+            parent_title: None,
         }
     }
 }
@@ -100,6 +109,8 @@ pub struct CreateReminderRequest {
     pub remind_before_unit: Option<String>,
     pub tags: Option<Vec<String>>,
     pub owner_id: Option<String>,
+    /// 父任务 ID
+    pub parent_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -123,10 +134,14 @@ pub struct UpdateReminderRequest {
     pub remind_before_value: Option<i32>,
     pub remind_before_unit: Option<String>,
     pub tags: Option<Vec<String>>,
+    /// 传空字符串可清空父任务
+    pub parent_id: Option<String>,
 }
 
+/// 创建子任务；`reminder_id` 为父任务 ID
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateSubtaskRequest {
+    /// 父任务 ID
     pub reminder_id: String,
     pub title: String,
 }

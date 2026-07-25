@@ -15,6 +15,7 @@ interface ReminderListProps {
   onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
   onDeleteReminder: (id: string) => void;
   onCreateReminder: () => void;
+  onAddChildReminder?: (parent: { id: string; title: string; listId: string | null }) => void;
   onEditStart: () => void;
   onEditEnd: () => void;
   onCut: (reminder: ReminderResponse) => void;
@@ -63,6 +64,7 @@ export function ReminderList({
   onUpdateReminder,
   onDeleteReminder,
   onCreateReminder,
+  onAddChildReminder,
   onEditStart,
   onEditEnd,
   onCut,
@@ -130,11 +132,28 @@ export function ReminderList({
   const completedCount = useMemo(() => reminders.filter(r => r.is_completed).length, [reminders]);
   /** 「完成」筛选本身全是已完成项，不能再被「隐藏已完成」滤掉 */
   const isCompletedFilter = activeFilter === 'completed';
-  const visibleReminders = useMemo(
-    () =>
-      reminders.filter(r => isCompletedFilter || showCompleted || !r.is_completed),
-    [reminders, isCompletedFilter, showCompleted],
-  );
+  const visibleReminders = useMemo(() => {
+    const filtered = reminders.filter(r => isCompletedFilter || showCompleted || !r.is_completed);
+    const ids = new Set(filtered.map(r => r.id));
+    const children = new Map<string, ReminderResponse[]>();
+    const roots: ReminderResponse[] = [];
+    for (const r of filtered) {
+      if (r.parent_id && ids.has(r.parent_id)) {
+        const list = children.get(r.parent_id) ?? [];
+        list.push(r);
+        children.set(r.parent_id, list);
+      } else {
+        roots.push(r);
+      }
+    }
+    const ordered: Array<{ reminder: ReminderResponse; depth: number }> = [];
+    const walk = (r: ReminderResponse, depth: number) => {
+      ordered.push({ reminder: r, depth });
+      for (const c of children.get(r.id) ?? []) walk(c, depth + 1);
+    };
+    for (const r of roots) walk(r, 0);
+    return ordered;
+  }, [reminders, isCompletedFilter, showCompleted]);
 
   const { containerRef, shouldVirtualize, start, end, offsetY, totalHeight } = useVirtualList(
     visibleReminders.length,
@@ -198,6 +217,19 @@ export function ReminderList({
     setEditingId(null);
     editingValuesRef.current = {};
   }, []);
+
+  const handleAddChildReminder = useCallback((parent: ReminderResponse) => {
+    const id = editingIdRef.current;
+    if (id) {
+      if (!commitEditing(id)) return;
+      setEditingId(null);
+    }
+    onAddChildReminder?.({
+      id: parent.id,
+      title: parent.title,
+      listId: parent.list_id,
+    });
+  }, [commitEditing, onAddChildReminder]);
 
   // 切换筛选时提交草稿，避免丢失修改并卡住 isEditing
   const prevFilterRef = useRef(activeFilter);
@@ -306,17 +338,19 @@ export function ReminderList({
               className="space-y-1"
               style={shouldVirtualize ? { transform: `translateY(${offsetY}px)` } : undefined}
             >
-              {renderedReminders.map((reminder, index) => {
+              {renderedReminders.map((entry, index) => {
+                const reminder = entry.reminder;
                 const absoluteIndex = shouldVirtualize ? start + index : index;
                 return (
                   <div
                     key={reminder.id}
                     className="animate-fade-in-up"
-                    style={
-                      shouldVirtualize
-                        ? undefined
-                        : { animationDelay: `${Math.min(absoluteIndex, 20) * 30}ms` }
-                    }
+                    style={{
+                      ...(shouldVirtualize
+                        ? {}
+                        : { animationDelay: `${Math.min(absoluteIndex, 20) * 30}ms` }),
+                      ...(entry.depth > 0 ? { paddingLeft: `${entry.depth * 20}px` } : {}),
+                    }}
                   >
                     <ReminderItem
                       reminder={reminder}
@@ -332,13 +366,14 @@ export function ReminderList({
                       onUpdateReminder={onUpdateReminder}
                       onCut={onCut}
                       onCopy={onCopy}
-                  onPaste={onPaste}
-                  canPaste={canPaste}
-                  onCreateSubtask={onCreateSubtask}
-                  onUpdateSubtask={onUpdateSubtask}
-                  onDeleteSubtask={onDeleteSubtask}
-                  showToast={showToast}
-                />
+                      onPaste={onPaste}
+                      canPaste={canPaste}
+                      onCreateSubtask={onCreateSubtask}
+                      onUpdateSubtask={onUpdateSubtask}
+                      onDeleteSubtask={onDeleteSubtask}
+                      onAddChildReminder={handleAddChildReminder}
+                      showToast={showToast}
+                    />
                   </div>
                 );
               })}

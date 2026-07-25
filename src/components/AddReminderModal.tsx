@@ -16,6 +16,10 @@ interface AddReminderModalProps {
   initialListId?: string | null;
   initialEndDateTime?: string | null;
   initialIsAllDay?: boolean;
+  /** 默认父任务 ID */
+  initialParentId?: string | null;
+  /** 默认父任务标题（展示用） */
+  initialParentTitle?: string | null;
   onClose: () => void;
   onSubmit: (data: {
     title: string;
@@ -34,6 +38,7 @@ interface AddReminderModalProps {
     remind_before_value?: number | null;
     remind_before_unit?: TimeUnit | null;
     tags?: string[];
+    parent_id?: string | null;
   }) => void;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
@@ -48,6 +53,8 @@ export function AddReminderModal({
   initialListId,
   initialEndDateTime,
   initialIsAllDay = false,
+  initialParentId = null,
+  initialParentTitle = null,
   onClose,
   onSubmit,
   showToast,
@@ -124,11 +131,12 @@ export function AddReminderModal({
         ),
         ...resolveRemindFields(fields.remindValue, fields.customRemindNum, fields.customRemindUnit),
         tags: fields.tags.length > 0 ? fields.tags : undefined,
+        parent_id: initialParentId || null,
       });
     } finally {
       setIsSubmitting(false);
     }
-  }, [title, description, url, startDateTime, fields, onSubmit, showToast]);
+  }, [title, description, url, startDateTime, fields, onSubmit, showToast, initialParentId]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -153,7 +161,9 @@ export function AddReminderModal({
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
-          <span className="text-sm font-semibold text-gray-900">新建提醒事项</span>
+          <span className="text-sm font-semibold text-gray-900">
+            {initialParentId ? '新建子提醒' : '新建提醒事项'}
+          </span>
           <button
             onClick={handleSubmit}
             disabled={!title.trim() || isSubmitting}
@@ -170,6 +180,14 @@ export function AddReminderModal({
         </div>
 
         <div className="p-4 max-h-[520px] overflow-y-auto">
+          {initialParentId && (
+            <div className="mb-3 px-3 py-2 rounded-[10px] bg-[#F2F2F7] text-[13px] text-gray-600">
+              父任务：
+              <span className="font-medium text-gray-900 ml-1">
+                {initialParentTitle || '当前提醒'}
+              </span>
+            </div>
+          )}
           <input
             ref={inputRef}
             type="text"

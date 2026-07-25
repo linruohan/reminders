@@ -3,8 +3,10 @@ export interface TagResponse {
   name: string;
 }
 
+/** 子任务：挂在父提醒下的轻量清单项（reminder_id = 父任务 ID） */
 export interface SubtaskResponse {
   id: string;
+  /** 父任务 ID */
   reminder_id: string;
   title: string;
   is_completed: boolean;
@@ -52,9 +54,14 @@ export interface ReminderResponse {
   remind_before_value: number | null;
   remind_before_unit: TimeUnit | null;
   tags: TagResponse[];
+  /** 子任务列表（清单型子项，父任务为当前提醒） */
   subtasks: SubtaskResponse[];
   list_id: string | null;
   owner_id: string | null;
+  /** 父任务 ID（父子提醒层级） */
+  parent_id: string | null;
+  /** 父任务标题（列表/新建展示） */
+  parent_title?: string | null;
 }
 
 export interface ListResponse {
@@ -88,6 +95,8 @@ export interface CreateReminderRequest {
   remind_before_value?: number | null;
   remind_before_unit?: TimeUnit | null;
   tags?: string[];
+  /** 父任务 ID */
+  parent_id?: string | null;
 }
 
 export interface UpdateReminderRequest {
@@ -122,9 +131,13 @@ export interface UpdateReminderRequest {
   /** 传空字符串可清空提前提醒单位（并清空数值） */
   remind_before_unit?: TimeUnit | '' | null;
   tags?: string[];
+  /** 传空字符串可清空父任务 */
+  parent_id?: string | null;
 }
 
+/** 创建子任务；reminder_id 为父任务 ID */
 export interface CreateSubtaskRequest {
+  /** 父任务 ID */
   reminder_id: string;
   title: string;
 }

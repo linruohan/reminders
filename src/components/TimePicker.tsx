@@ -7,7 +7,7 @@ interface TimePickerProps {
   onClose?: () => void;
 }
 
-const TIME_PERIODS: Array<'上午' | '中午' | '下午' | '晚上' | '夜间'> = ['上午', '中午', '下午', '晚上', '夜间'];
+const TIME_PERIODS: Array<'上午' | '下午' | '晚上' | '夜间'> = ['上午', '下午', '晚上', '夜间'];
 
 /**
  * 格式化时间显示文本
@@ -37,7 +37,7 @@ export const TimePicker = memo(function TimePicker({
   onChange,
   onClose,
 }: TimePickerProps) {
-  const [selectedPeriod, setSelectedPeriod] = useState<'上午' | '中午' | '下午' | '晚上' | '夜间'>('上午');
+  const [selectedPeriod, setSelectedPeriod] = useState<'上午' | '下午' | '晚上' | '夜间'>('上午');
 
   const times = useMemo(() => groupedTimes[selectedPeriod] || [], [selectedPeriod]);
 

@@ -168,6 +168,16 @@ pub fn create_reminder(
     reminder.remind_before_value = request.remind_before_value;
     reminder.remind_before_unit = request.remind_before_unit;
 
+    if let Some(pid) = request.parent_id.as_deref().and_then(|s| {
+        if s.is_empty() {
+            None
+        } else {
+            Uuid::parse_str(s).ok()
+        }
+    }) {
+        reminder.parent_id = Some(pid);
+    }
+
     let reminder_id = reminder.id.to_string();
     let conn = get_conn(&db);
     let mut conn_guard = conn.lock().map_err(|e| e.to_string())?;
@@ -277,6 +287,13 @@ pub fn update_reminder(
         } else {
             reminder.remind_before_unit = Some(rbu);
         }
+    }
+    if let Some(s) = request.parent_id {
+        reminder.parent_id = if s.is_empty() {
+            None
+        } else {
+            Uuid::parse_str(&s).ok()
+        };
     }
 
     let conn = get_conn(&db);
