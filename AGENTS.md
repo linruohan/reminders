@@ -61,7 +61,7 @@ Automatic builds triggered on:
 ## Architecture
 
 - SQLite via rusqlite (`bundled` feature, no system SQLite needed). DB file at Tauri app data dir (`reminders.db`), auto-created on first launch with schema + initial data.
-- Date model: `created_date/time` = record creation stamp; `end_date/time` = user due/deadline (drives today/planned/overdue filters and calendar).
+- Date model: `created_date/time` = record creation stamp; `end_date/time` = user due/deadline (drives today/planned filters and calendar). Today includes overdue incomplete items.
 - All IDs are UUID v4 strings. Tauri commands accept/return them as plain `String` (not `Uuid`).
 - Rust backend: each command receives `State<'_, Database>` which wraps `Arc<Mutex<Connection>>`.
 - Frontend: `src/hooks/useApi.ts` (Tauri invoke wrappers) + `src/hooks/useReminderData.ts` (data layer / cache).

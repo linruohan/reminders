@@ -31,7 +31,6 @@ pub fn get_reminders_by_filter(
     let reminders = match filter.as_str() {
         "today" => repo.get_today(),
         "planned" => repo.get_planned(),
-        "overdue" => repo.get_overdue(),
         "completed" => repo.get_completed(),
         "urgent" => repo.get_urgent(),
         "flagged" => repo.get_flagged(),

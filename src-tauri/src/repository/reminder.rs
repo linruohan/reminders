@@ -46,9 +46,9 @@ impl ReminderRepository {
         let today = Local::now().date_naive();
         let conn = lock_conn(&self.conn)?;
         let date_str = today.format("%Y-%m-%d").to_string();
-        // 今天：截止日期恰好为今天（无截止日期不纳入；逾期见 get_overdue）
+        // 今天：逾期未完成 + 截止日期为今天的未完成（无截止日期不纳入）
         let query = format!(
-            "SELECT {REMINDER_FIELDS} FROM reminders WHERE end_date = ? AND is_completed = 0 ORDER BY created_at DESC"
+            "SELECT {REMINDER_FIELDS} FROM reminders WHERE end_date IS NOT NULL AND end_date <= ? AND is_completed = 0 ORDER BY end_date ASC, created_at DESC"
         );
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([date_str], Self::row_to_reminder)?;
@@ -80,18 +80,6 @@ impl ReminderRepository {
         let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE is_completed = 1 ORDER BY created_at DESC");
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([], Self::row_to_reminder)?;
-        rows.collect()
-    }
-
-    pub fn get_overdue(&self) -> Result<Vec<Reminder>> {
-        let today = Local::now().date_naive();
-        let conn = lock_conn(&self.conn)?;
-        let date_str = today.format("%Y-%m-%d").to_string();
-        let query = format!(
-            "SELECT {REMINDER_FIELDS} FROM reminders WHERE end_date IS NOT NULL AND end_date < ? AND is_completed = 0 ORDER BY created_at DESC"
-        );
-        let mut stmt = conn.prepare(&query)?;
-        let rows = stmt.query_map([date_str], Self::row_to_reminder)?;
         rows.collect()
     }
 

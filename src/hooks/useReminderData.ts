@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useApi } from './useApi';
 import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, CreateReminderRequest, SubtaskResponse } from '@/types/api';
-import { isDueToday, isOverdue, isPlanned } from '@/utils/reminderDates';
+import { isDueToday, isPlanned } from '@/utils/reminderDates';
 import { normalizeUpdateRequest } from '@/utils/normalizeUpdateRequest';
 
 interface ReminderCache {
@@ -459,7 +459,6 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
       all: allReminders.length,
       today: allReminders.filter(isDueToday).length,
       planned: allReminders.filter(isPlanned).length,
-      overdue: allReminders.filter(isOverdue).length,
       completed: allReminders.filter(r => r.is_completed).length,
       urgent: incomplete.filter(r => r.priority === 'high').length,
       flagged: incomplete.filter(r => r.is_flagged).length,

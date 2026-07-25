@@ -40,7 +40,7 @@
 
 ## 三、数据模型（要点）
 
-- `created_date/time`：创建戳；`end_date/time`：截止（驱动今天/计划/逾期与日历）
+- `created_date/time`：创建戳；`end_date/time`：截止（驱动今天/计划与日历；今天含逾期未完成）
 - ID：UUID v4 字符串
 - 扩展字段：全天、旗标、优先级、重复、提前提醒、负责人、标签、URL、子任务
 

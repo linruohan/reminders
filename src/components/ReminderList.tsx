@@ -121,7 +121,6 @@ export function ReminderList({
     const filterMap: Record<string, string> = {
       today: '今天',
       planned: '计划',
-      overdue: '已逾期',
       all: '全部',
       flagged: '旗标',
       urgent: '紧急',
