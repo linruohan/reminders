@@ -76,6 +76,38 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     }));
   }, []);
 
+  /** 立刻写回 all 缓存，避免侧栏计数与列表因异步双请求短暂不一致 */
+  const upsertInAllCache = useCallback((reminder: ReminderResponse) => {
+    setCache(prev => {
+      const all = prev['all'];
+      if (!all) {
+        return {
+          ...prev,
+          all: { data: [reminder], timestamp: Date.now() },
+        };
+      }
+      const idx = all.data.findIndex(r => r.id === reminder.id);
+      const data = idx >= 0
+        ? all.data.map((r, i) => (i === idx ? { ...reminder, subtasks: reminder.subtasks ?? r.subtasks } : r))
+        : [reminder, ...all.data];
+      return { ...prev, all: { data, timestamp: Date.now() } };
+    });
+  }, []);
+
+  const removeFromAllCache = useCallback((id: string) => {
+    setCache(prev => {
+      const all = prev['all'];
+      if (!all) return prev;
+      return {
+        ...prev,
+        all: {
+          data: all.data.filter(r => r.id !== id),
+          timestamp: Date.now(),
+        },
+      };
+    });
+  }, []);
+
   /** 加载指定过滤器的提醒数据，force=true 时跳过缓存强制拉取 */
   const loadReminders = useCallback(async (filter: string, force: boolean = false, skipSetReminders: boolean = false) => {
     const cached = getCachedReminders(filter);
@@ -205,25 +237,27 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
   const handleToggleCompleted = useCallback(async (id: string) => {
     const result = await toggleReminderCompleted(id);
     if (result) {
+      upsertInAllCache(result);
       await syncAfterMutation();
     } else {
       const errorMsg = error[`toggle_reminder_${id}`] || '更新提醒状态失败';
       showToast?.('error', errorMsg);
     }
-  }, [toggleReminderCompleted, syncAfterMutation, showToast, error]);
+  }, [toggleReminderCompleted, upsertInAllCache, syncAfterMutation, showToast, error]);
 
   const handleUpdateReminder = useCallback(async (id: string, updates: Partial<ReminderResponse>) => {
     // 将前端 null 清空转为后端哨兵（'' / -1），避免 Option::None = 不更新
     const request = normalizeUpdateRequest(id, updates);
     const result = await updateReminder(request);
     if (result) {
+      upsertInAllCache(result);
       await syncAfterMutation();
       await loadTags();
     } else {
       const errorMsg = error[`update_reminder_${id}`] || '更新提醒失败';
       showToast?.('error', errorMsg);
     }
-  }, [updateReminder, syncAfterMutation, showToast, error, loadTags]);
+  }, [updateReminder, upsertInAllCache, syncAfterMutation, showToast, error, loadTags]);
 
   const handleAddList = useCallback(async (name: string, icon?: string, color?: string) => {
     const result = await createList({ name, icon: icon || 'list', color });
@@ -236,6 +270,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
   const handleDeleteReminder = useCallback(async (id: string) => {
     const success = await deleteReminder(id);
     if (success) {
+      removeFromAllCache(id);
       await syncAfterMutation();
       showToast?.('success', '提醒已删除');
     } else {
@@ -243,16 +278,17 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
       showToast?.('error', errorMsg);
     }
     return success;
-  }, [deleteReminder, syncAfterMutation, showToast, error]);
+  }, [deleteReminder, removeFromAllCache, syncAfterMutation, showToast, error]);
 
   const handleCreateReminder = useCallback(async (data: CreateReminderRequest) => {
     const result = await createReminder(data);
     if (result.data) {
+      upsertInAllCache(result.data);
       await syncAfterMutation();
       await loadTags();
     }
     return result;
-  }, [createReminder, syncAfterMutation, loadTags]);
+  }, [createReminder, upsertInAllCache, syncAfterMutation, loadTags]);
 
   const handleDeleteList = useCallback(async (id: string) => {
     const success = await deleteList(id);
@@ -530,13 +566,38 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     };
   }, [allReminders, lists, owners, tags]);
 
+  /**
+   * 智能筛选（今天/计划/旗标等）从 all 派生，与侧栏计数同一数据源。
+   * 列表/负责人/标签/搜索仍用服务端筛选结果。
+   */
+  const viewReminders = useMemo(() => {
+    if (searchQuery.trim()) return reminders;
+    if (!allDataLoaded) return reminders;
+    switch (activeFilter) {
+      case 'today':
+        return allReminders.filter(isDueToday);
+      case 'planned':
+        return allReminders.filter(isPlanned);
+      case 'flagged':
+        return allReminders.filter(r => !r.is_completed && r.is_flagged);
+      case 'urgent':
+        return allReminders.filter(r => !r.is_completed && r.priority === 'high');
+      case 'completed':
+        return allReminders.filter(r => r.is_completed);
+      case 'all':
+        return allReminders;
+      default:
+        return reminders;
+    }
+  }, [searchQuery, reminders, allDataLoaded, activeFilter, allReminders]);
+
   const isInitialLoading = 
-    (activeFilterLoaded === false || allDataLoaded === false) && reminders.length === 0;
+    (activeFilterLoaded === false || allDataLoaded === false) && viewReminders.length === 0;
 
   const isCalendarLoading = !allDataLoaded;
 
   return {
-    reminders,
+    reminders: viewReminders,
     allReminders,
     lists,
     owners,
