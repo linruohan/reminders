@@ -68,7 +68,7 @@ jobs:
         if: env.BUILD_ENV == 'development'
         uses: tauri-apps/tauri-action@v0
         with:
-          target: x86_64-pc-windows-msvc
+          args: "--target x86_64-pc-windows-msvc"
           debug: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -82,7 +82,7 @@ jobs:
           releaseBody: "Beta build from CI"
           releaseDraft: true
           prerelease: true
-          target: x86_64-pc-windows-msvc
+          args: "--target x86_64-pc-windows-msvc"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -95,7 +95,7 @@ jobs:
           releaseBody: "Production release"
           releaseDraft: false
           prerelease: false
-          target: x86_64-pc-windows-msvc
+          args: "--target x86_64-pc-windows-msvc"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
