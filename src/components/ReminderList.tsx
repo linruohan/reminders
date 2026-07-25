@@ -2,8 +2,11 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
 import { buildUpdates } from '@/utils/reminderUpdates';
 import { validateReminderFields } from '@/utils/reminderForm';
+import { isOverdue } from '@/utils/reminderDates';
 import { useVirtualList } from '@/hooks/useVirtualList';
 import { ReminderItem } from './ReminderItem';
+
+type VisibleEntry = { reminder: ReminderResponse; depth: number };
 
 interface ReminderListProps {
   reminders: ReminderResponse[];
@@ -146,7 +149,7 @@ export function ReminderList({
         roots.push(r);
       }
     }
-    const ordered: Array<{ reminder: ReminderResponse; depth: number }> = [];
+    const ordered: VisibleEntry[] = [];
     const walk = (r: ReminderResponse, depth: number) => {
       ordered.push({ reminder: r, depth });
       for (const c of children.get(r.id) ?? []) walk(c, depth + 1);
@@ -155,9 +158,25 @@ export function ReminderList({
     return ordered;
   }, [reminders, isCompletedFilter, showCompleted]);
 
+  /** 今天视图：按根任务拆成已过期 / 未过期两组 */
+  const todayGroups = useMemo(() => {
+    if (activeFilter !== 'today') return null;
+    const overdue: VisibleEntry[] = [];
+    const due: VisibleEntry[] = [];
+    let bucket = due;
+    for (const entry of visibleReminders) {
+      if (entry.depth === 0) {
+        bucket = isOverdue(entry.reminder) ? overdue : due;
+      }
+      bucket.push(entry);
+    }
+    return { overdue, due };
+  }, [activeFilter, visibleReminders]);
+
+  const useGroupedToday = todayGroups !== null;
   const { containerRef, shouldVirtualize, start, end, offsetY, totalHeight } = useVirtualList(
     visibleReminders.length,
-    editingId === null,
+    editingId === null && !useGroupedToday,
   );
   const renderedReminders = shouldVirtualize
     ? visibleReminders.slice(start, end)
@@ -289,6 +308,37 @@ export function ReminderList({
     };
   }, [editingId, handleCancelEditing]);
 
+  const renderReminderEntry = (entry: VisibleEntry, index: number, animate = true) => (
+    <div
+      key={entry.reminder.id}
+      className={animate ? 'animate-fade-in-up' : undefined}
+      style={{
+        ...(animate ? { animationDelay: `${Math.min(index, 20) * 30}ms` } : {}),
+        ...(entry.depth > 0 ? { paddingLeft: `${entry.depth * 24}px` } : {}),
+      }}
+    >
+      <ReminderItem
+        reminder={entry.reminder}
+        lists={lists}
+        owners={owners}
+        isEditing={editingId === entry.reminder.id}
+        onToggleCompleted={onToggleCompleted}
+        onDelete={onDeleteReminder}
+        onStartEditing={handleStartEditing}
+        onSaveAndStopEditing={handleSaveAndStopEditing}
+        onCancelEditing={handleCancelEditing}
+        onChange={handleChangeEditing}
+        onUpdateReminder={onUpdateReminder}
+        onCut={onCut}
+        onCopy={onCopy}
+        onPaste={onPaste}
+        canPaste={canPaste}
+        onAddChildReminder={handleAddChildReminder}
+        showToast={showToast}
+      />
+    </div>
+  );
+
   return (
     <main className="flex-1 h-full flex flex-col relative">
       <div className="flex items-start justify-between px-8 pt-6 pb-5">
@@ -332,6 +382,27 @@ export function ReminderList({
                   : '没有提醒事项'}
             </span>
           </div>
+        ) : useGroupedToday && todayGroups ? (
+          <div className="space-y-4">
+            {todayGroups.overdue.length > 0 && (
+              <fieldset className="m-0 min-w-0 rounded-[12px] border border-apple-divider px-2 pb-2 pt-0">
+                <legend className="ml-1 px-1.5 text-[12px] font-medium leading-none text-apple-red">
+                  已过期
+                </legend>
+                <div className="space-y-1">
+                  {todayGroups.overdue.map((entry, index) => renderReminderEntry(entry, index))}
+                </div>
+              </fieldset>
+            )}
+            {todayGroups.due.length > 0 && (
+              <div>
+                <div className="px-1 mb-1.5 text-[12px] font-medium text-apple-gray">未过期</div>
+                <div className="space-y-1">
+                  {todayGroups.due.map((entry, index) => renderReminderEntry(entry, index))}
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <div
             className="relative"
@@ -341,42 +412,9 @@ export function ReminderList({
               className="space-y-1"
               style={shouldVirtualize ? { transform: `translateY(${offsetY}px)` } : undefined}
             >
-              {renderedReminders.map((entry, index) => {
-                const reminder = entry.reminder;
-                const absoluteIndex = shouldVirtualize ? start + index : index;
-                return (
-                  <div
-                    key={reminder.id}
-                    className="animate-fade-in-up"
-                    style={{
-                      ...(shouldVirtualize
-                        ? {}
-                        : { animationDelay: `${Math.min(absoluteIndex, 20) * 30}ms` }),
-                      ...(entry.depth > 0 ? { paddingLeft: `${entry.depth * 24}px` } : {}),
-                    }}
-                  >
-                    <ReminderItem
-                      reminder={reminder}
-                      lists={lists}
-                      owners={owners}
-                      isEditing={editingId === reminder.id}
-                      onToggleCompleted={onToggleCompleted}
-                      onDelete={onDeleteReminder}
-                      onStartEditing={handleStartEditing}
-                      onSaveAndStopEditing={handleSaveAndStopEditing}
-                      onCancelEditing={handleCancelEditing}
-                      onChange={handleChangeEditing}
-                      onUpdateReminder={onUpdateReminder}
-                      onCut={onCut}
-                      onCopy={onCopy}
-                      onPaste={onPaste}
-                      canPaste={canPaste}
-                      onAddChildReminder={handleAddChildReminder}
-                      showToast={showToast}
-                    />
-                  </div>
-                );
-              })}
+              {renderedReminders.map((entry, index) =>
+                renderReminderEntry(entry, shouldVirtualize ? start + index : index, !shouldVirtualize),
+              )}
             </div>
           </div>
         )}

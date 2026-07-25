@@ -9,14 +9,13 @@ import {
   timelineHours,
   weekDays,
   clampMinuteOfDay,
-  formatHourMinute,
   hourMinuteToTop,
   minuteOfDayToTop,
   scrollTimelineToHour,
   snapMinute,
   minuteOfDayToTimeString,
 } from './utils';
-import { TimelineSlot } from './TimelineComponents';
+import { TimelineSlot, HoverLine } from './TimelineComponents';
 import { getListColor } from './utils';
 
 interface WeekViewProps {
@@ -234,7 +233,7 @@ export function WeekView({
                         });
                         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                       }}
-                      className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-white/80 hover:bg-white shadow-sm text-xs transition-colors whitespace-nowrap cursor-grab active:cursor-grabbing"
+                      className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-white/80 hover:bg-white hover:ring-1 hover:ring-apple-blue/45 shadow-sm text-xs transition-all whitespace-nowrap cursor-grab active:cursor-grabbing"
                     >
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                       <span className={r.is_completed ? 'text-gray-400 line-through' : 'text-gray-700'}>{r.title}</span>
@@ -287,7 +286,7 @@ export function WeekView({
                         style={{ top, height }}
                         onPointerDown={(e) => handleBlockPointerDown(e, r, colIdx)}
                       >
-                        <div className="h-full rounded-apple-sm border-l-[3px] bg-blue-50/60 border-blue-400 shadow-sm hover:shadow-md transition-shadow flex items-center px-1.5" style={{ borderLeftColor: color }}>
+                        <div className="h-full rounded-apple-sm border-l-[3px] bg-blue-50/60 shadow-sm hover:shadow-md hover:ring-1 hover:ring-apple-blue/50 hover:bg-blue-50 transition-all duration-200 flex items-center px-1.5" style={{ borderLeftColor: color }}>
                           <div className="flex items-center gap-1 w-full">
                             <span className={`flex-1 text-[11px] font-medium truncate leading-tight ${r.is_completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
                               {r.title}
@@ -315,17 +314,7 @@ export function WeekView({
             })}
           </div>
           {(hoverInfo !== null || drag?.started) && (
-            <div className="absolute left-0 right-0 z-30 pointer-events-none" style={{ top: minuteOfDayToTop(drag?.started ? drag.minute : (hoverInfo?.minute ?? 0)) }}>
-              <div className="flex items-center ml-14">
-                <div className="flex-1 border-t border-red-400/70" />
-                <span className="text-[10px] font-medium text-red-500 bg-white/90 px-1 rounded-sm leading-tight whitespace-nowrap">
-                  {formatHourMinute(
-                    TIMELINE_START_HOUR + Math.floor((drag?.started ? drag.minute : (hoverInfo?.minute ?? 0)) / 60),
-                    (drag?.started ? drag.minute : (hoverInfo?.minute ?? 0)) % 60,
-                  )}
-                </span>
-              </div>
-            </div>
+            <HoverLine minute={drag?.started ? drag.minute : (hoverInfo?.minute ?? 0)} />
           )}
         </div>
       </div>

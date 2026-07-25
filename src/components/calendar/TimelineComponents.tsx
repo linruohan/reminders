@@ -25,9 +25,9 @@ export function HoverLine({ minute }: { minute: number }) {
   const m = minute % 60;
   return (
     <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: minuteOfDayToTop(minute) }}>
-      <div className="flex items-center ml-14">
-        <div className="flex-1 border-t border-red-400/70" />
-        <span className="text-[10px] font-medium text-red-500 bg-white/90 px-1 rounded-sm leading-tight whitespace-nowrap">
+      <div className="relative ml-14">
+        <div className="border-t border-red-400/70" />
+        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[20px] font-medium text-red-500 bg-white/90 px-1.5 rounded-sm leading-none whitespace-nowrap">
           {formatHourMinute(h, m)}
         </span>
       </div>
@@ -62,7 +62,7 @@ export function AllDaySection({
             <button
               key={r.id}
               onClick={() => onReminderClick(r)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-white/80 hover:bg-white shadow-sm text-xs transition-colors whitespace-nowrap"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-white/80 hover:bg-white hover:ring-1 hover:ring-apple-blue/45 shadow-sm text-xs transition-all whitespace-nowrap"
             >
               <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
               <span className={r.is_completed ? 'text-gray-400 line-through' : 'text-gray-700'}>{r.title}</span>
@@ -109,7 +109,7 @@ export function ReminderBlock({
       }}
     >
       <div
-        className="mx-1 h-full rounded-apple-sm border-l-[3px] bg-blue-50/60 border-blue-400 shadow-sm hover:shadow-md transition-shadow flex items-center px-2"
+        className="mx-1 h-full rounded-apple-sm border-l-[3px] bg-blue-50/60 shadow-sm hover:shadow-md hover:ring-1 hover:ring-apple-blue/50 hover:bg-blue-50 transition-all duration-200 flex items-center px-2"
         style={{ borderLeftColor: listColor }}
       >
         <div className="flex items-center gap-3 w-full">

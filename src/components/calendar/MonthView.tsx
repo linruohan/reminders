@@ -137,7 +137,7 @@ export function MonthView({
                           });
                           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                         }}
-                        className="text-[10px] truncate px-1.5 py-0.5 rounded-[6px] bg-white/90 hover:bg-white transition-colors cursor-grab active:cursor-grabbing"
+                        className="text-[10px] truncate px-1.5 py-0.5 rounded-[6px] bg-white/90 hover:bg-white hover:ring-1 hover:ring-apple-blue/45 transition-all cursor-grab active:cursor-grabbing"
                       >
                         <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ backgroundColor: getListColor(lists, r.list_id) }} />
                         <span className={r.is_completed ? 'text-gray-400 line-through' : 'text-gray-700'}>{r.title}</span>
