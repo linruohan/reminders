@@ -2,11 +2,13 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
 import { buildUpdates } from '@/utils/reminderUpdates';
 import { validateReminderFields } from '@/utils/reminderForm';
+import { formatDate } from '@/utils/dateUtils';
 import { isOverdue } from '@/utils/reminderDates';
 import { useVirtualList } from '@/hooks/useVirtualList';
 import { ReminderItem } from './ReminderItem';
 
 type VisibleEntry = { reminder: ReminderResponse; depth: number };
+type DateGroup = { date: string; label: string; entries: VisibleEntry[] };
 
 interface ReminderListProps {
   reminders: ReminderResponse[];
@@ -173,10 +175,33 @@ export function ReminderList({
     return { overdue, due };
   }, [activeFilter, visibleReminders]);
 
-  const useGroupedToday = todayGroups !== null;
+  /** 计划视图：按截止日期分组，仅显示有提醒的日期 */
+  const plannedGroups = useMemo((): DateGroup[] | null => {
+    if (activeFilter !== 'planned') return null;
+    const map = new Map<string, VisibleEntry[]>();
+    let currentDate: string | null = null;
+    for (const entry of visibleReminders) {
+      if (entry.depth === 0) {
+        currentDate = entry.reminder.end_date;
+        if (!currentDate) continue;
+        if (!map.has(currentDate)) map.set(currentDate, []);
+      }
+      if (!currentDate) continue;
+      map.get(currentDate)?.push(entry);
+    }
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, entries]) => ({
+        date,
+        label: formatDate(date),
+        entries,
+      }));
+  }, [activeFilter, visibleReminders]);
+
+  const useGroupedList = todayGroups !== null || plannedGroups !== null;
   const { containerRef, shouldVirtualize, start, end, offsetY, totalHeight } = useVirtualList(
     visibleReminders.length,
-    editingId === null && !useGroupedToday,
+    editingId === null && !useGroupedList,
   );
   const renderedReminders = shouldVirtualize
     ? visibleReminders.slice(start, end)
@@ -308,6 +333,31 @@ export function ReminderList({
     };
   }, [editingId, handleCancelEditing]);
 
+  // 底部行进入编辑后，滚动列表使编辑区完整可见
+  useEffect(() => {
+    if (!editingId) return;
+    const timer = window.setTimeout(() => {
+      const container = containerRef.current;
+      const editingEl = container?.querySelector('.reminder-item-editing');
+      if (!container || !(editingEl instanceof HTMLElement)) return;
+      const cRect = container.getBoundingClientRect();
+      const eRect = editingEl.getBoundingClientRect();
+      const bottomGap = 96; // 预留 FAB / 边距
+      if (eRect.bottom > cRect.bottom - bottomGap) {
+        container.scrollBy({
+          top: eRect.bottom - cRect.bottom + bottomGap,
+          behavior: 'smooth',
+        });
+      } else if (eRect.top < cRect.top + 8) {
+        container.scrollBy({
+          top: eRect.top - cRect.top - 8,
+          behavior: 'smooth',
+        });
+      }
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [editingId, containerRef]);
+
   const renderReminderEntry = (entry: VisibleEntry, index: number, animate = true) => (
     <div
       key={entry.reminder.id}
@@ -364,7 +414,10 @@ export function ReminderList({
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 overflow-y-auto px-6 pb-24">
+      <div
+        ref={containerRef}
+        className={`flex-1 overflow-y-auto px-6 ${editingId ? 'pb-72' : 'pb-24'}`}
+      >
         {visibleReminders.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-apple-gray">
             <div className="w-16 h-16 rounded-[24px] bg-[#F2F2F7] flex items-center justify-center mb-4">
@@ -382,7 +435,7 @@ export function ReminderList({
                   : '没有提醒事项'}
             </span>
           </div>
-        ) : useGroupedToday && todayGroups ? (
+        ) : todayGroups ? (
           <div className="space-y-4">
             {todayGroups.overdue.length > 0 && (
               <fieldset className="m-0 min-w-0 rounded-[12px] border border-apple-divider px-2 pb-2 pt-0">
@@ -402,6 +455,19 @@ export function ReminderList({
                 </div>
               </div>
             )}
+          </div>
+        ) : plannedGroups ? (
+          <div className="space-y-4">
+            {plannedGroups.map((group) => (
+              <div key={group.date}>
+                <div className="px-1 mb-1.5 text-[13px] font-semibold text-gray-800">
+                  {group.label}
+                </div>
+                <div className="space-y-1">
+                  {group.entries.map((entry, index) => renderReminderEntry(entry, index))}
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div

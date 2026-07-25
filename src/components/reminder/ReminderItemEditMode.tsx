@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, memo, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, memo, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
 import type {
@@ -95,7 +95,9 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const [tagSuggestions, setTagSuggestions] = useState<TagResponse[]>([]);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number } | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
+  const dropdownAnchorRef = useRef<DOMRect | null>(null);
+  const dropdownElRef = useRef<HTMLDivElement | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const draftRef = useRef<Partial<ReminderResponse>>({});
@@ -154,7 +156,8 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
       setEditRemindValue(encodeRemindValue(reminder.remind_before_value, reminder.remind_before_unit));
       setEditTags(reminder.tags?.map(t => t.name) || []);
       setActiveDropdown(null);
-      setDropdownRect(null);
+      setDropdownPos(null);
+      dropdownAnchorRef.current = null;
     }
     const initial = buildInitialDraft(reminder);
     draftRef.current = initial;
@@ -163,7 +166,8 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
 
   const closeDropdown = useCallback(() => {
     setActiveDropdown(null);
-    setDropdownRect(null);
+    setDropdownPos(null);
+    dropdownAnchorRef.current = null;
   }, []);
 
   const toggleDropdown = useCallback((name: string, e: React.MouseEvent) => {
@@ -173,10 +177,31 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
     if (activeDropdown === name) {
       closeDropdown();
     } else {
+      dropdownAnchorRef.current = rect;
       setActiveDropdown(name);
-      setDropdownRect({ top: rect.bottom + 4, left: rect.left });
+      // 先按下方弹出，随后用实际高度校正（底部空间不足则翻到上方）
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left });
     }
   }, [activeDropdown, closeDropdown]);
+
+  useLayoutEffect(() => {
+    if (!activeDropdown || !dropdownPos || !dropdownElRef.current || !dropdownAnchorRef.current) return;
+    const el = dropdownElRef.current;
+    const anchor = dropdownAnchorRef.current;
+    const { height, width } = el.getBoundingClientRect();
+    const margin = 8;
+    const spaceBelow = window.innerHeight - anchor.bottom;
+    const top = spaceBelow < height + margin
+      ? Math.max(margin, anchor.top - height - 4)
+      : anchor.bottom + 4;
+    const left = Math.min(
+      Math.max(margin, anchor.left),
+      Math.max(margin, window.innerWidth - width - margin),
+    );
+    if (top !== dropdownPos.top || left !== dropdownPos.left) {
+      setDropdownPos({ top, left });
+    }
+  }, [activeDropdown, dropdownPos]);
 
   const updateTitle = (value: string) => {
     setEditTitle(value);
@@ -482,10 +507,11 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
         />
       )}
 
-      {activeDropdown && dropdownRect && createPortal(
+      {activeDropdown && dropdownPos && createPortal(
         <div
-          className="reminder-edit-dropdown fixed z-[10000]"
-          style={{ top: dropdownRect.top, left: dropdownRect.left }}
+          ref={dropdownElRef}
+          className="reminder-edit-dropdown fixed z-[10000] max-h-[min(420px,calc(100vh-16px))] overflow-y-auto"
+          style={{ top: dropdownPos.top, left: dropdownPos.left }}
           onClick={(e) => e.stopPropagation()}
         >
           {activeDropdown === 'endDate' && (

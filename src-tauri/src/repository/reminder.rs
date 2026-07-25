@@ -60,7 +60,7 @@ impl ReminderRepository {
         let conn = lock_conn(&self.conn)?;
         let date_str = today.format("%Y-%m-%d").to_string();
         let query = format!(
-            "SELECT {REMINDER_FIELDS} FROM reminders WHERE end_date IS NOT NULL AND end_date > ? AND is_completed = 0 ORDER BY created_at DESC"
+            "SELECT {REMINDER_FIELDS} FROM reminders WHERE end_date IS NOT NULL AND end_date > ? AND is_completed = 0 ORDER BY end_date ASC, end_time IS NULL, end_time ASC, created_at DESC"
         );
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([date_str], Self::row_to_reminder)?;
