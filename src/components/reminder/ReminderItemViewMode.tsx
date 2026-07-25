@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import type { ReminderResponse } from '@/types/api';
 import { formatDate, formatTime } from '@/utils/dateUtils';
+import { isOverdue } from '@/utils/reminderDates';
 
 export const ReminderItemViewMode = memo(function ReminderItemViewMode({
   reminder,
@@ -13,6 +14,8 @@ export const ReminderItemViewMode = memo(function ReminderItemViewMode({
   onStartEditing: (id: string) => void;
   onShowDetail: () => void;
 }) {
+  const overdue = isOverdue(reminder);
+
   return (
     <div
       className={`reminder-item px-5 py-3.5 rounded-[16px] hover:bg-white/90 transition-all duration-250 spring-transition cursor-pointer group ${
@@ -43,7 +46,9 @@ export const ReminderItemViewMode = memo(function ReminderItemViewMode({
           <div className={`text-[17px] font-semibold truncate ${
             reminder.is_completed
               ? 'text-apple-gray line-through'
-              : 'text-gray-900'
+              : overdue
+                ? 'text-apple-red'
+                : 'text-gray-900'
           }`}>
             {reminder.title}
           </div>
@@ -55,7 +60,9 @@ export const ReminderItemViewMode = memo(function ReminderItemViewMode({
               </span>
             )}
             {reminder.end_date && (
-              <span className="text-[13px] font-medium flex items-center gap-1 text-apple-gray">
+              <span className={`text-[13px] font-medium flex items-center gap-1 ${
+                overdue ? 'text-apple-red' : 'text-apple-gray'
+              }`}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                   <line x1="3" y1="10" x2="21" y2="10" />

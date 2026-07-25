@@ -30,6 +30,8 @@ interface ReminderPageProps {
   onAddOwner?: (name: string) => void;
   onRenameOwner?: (id: string, name: string) => void;
   onDeleteOwner?: (id: string) => void;
+  onRenameTag?: (id: string, name: string) => void;
+  onDeleteTag?: (id: string) => void;
   onEditStart: () => void;
   onEditEnd: () => void;
   onCut: (reminder: ReminderResponse) => void;
@@ -59,6 +61,8 @@ export function ReminderPage({
   onAddOwner,
   onRenameOwner,
   onDeleteOwner,
+  onRenameTag,
+  onDeleteTag,
   onEditStart,
   onEditEnd,
   onCut,
@@ -82,6 +86,8 @@ export function ReminderPage({
         onAddOwner={onAddOwner}
         onRenameOwner={onRenameOwner}
         onDeleteOwner={onDeleteOwner}
+        onRenameTag={onRenameTag}
+        onDeleteTag={onDeleteTag}
       />
 
       <ReminderList

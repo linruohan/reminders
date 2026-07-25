@@ -358,7 +358,7 @@ pub fn insert_initial_data(conn: &Connection) -> Result<()> {
         let today = Local::now().date_naive().format("%Y-%m-%d").to_string();
         let created_time = Local::now().time().format("%H:%M:%S").to_string();
 
-        // created_* = 记录创建戳；end_* = 用户截止日期（驱动今天/计划/逾期与日历）
+        // created_* = 记录创建戳；end_* = 用户截止日期（驱动今天/计划与日历）
         conn.execute(
             "INSERT INTO reminders (id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, priority, list_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (

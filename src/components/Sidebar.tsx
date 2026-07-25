@@ -17,6 +17,8 @@ interface SidebarProps {
   onAddOwner?: (name: string) => void;
   onRenameOwner?: (id: string, name: string) => void;
   onDeleteOwner?: (id: string) => void;
+  onRenameTag?: (id: string, name: string) => void;
+  onDeleteTag?: (id: string) => void;
 }
 
 const quickFilters = [
@@ -28,9 +30,12 @@ const quickFilters = [
   { id: 'completed', label: '完成', icon: 'check', color: '#C7C7CC', gradient: 'linear-gradient(135deg, #D1D5DB, #9CA3AF)' },
 ];
 
+type TagMenuItem = { id: string; name: string };
+
 type CtxMenu =
   | { kind: 'list'; item: ListResponse; x: number; y: number }
   | { kind: 'owner'; item: OwnerResponse; x: number; y: number }
+  | { kind: 'tag'; item: TagMenuItem; x: number; y: number }
   | null;
 
 type DialogState =
@@ -38,6 +43,8 @@ type DialogState =
   | { kind: 'delete-list'; item: ListResponse }
   | { kind: 'rename-owner'; item: OwnerResponse }
   | { kind: 'delete-owner'; item: OwnerResponse }
+  | { kind: 'rename-tag'; item: TagMenuItem }
+  | { kind: 'delete-tag'; item: TagMenuItem }
   | null;
 
 function QuickFilterItem({ filter, active, onClick, count }: { filter: typeof quickFilters[0]; active: boolean; onClick: () => void; count: number }) {
@@ -148,21 +155,24 @@ function OwnerItem({
 }
 
 function TagItem({
-  name,
+  tag,
   active,
   count,
   onClick,
+  onContextMenu,
 }: {
-  name: string;
+  tag: TagMenuItem;
   active: boolean;
   count: number;
   onClick: () => void;
+  onContextMenu: (e: React.MouseEvent, tag: TagMenuItem) => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={`标签 ${name}，${count} 项`}
+      onContextMenu={(e) => onContextMenu(e, tag)}
+      aria-label={`标签 ${tag.name}，${count} 项`}
       aria-current={active ? 'page' : undefined}
       className={`w-full flex items-center justify-between px-4 py-2 rounded-[14px] transition-all duration-250 spring-transition ${
         active
@@ -172,7 +182,7 @@ function TagItem({
     >
       <div className="flex items-center gap-3 min-w-0">
         <span className="text-xs font-bold text-apple-gray shrink-0">#</span>
-        <span className="text-sm font-semibold truncate">{name}</span>
+        <span className="text-sm font-semibold truncate">{tag.name}</span>
       </div>
       <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full transition-all shrink-0 ${
         active ? 'bg-apple-blue text-white' : 'bg-gray-100 text-gray-600'
@@ -219,6 +229,8 @@ export function Sidebar({
   onAddOwner,
   onRenameOwner,
   onDeleteOwner,
+  onRenameTag,
+  onDeleteTag,
 }: SidebarProps) {
   const [listsExpanded, setListsExpanded] = useState(true);
   const [ownersExpanded, setOwnersExpanded] = useState(true);
@@ -320,6 +332,12 @@ export function Sidebar({
     setCtxMenu({ kind: 'owner', item: owner, x: e.clientX, y: e.clientY });
   };
 
+  const openTagMenu = (e: React.MouseEvent, tag: TagMenuItem) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ kind: 'tag', item: tag, x: e.clientX, y: e.clientY });
+  };
+
   const handleDialogSubmit = (value: string) => {
     if (!dialog) return;
     switch (dialog.kind) {
@@ -335,6 +353,12 @@ export function Sidebar({
       case 'delete-owner':
         onDeleteOwner?.(dialog.item.id);
         break;
+      case 'rename-tag':
+        if (value && value !== dialog.item.name) onRenameTag?.(dialog.item.id, value);
+        break;
+      case 'delete-tag':
+        onDeleteTag?.(dialog.item.id);
+        break;
     }
     setDialog(null);
   };
@@ -342,22 +366,49 @@ export function Sidebar({
   const dialogTitle =
     dialog?.kind === 'add-owner' ? '添加负责人'
       : dialog?.kind === 'delete-list' ? '删除列表'
-        : dialog?.kind === 'rename-owner' ? '重命名负责人'
+        : dialog?.kind === 'rename-owner' ? '修改负责人'
           : dialog?.kind === 'delete-owner' ? '删除负责人'
-            : '';
+            : dialog?.kind === 'rename-tag' ? '修改标签'
+              : dialog?.kind === 'delete-tag' ? '删除标签'
+                : '';
 
   const dialogMessage =
     dialog?.kind === 'delete-list'
-      ? `确定删除列表「${dialog.item.name}」？列表内提醒不会被删除。`
+      ? `确定删除列表「${dialog.item.name}」？关联提醒的列表字段将被清空，提醒本身不会删除。`
       : dialog?.kind === 'delete-owner'
-        ? `确定删除负责人「${dialog.item.name}」？`
-        : undefined;
+        ? `确定删除负责人「${dialog.item.name}」？关联提醒的负责人字段将被清空。`
+        : dialog?.kind === 'delete-tag'
+          ? `确定删除标签「${dialog.item.name}」？将从所有提醒中移除该标签。`
+          : undefined;
 
-  const isConfirm = dialog?.kind === 'delete-list' || dialog?.kind === 'delete-owner';
+  const isConfirm =
+    dialog?.kind === 'delete-list'
+    || dialog?.kind === 'delete-owner'
+    || dialog?.kind === 'delete-tag';
+
+  const handleCtxModify = () => {
+    if (!ctxMenu) return;
+    if (ctxMenu.kind === 'list') {
+      onEditList?.(ctxMenu.item);
+    } else if (ctxMenu.kind === 'owner') {
+      setDialog({ kind: 'rename-owner', item: ctxMenu.item });
+    } else {
+      setDialog({ kind: 'rename-tag', item: ctxMenu.item });
+    }
+    setCtxMenu(null);
+  };
+
+  const handleCtxDelete = () => {
+    if (!ctxMenu) return;
+    if (ctxMenu.kind === 'list') setDialog({ kind: 'delete-list', item: ctxMenu.item });
+    else if (ctxMenu.kind === 'owner') setDialog({ kind: 'delete-owner', item: ctxMenu.item });
+    else setDialog({ kind: 'delete-tag', item: ctxMenu.item });
+    setCtxMenu(null);
+  };
 
   return (
-    <aside className="w-60 h-full flex flex-col" aria-label="侧边栏">
-      <div className="px-4 pt-4">
+    <aside className="w-60 h-full flex flex-col min-h-0" aria-label="侧边栏">
+      <div className="shrink-0 px-4 pt-4">
         <div className="relative">
           <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-apple-gray" />
           <input
@@ -372,7 +423,7 @@ export function Sidebar({
         </div>
       </div>
 
-      <div className="px-3 py-3">
+      <div className="shrink-0 px-3 py-3">
         <div className="grid grid-cols-2 gap-2">
           {quickFilters.map((filter, index) => (
             <div key={filter.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 60}ms` }}>
@@ -387,109 +438,112 @@ export function Sidebar({
         </div>
       </div>
 
-      <div className="px-4 py-2 flex items-center justify-between">
-        <button
-          onClick={() => setListsExpanded(!listsExpanded)}
-          className="flex items-center gap-2 text-xs font-semibold text-apple-gray uppercase tracking-wide hover:text-gray-700 transition-colors spring-transition"
-        >
-          <Icon name={listsExpanded ? 'chevronDown' : 'chevronRight'} size={14} />
-          <span>我的列表</span>
-          <span className="text-gray-400">({lists.length})</span>
-        </button>
-        {listsExpanded && lists.length > 1 && (
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="px-4 py-2 flex items-center justify-between">
           <button
-            onClick={cycleSortOrder}
-            title={`切换排序方式（当前：${getSortIndicator()}）`}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-[10px] hover:bg-white/70 transition-all duration-200 spring-transition"
+            onClick={() => setListsExpanded(!listsExpanded)}
+            className="flex items-center gap-2 text-xs font-semibold text-apple-gray uppercase tracking-wide hover:text-gray-700 transition-colors spring-transition"
           >
-            <Icon name="sort" size={12} className="text-apple-gray" />
-            <span className="text-[10px] font-medium text-apple-gray">{getSortIndicator().slice(0, 4)}</span>
+            <Icon name={listsExpanded ? 'chevronDown' : 'chevronRight'} size={14} />
+            <span>我的列表</span>
+            <span className="text-gray-400">({lists.length})</span>
           </button>
+          {listsExpanded && lists.length > 1 && (
+            <button
+              onClick={cycleSortOrder}
+              title={`切换排序方式（当前：${getSortIndicator()}）`}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-[10px] hover:bg-white/70 transition-all duration-200 spring-transition"
+            >
+              <Icon name="sort" size={12} className="text-apple-gray" />
+              <span className="text-[10px] font-medium text-apple-gray">{getSortIndicator().slice(0, 4)}</span>
+            </button>
+          )}
+        </div>
+
+        {listsExpanded && (
+          <div className="px-3 pb-2 space-y-0.5">
+            {sortedLists.map((list, index) => (
+              <div key={list.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 40}ms` }}>
+                <ListItem
+                  list={list}
+                  active={activeFilter === `list:${list.id}`}
+                  onClick={() => handleFilterClick(`list:${list.id}`)}
+                  count={getListCount(list.id)}
+                  onContextMenu={openListMenu}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="px-4 py-2 flex items-center justify-between">
+          <button
+            onClick={() => setOwnersExpanded(!ownersExpanded)}
+            className="flex items-center gap-2 text-xs font-semibold text-apple-gray uppercase tracking-wide hover:text-gray-700 transition-colors spring-transition"
+          >
+            <Icon name={ownersExpanded ? 'chevronDown' : 'chevronRight'} size={14} />
+            <span>负责人</span>
+            <span className="text-gray-400">({owners.length})</span>
+          </button>
+        </div>
+
+        {ownersExpanded && (
+          <div className="px-3 pb-2 space-y-0.5">
+            {owners.map((owner) => (
+              <OwnerItem
+                key={owner.id}
+                owner={owner}
+                active={activeFilter === `owner:${owner.id}`}
+                count={getOwnerCount(owner.id)}
+                onClick={() => handleFilterClick(`owner:${owner.id}`)}
+                onContextMenu={openOwnerMenu}
+              />
+            ))}
+            {onAddOwner && (
+              <button
+                type="button"
+                onClick={() => setDialog({ kind: 'add-owner' })}
+                className="w-full flex items-center gap-2 px-4 py-2 rounded-[14px] text-apple-blue hover:bg-blue-50/90 transition-all duration-250 spring-transition"
+              >
+                <Icon name="plus" size={14} />
+                <span className="text-sm font-semibold">添加负责人</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {tagCounts.length > 0 && (
+          <>
+            <div className="px-4 py-2 flex items-center justify-between">
+              <button
+                onClick={() => setTagsExpanded(!tagsExpanded)}
+                className="flex items-center gap-2 text-xs font-semibold text-apple-gray uppercase tracking-wide hover:text-gray-700 transition-colors spring-transition"
+              >
+                <Icon name={tagsExpanded ? 'chevronDown' : 'chevronRight'} size={14} />
+                <span>标签</span>
+                <span className="text-gray-400">({tagCounts.length})</span>
+              </button>
+            </div>
+
+            {tagsExpanded && (
+              <div className="px-3 pb-2 space-y-0.5">
+                {tagCounts.map((tag) => (
+                  <TagItem
+                    key={tag.id}
+                    tag={{ id: tag.id, name: tag.name }}
+                    active={activeFilter === `tag:${encodeURIComponent(tag.name)}`}
+                    count={tag.count}
+                    onClick={() => handleFilterClick(`tag:${encodeURIComponent(tag.name)}`)}
+                    onContextMenu={openTagMenu}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {listsExpanded && (
-        <div className="max-h-[40%] overflow-y-auto px-3 pb-2 space-y-0.5">
-          {sortedLists.map((list, index) => (
-            <div key={list.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 40}ms` }}>
-              <ListItem
-                list={list}
-                active={activeFilter === `list:${list.id}`}
-                onClick={() => handleFilterClick(`list:${list.id}`)}
-                count={getListCount(list.id)}
-                onContextMenu={openListMenu}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="px-4 py-2 flex items-center justify-between">
-        <button
-          onClick={() => setOwnersExpanded(!ownersExpanded)}
-          className="flex items-center gap-2 text-xs font-semibold text-apple-gray uppercase tracking-wide hover:text-gray-700 transition-colors spring-transition"
-        >
-          <Icon name={ownersExpanded ? 'chevronDown' : 'chevronRight'} size={14} />
-          <span>负责人</span>
-          <span className="text-gray-400">({owners.length})</span>
-        </button>
-      </div>
-
-      {ownersExpanded && (
-        <div className="max-h-[28%] overflow-y-auto px-3 pb-2 space-y-0.5">
-          {owners.map((owner) => (
-            <OwnerItem
-              key={owner.id}
-              owner={owner}
-              active={activeFilter === `owner:${owner.id}`}
-              count={getOwnerCount(owner.id)}
-              onClick={() => handleFilterClick(`owner:${owner.id}`)}
-              onContextMenu={openOwnerMenu}
-            />
-          ))}
-          {onAddOwner && (
-            <button
-              type="button"
-              onClick={() => setDialog({ kind: 'add-owner' })}
-              className="w-full flex items-center gap-2 px-4 py-2 rounded-[14px] text-apple-blue hover:bg-blue-50/90 transition-all duration-250 spring-transition"
-            >
-              <Icon name="plus" size={14} />
-              <span className="text-sm font-semibold">添加负责人</span>
-            </button>
-          )}
-        </div>
-      )}
-
-      {tagCounts.length > 0 && (
-        <>
-          <div className="px-4 py-2 flex items-center justify-between">
-            <button
-              onClick={() => setTagsExpanded(!tagsExpanded)}
-              className="flex items-center gap-2 text-xs font-semibold text-apple-gray uppercase tracking-wide hover:text-gray-700 transition-colors spring-transition"
-            >
-              <Icon name={tagsExpanded ? 'chevronDown' : 'chevronRight'} size={14} />
-              <span>标签</span>
-              <span className="text-gray-400">({tagCounts.length})</span>
-            </button>
-          </div>
-
-          {tagsExpanded && (
-            <div className="flex-1 overflow-y-auto px-3 pb-2 space-y-0.5 min-h-0">
-              {tagCounts.map((tag) => (
-                <TagItem
-                  key={tag.name}
-                  name={tag.name}
-                  active={activeFilter === `tag:${encodeURIComponent(tag.name)}`}
-                  count={tag.count}
-                  onClick={() => handleFilterClick(`tag:${encodeURIComponent(tag.name)}`)}
-                />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      <div className="px-3 py-3">
+      <div className="shrink-0 px-3 py-3 border-t border-apple-divider/60">
         <button
           onClick={onAddList}
           className="w-full flex items-center gap-2 px-4 py-2.5 rounded-[14px] text-apple-blue hover:bg-blue-50/90 transition-all duration-250 spring-transition hover:scale-[1.02] active:scale-[0.98]"
@@ -508,25 +562,14 @@ export function Sidebar({
           <button
             type="button"
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-            onClick={() => {
-              if (ctxMenu.kind === 'list') {
-                onEditList?.(ctxMenu.item);
-              } else {
-                setDialog({ kind: 'rename-owner', item: ctxMenu.item });
-              }
-              setCtxMenu(null);
-            }}
+            onClick={handleCtxModify}
           >
-            {ctxMenu.kind === 'list' ? '编辑' : '重命名'}
+            修改
           </button>
           <button
             type="button"
             className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50"
-            onClick={() => {
-              if (ctxMenu.kind === 'list') setDialog({ kind: 'delete-list', item: ctxMenu.item });
-              else setDialog({ kind: 'delete-owner', item: ctxMenu.item });
-              setCtxMenu(null);
-            }}
+            onClick={handleCtxDelete}
           >
             删除
           </button>
@@ -539,9 +582,15 @@ export function Sidebar({
         title={dialogTitle}
         mode={isConfirm ? 'confirm' : 'input'}
         message={dialogMessage}
-        placeholder={dialog?.kind === 'add-owner' ? '输入姓名' : '输入名称'}
+        placeholder={
+          dialog?.kind === 'add-owner' ? '输入姓名'
+            : dialog?.kind === 'rename-tag' ? '输入标签名'
+              : '输入名称'
+        }
         defaultValue={
-          dialog?.kind === 'rename-owner' ? dialog.item.name : ''
+          dialog?.kind === 'rename-owner' || dialog?.kind === 'rename-tag'
+            ? dialog.item.name
+            : ''
         }
         confirmLabel={isConfirm ? '删除' : '确定'}
         danger={isConfirm}

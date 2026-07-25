@@ -64,6 +64,8 @@ fn main() {
             get_reminder_tags,
             get_all_tags,
             search_tags,
+            rename_tag,
+            delete_tag,
             get_subtasks,
             create_subtask,
             update_subtask,

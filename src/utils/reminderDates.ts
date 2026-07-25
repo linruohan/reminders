@@ -24,3 +24,10 @@ export function isPlanned(r: Pick<ReminderResponse, 'end_date' | 'is_completed'>
   const due = r.end_date;
   return due !== null && due !== undefined && due > getTodayStr();
 }
+
+/** 逾期：截止日期早于今天且未完成 */
+export function isOverdue(r: Pick<ReminderResponse, 'end_date' | 'is_completed'>): boolean {
+  if (r.is_completed) return false;
+  const due = r.end_date;
+  return due !== null && due !== undefined && due < getTodayStr();
+}

@@ -7,5 +7,5 @@ export interface FilterCounts {
   flagged: number;
   lists: Array<{ id: string; count: number }>;
   owners: Array<{ id: string; count: number }>;
-  tags: Array<{ name: string; count: number }>;
+  tags: Array<{ id: string; name: string; count: number }>;
 }

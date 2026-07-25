@@ -70,6 +70,8 @@ export function App() {
     handleAddOwner,
     handleUpdateOwner,
     handleDeleteOwner,
+    handleRenameTag,
+    handleDeleteTag,
     handleCutReminder,
     handleCopyReminder,
     handlePasteReminder,
@@ -166,6 +168,20 @@ export function App() {
     }
   }, [handleDeleteOwner, showToast]);
 
+  const handleRenameTagCallback = useCallback(async (id: string, name: string) => {
+    const result = await handleRenameTag(id, name);
+    if (result) {
+      showToast('success', '标签已修改');
+    }
+  }, [handleRenameTag, showToast]);
+
+  const handleDeleteTagCallback = useCallback(async (id: string) => {
+    const success = await handleDeleteTag(id);
+    if (success) {
+      showToast('success', '标签已删除');
+    }
+  }, [handleDeleteTag, showToast]);
+
   const requestDeleteReminder = useCallback((id: string) => {
     setPendingDeleteReminderId(id);
   }, []);
@@ -242,6 +258,8 @@ export function App() {
               onAddOwner={handleAddOwnerCallback}
               onRenameOwner={handleRenameOwner}
               onDeleteOwner={handleDeleteOwnerCallback}
+              onRenameTag={handleRenameTagCallback}
+              onDeleteTag={handleDeleteTagCallback}
               onEditStart={() => setIsEditing(true)}
               onEditEnd={() => setIsEditing(false)}
               onCut={handleCutReminder}

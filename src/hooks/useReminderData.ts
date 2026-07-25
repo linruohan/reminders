@@ -34,6 +34,8 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     createOwner,
     updateOwner,
     deleteOwner,
+    renameTag,
+    deleteTag,
     createSubtask,
     updateSubtask,
     deleteSubtask,
@@ -255,16 +257,21 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
   const handleDeleteList = useCallback(async (id: string) => {
     const success = await deleteList(id);
     if (success) {
+      // ON DELETE SET NULL：关联提醒的 list_id 已清空，需刷新缓存
       await loadLists();
       if (activeFilter === `list:${id}`) {
-        setActiveFilter('all');
+        setActiveFilter('today');
+        await loadReminders('all', true, true);
+        await loadReminders('today', true);
+      } else {
+        await syncAfterMutation();
       }
     } else {
       const errorMsg = error[`delete_list_${id}`] || '删除列表失败';
       showToast?.('error', errorMsg);
     }
     return success;
-  }, [deleteList, activeFilter, loadLists, showToast, error]);
+  }, [deleteList, activeFilter, loadLists, loadReminders, syncAfterMutation, showToast, error]);
 
   const handleUpdateList = useCallback(async (id: string, updates: Partial<ListResponse>) => {
     const result = await updateList({ id, ...updates });
@@ -302,16 +309,61 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
   const handleDeleteOwner = useCallback(async (id: string) => {
     const success = await deleteOwner(id);
     if (success) {
+      // ON DELETE SET NULL：关联提醒的 owner_id 已清空
       await loadOwners();
       if (activeFilter === `owner:${id}`) {
-        setActiveFilter('all');
+        setActiveFilter('today');
+        await loadReminders('all', true, true);
+        await loadReminders('today', true);
+      } else {
+        await syncAfterMutation();
       }
     } else {
       const errorMsg = error[`delete_owner_${id}`] || '删除所有者失败';
       showToast?.('error', errorMsg);
     }
     return success;
-  }, [deleteOwner, loadOwners, showToast, error, activeFilter]);
+  }, [deleteOwner, loadOwners, loadReminders, syncAfterMutation, showToast, error, activeFilter]);
+
+  const handleRenameTag = useCallback(async (id: string, name: string) => {
+    const result = await renameTag(id, name);
+    if (result) {
+      const oldTag = tags.find(t => t.id === id);
+      await loadTags();
+      if (oldTag && activeFilter === `tag:${encodeURIComponent(oldTag.name)}`) {
+        const nextFilter = `tag:${encodeURIComponent(result.name)}`;
+        setActiveFilter(nextFilter);
+        await loadReminders('all', true, true);
+        await loadReminders(nextFilter, true);
+      } else {
+        await syncAfterMutation();
+      }
+    } else {
+      const errorMsg = error[`rename_tag_${id}`] || '重命名标签失败';
+      showToast?.('error', errorMsg);
+    }
+    return result;
+  }, [renameTag, tags, activeFilter, loadTags, loadReminders, syncAfterMutation, showToast, error]);
+
+  const handleDeleteTag = useCallback(async (id: string) => {
+    const tag = tags.find(t => t.id === id);
+    const success = await deleteTag(id);
+    if (success) {
+      // ON DELETE CASCADE：已从 reminder_tags 移除关联
+      await loadTags();
+      if (tag && activeFilter === `tag:${encodeURIComponent(tag.name)}`) {
+        setActiveFilter('today');
+        await loadReminders('all', true, true);
+        await loadReminders('today', true);
+      } else {
+        await syncAfterMutation();
+      }
+    } else {
+      const errorMsg = error[`delete_tag_${id}`] || '删除标签失败';
+      showToast?.('error', errorMsg);
+    }
+    return success;
+  }, [deleteTag, tags, activeFilter, loadTags, loadReminders, syncAfterMutation, showToast, error]);
 
   const handleCutReminder = useCallback((reminder: ReminderResponse) => {
     setClipboard({ action: 'cut', reminder });
@@ -471,6 +523,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
         count: incomplete.filter(r => r.owner_id === owner.id).length,
       })),
       tags: tags.map(tag => ({
+        id: tag.id,
         name: tag.name,
         count: tagCountMap.get(tag.name) ?? 0,
       })),
@@ -509,6 +562,8 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     handleAddOwner,
     handleUpdateOwner,
     handleDeleteOwner,
+    handleRenameTag,
+    handleDeleteTag,
     handleCutReminder,
     handleCopyReminder,
     handlePasteReminder,

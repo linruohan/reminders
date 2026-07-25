@@ -178,6 +178,19 @@ export function useApi() {
     );
   }, [handleRequest]);
 
+  const renameTag = useCallback(async (id: string, name: string): Promise<TagResponse | null> => {
+    return handleRequest(`rename_tag_${id}`, () =>
+      invoke<TagResponse>('rename_tag', { id, name })
+    );
+  }, [handleRequest]);
+
+  const deleteTag = useCallback(async (id: string): Promise<boolean> => {
+    const result = await handleRequest(`delete_tag_${id}`, () =>
+      invoke<void>('delete_tag', { id })
+    );
+    return result !== null;
+  }, [handleRequest]);
+
   const deleteOwner = useCallback(async (id: string): Promise<boolean> => {
     const result = await handleRequest(`delete_owner_${id}`, () => 
       invoke<void>('delete_owner', { id })
@@ -252,6 +265,8 @@ export function useApi() {
     getReminderTags,
     getAllTags,
     searchTags,
+    renameTag,
+    deleteTag,
     createSubtask,
     updateSubtask,
     deleteSubtask,
