@@ -35,7 +35,6 @@ jobs:
       contents: write
     env:
       BUILD_ENV: ${{ github.event.inputs.environment || contains(github.ref, 'release/') && 'production' || contains(github.ref, 'beta/') && 'beta' || github.ref == 'refs/heads/main' && 'production' || 'development' }}
-      APP_VERSION: ${{ github.event.inputs.version || '0.1.0' }}
       HAS_CERT: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
       HAS_SLACK: ${{ secrets.SLACK_WEBHOOK != '' }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -45,6 +44,17 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+
+      - name: Extract version from package.json
+        id: get_version
+        run: |
+          $manualVersion = "${{ github.event.inputs.version }}"
+          if ($manualVersion -ne "") {
+              echo "APP_VERSION=$manualVersion" >> $env:GITHUB_ENV
+          } else {
+              $version = (Get-Content package.json | ConvertFrom-Json).version
+              echo "APP_VERSION=$version" >> $env:GITHUB_ENV
+          }
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
