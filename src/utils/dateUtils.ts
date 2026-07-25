@@ -31,13 +31,25 @@ export function formatDate(dateStr: string | null | undefined): string {
   return `${month}月${day}日`;
 }
 
-export function formatTime(timeStr: string | null | undefined): string {
-  if (!timeStr) return '';
+/** 统一为 HH:mm，去掉秒，便于比较与提交 */
+export function normalizeTimeStr(timeStr: string | null | undefined): string | null {
+  if (!timeStr) return null;
   const parts = timeStr.split(':');
-  const hour = parseInt(parts[0]);
-  const minute = parseInt(parts[1]);
+  if (parts.length < 2) return timeStr;
+  const hour = String(parseInt(parts[0], 10)).padStart(2, '0');
+  const minute = String(parseInt(parts[1], 10)).padStart(2, '0');
+  if (Number.isNaN(Number(hour)) || Number.isNaN(Number(minute))) return timeStr;
+  return `${hour}:${minute}`;
+}
+
+export function formatTime(timeStr: string | null | undefined): string {
+  const normalized = normalizeTimeStr(timeStr);
+  if (!normalized) return '';
+  const parts = normalized.split(':');
+  const hour = parseInt(parts[0], 10);
+  const minute = parseInt(parts[1], 10);
   const mm = minute.toString().padStart(2, '0');
-  
+
   if (hour < 12) {
     return `上午 ${hour === 0 ? 12 : hour}:${mm}`;
   } else if (hour === 12) {

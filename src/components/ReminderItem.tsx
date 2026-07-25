@@ -47,14 +47,19 @@ export const ReminderItem = memo(function ReminderItem({
   const [showDetail, setShowDetail] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; x: number; y: number }>({ isOpen: false, x: 0, y: 0 });
 
-  const handleContextMenu = (e: React.MouseEvent) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setContextMenu({ isOpen: true, x: e.clientX, y: e.clientY });
-  };
+  }, []);
 
-  const handleCloseContextMenu = () => {
+  const handleCloseContextMenu = useCallback(() => {
     setContextMenu({ isOpen: false, x: 0, y: 0 });
-  };
+  }, []);
+
+  const handleToggleCompletedFromMenu = useCallback(() => {
+    onToggleCompleted(reminder.id);
+  }, [onToggleCompleted, reminder.id]);
 
   const handleSetPriority = (priority: Priority) => {
     onUpdateReminder(reminder.id, { priority });
@@ -116,7 +121,7 @@ export const ReminderItem = memo(function ReminderItem({
         x={contextMenu.x}
         y={contextMenu.y}
         onClose={handleCloseContextMenu}
-        onToggleCompleted={() => onToggleCompleted(reminder.id)}
+        onToggleCompleted={handleToggleCompletedFromMenu}
         onShowDetail={handleShowDetail}
         onDelete={() => onDelete(reminder.id)}
         onSetPriority={handleSetPriority}

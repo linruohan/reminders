@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import type { ReminderResponse } from '@/types/api';
+import { formatRecurrenceLabel } from '@/components/reminder/formOptions';
 import { formatDate, formatTime } from '@/utils/dateUtils';
 import { isOverdue } from '@/utils/reminderDates';
 
@@ -15,11 +16,18 @@ export const ReminderItemViewMode = memo(function ReminderItemViewMode({
   onShowDetail: () => void;
 }) {
   const overdue = isOverdue(reminder);
+  const recurrenceLabel = formatRecurrenceLabel(
+    reminder.recurrence_frequency,
+    reminder.recurrence_interval,
+    reminder.custom_recurrence_unit,
+  );
 
   return (
     <div
-      className={`reminder-item px-5 py-3.5 rounded-[16px] hover:bg-white/90 transition-all duration-250 spring-transition cursor-pointer group ${
-        reminder.is_completed ? 'bg-gray-50/50' : 'bg-white/60'
+      className={`reminder-item px-5 py-3.5 rounded-[16px] border border-transparent transition-all duration-200 spring-transition cursor-pointer group ${
+        reminder.is_completed
+          ? 'bg-gray-50/50 hover:bg-white hover:border-apple-blue/25 hover:shadow-sm'
+          : 'bg-white/60 hover:bg-white hover:border-apple-blue/35 hover:shadow-[0_2px_10px_rgba(0,122,255,0.1)]'
       }`}
       onClick={() => onStartEditing(reminder.id)}
     >
@@ -53,7 +61,7 @@ export const ReminderItemViewMode = memo(function ReminderItemViewMode({
             {reminder.title}
           </div>
 
-          <div className="flex items-center gap-3 mt-1">
+          <div className="flex items-center gap-3 mt-1 flex-wrap">
             {reminder.description && (
               <span className="text-[13px] text-apple-gray truncate max-w-[220px]">
                 {reminder.description}
@@ -69,6 +77,22 @@ export const ReminderItemViewMode = memo(function ReminderItemViewMode({
                 </svg>
                 {formatDate(reminder.end_date)}
                 {reminder.end_time && <> {formatTime(reminder.end_time)}</>}
+              </span>
+            )}
+            {recurrenceLabel && (
+              <span
+                className="text-[13px] font-medium flex items-center gap-1 text-apple-blue flex-shrink-0"
+                title={
+                  reminder.recurrence_end_date
+                    ? `${recurrenceLabel} · 至 ${formatDate(reminder.recurrence_end_date)}`
+                    : recurrenceLabel
+                }
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 4 23 10 17 10" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+                {recurrenceLabel}
               </span>
             )}
             {reminder.tags && reminder.tags.length > 0 && (

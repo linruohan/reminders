@@ -10,7 +10,7 @@ import type {
   Priority,
   RecurrenceFrequency,
 } from '@/types/api';
-import { formatDate, formatTime } from '@/utils/dateUtils';
+import { formatDate, formatTime, normalizeTimeStr } from '@/utils/dateUtils';
 import { buildUpdates } from '@/utils/reminderUpdates';
 import {
   normalizeCustomRecurrenceUnit,
@@ -77,7 +77,7 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const [editNotes, setEditNotes] = useState(reminder.description || '');
   const [editUrl, setEditUrl] = useState(reminder.url || '');
   const [editEndDate, setEditEndDate] = useState(reminder.end_date || '');
-  const [editEndTime, setEditEndTime] = useState(reminder.end_time || '');
+  const [editEndTime, setEditEndTime] = useState(normalizeTimeStr(reminder.end_time) || '');
   const [editPriority, setEditPriority] = useState<Priority>(reminder.priority || 'none');
   const [editListId, setEditListId] = useState(reminder.list_id || '');
   const [editIsFlagged, setEditIsFlagged] = useState(reminder.is_flagged ?? false);
@@ -120,7 +120,7 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
     description: r.description || null,
     url: r.url || null,
     end_date: r.end_date || null,
-    end_time: r.end_time || null,
+    end_time: normalizeTimeStr(r.end_time),
     is_all_day: r.is_all_day ?? false,
     is_flagged: r.is_flagged ?? false,
     priority: r.priority || 'none',
@@ -137,32 +137,33 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
     ),
   }), []);
 
-  // 仅切换编辑目标时重置；子任务缓存更新不要冲掉草稿
+  // 仅挂载 / 切换编辑目标时初始化草稿；完成勾选后的数据刷新不得反复写回截止时间
+  const reminderRef = useRef(reminder);
+  reminderRef.current = reminder;
   useEffect(() => {
-    if (reminderIdRef.current !== reminder.id) {
-      reminderIdRef.current = reminder.id;
-      setEditTitle(reminder.title);
-      setEditNotes(reminder.description || '');
-      setEditUrl(reminder.url || '');
-      setEditEndDate(reminder.end_date || '');
-      setEditEndTime(reminder.end_time || '');
-      setEditPriority(reminder.priority || 'none');
-      setEditListId(reminder.list_id || '');
-      setEditIsFlagged(reminder.is_flagged ?? false);
-      setEditRecurrenceFreq(reminder.recurrence_frequency ?? '');
-      setEditRecurrenceInterval(reminder.recurrence_interval ?? 1);
-      setEditCustomUnit(normalizeCustomRecurrenceUnit(reminder.custom_recurrence_unit));
-      setEditRecurrenceEndDate(reminder.recurrence_end_date || '');
-      setEditRemindValue(encodeRemindValue(reminder.remind_before_value, reminder.remind_before_unit));
-      setEditTags(reminder.tags?.map(t => t.name) || []);
-      setActiveDropdown(null);
-      setDropdownPos(null);
-      dropdownAnchorRef.current = null;
-    }
-    const initial = buildInitialDraft(reminder);
+    const r = reminderRef.current;
+    reminderIdRef.current = r.id;
+    setEditTitle(r.title);
+    setEditNotes(r.description || '');
+    setEditUrl(r.url || '');
+    setEditEndDate(r.end_date || '');
+    setEditEndTime(normalizeTimeStr(r.end_time) || '');
+    setEditPriority(r.priority || 'none');
+    setEditListId(r.list_id || '');
+    setEditIsFlagged(r.is_flagged ?? false);
+    setEditRecurrenceFreq(r.recurrence_frequency ?? '');
+    setEditRecurrenceInterval(r.recurrence_interval ?? 1);
+    setEditCustomUnit(normalizeCustomRecurrenceUnit(r.custom_recurrence_unit));
+    setEditRecurrenceEndDate(r.recurrence_end_date || '');
+    setEditRemindValue(encodeRemindValue(r.remind_before_value, r.remind_before_unit));
+    setEditTags(r.tags?.map(t => t.name) || []);
+    setActiveDropdown(null);
+    setDropdownPos(null);
+    dropdownAnchorRef.current = null;
+    const initial = buildInitialDraft(r);
     draftRef.current = initial;
     onChangeRef.current(initial);
-  }, [reminder, buildInitialDraft]);
+  }, [reminder.id, buildInitialDraft]);
 
   const closeDropdown = useCallback(() => {
     setActiveDropdown(null);
@@ -252,9 +253,11 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
     publishDraft({ end_date: value || null });
   };
   const updateEndTime = (value: string) => {
-    setEditEndTime(value);
-    publishDraft({ end_time: value || null, is_all_day: !value });
+    const normalized = normalizeTimeStr(value) || '';
+    setEditEndTime(normalized);
+    publishDraft({ end_time: normalized || null, is_all_day: !normalized });
   };
+
   const updatePriority = (value: Priority) => {
     setEditPriority(value);
     publishDraft({ priority: value });
@@ -501,7 +504,7 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
             onCancelEditing();
             onDelete(id);
           }}
-          onToggleCompleted={() => onToggleCompleted(reminder.id)}
+          onToggleCompleted={onToggleCompleted}
           onEdit={() => { setShowDetail(false); }}
           onUpdateReminder={onUpdateReminder}
         />

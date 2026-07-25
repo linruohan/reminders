@@ -258,9 +258,20 @@ export function ReminderList({
   }, [onUpdateReminder]);
 
   const handleCancelEditing = useCallback(() => {
+    editingIdRef.current = null;
     setEditingId(null);
     editingValuesRef.current = {};
   }, []);
+
+  /** 完成勾选时丢弃编辑草稿，避免与完成/重复生成抢写截止时间 */
+  const handleToggleCompleted = useCallback((id: string) => {
+    if (editingIdRef.current === id) {
+      editingIdRef.current = null;
+      setEditingId(null);
+      editingValuesRef.current = {};
+    }
+    onToggleCompleted(id);
+  }, [onToggleCompleted]);
 
   const handleAddChildReminder = useCallback((parent: ReminderResponse) => {
     const id = editingIdRef.current;
@@ -288,6 +299,14 @@ export function ReminderList({
     commitEditingRef.current(id);
     setEditingId(null);
   }, [activeFilter]);
+
+  // 勾选完成后项从当前视图消失时，清掉编辑态，避免卸载后又用旧草稿写回截止时间
+  useEffect(() => {
+    if (!editingId) return;
+    if (reminders.some(r => r.id === editingId)) return;
+    setEditingId(null);
+    editingValuesRef.current = {};
+  }, [reminders, editingId]);
 
   // 仅在真正卸载（如切到日历）时提交草稿，不用依赖 commitEditing 以免误触发
   useEffect(() => {
@@ -372,7 +391,7 @@ export function ReminderList({
         lists={lists}
         owners={owners}
         isEditing={editingId === entry.reminder.id}
-        onToggleCompleted={onToggleCompleted}
+        onToggleCompleted={handleToggleCompleted}
         onDelete={onDeleteReminder}
         onStartEditing={handleStartEditing}
         onSaveAndStopEditing={handleSaveAndStopEditing}

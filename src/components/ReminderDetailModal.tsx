@@ -1,4 +1,5 @@
 import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
+import { formatRecurrenceLabel } from '@/components/reminder/formOptions';
 import { formatDate, formatTime } from '@/utils/dateUtils';
 import { useEffect } from 'react';
 
@@ -19,15 +20,6 @@ const priorityLabels: Record<string, string> = {
   low: '低',
   medium: '中',
   high: '高',
-};
-
-const recurrenceLabels: Record<string, string> = {
-  daily: '每天',
-  weekly: '每周',
-  biweekly: '每2周',
-  monthly: '每月',
-  yearly: '每年',
-  custom: '自定义',
 };
 
 const unitLabels: Record<string, string> = {
@@ -65,10 +57,13 @@ export function ReminderDetailModal({
     ? lists.find(l => l.id === reminder.list_id)?.name || '提醒事项'
     : '提醒事项';
 
-  const hasRecurrence = reminder.recurrence_frequency != null;
+  const recurrenceLabel = formatRecurrenceLabel(
+    reminder.recurrence_frequency,
+    reminder.recurrence_interval,
+    reminder.custom_recurrence_unit,
+  );
   const hasRemind = reminder.remind_before_value != null;
   const hasDue = Boolean(reminder.end_date || reminder.end_time);
-  const isCustomRecur = reminder.recurrence_frequency === 'custom';
 
   return (
     <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50" onClick={onClose} role="presentation">
@@ -126,15 +121,13 @@ export function ReminderDetailModal({
             </div>
           )}
 
-          {hasRecurrence && (
+          {recurrenceLabel && (
             <div className="flex items-center gap-2 mt-2 text-sm text-apple-blue">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
               </svg>
               <span>
-                {isCustomRecur
-                  ? `每 ${reminder.recurrence_interval} ${unitLabels[reminder.custom_recurrence_unit || 'days'] || reminder.custom_recurrence_unit}`
-                  : recurrenceLabels[reminder.recurrence_frequency || ''] || reminder.recurrence_frequency}
+                {recurrenceLabel}
                 {reminder.recurrence_end_date && ` (至 ${formatDate(reminder.recurrence_end_date)})`}
               </span>
             </div>

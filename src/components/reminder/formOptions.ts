@@ -1,4 +1,4 @@
-import type { TimeUnit } from '@/types/api';
+import type { RecurrenceFrequency, TimeUnit } from '@/types/api';
 
 /** 重复频率选项；完成时由后端生成下一次实例（见 spawn_next_occurrence） */
 export const recurrenceOptions = [
@@ -10,6 +10,30 @@ export const recurrenceOptions = [
   { value: 'yearly', label: '每年' },
   { value: 'custom', label: '自定义' },
 ];
+
+const customRecurrenceUnitLabels: Record<string, string> = {
+  minutes: '分钟',
+  hours: '小时',
+  days: '天',
+  weeks: '周',
+  months: '个月',
+  years: '年',
+};
+
+/** 列表/详情用的重复文案；无重复返回 null */
+export function formatRecurrenceLabel(
+  frequency: RecurrenceFrequency | string | null | undefined,
+  interval?: number | null,
+  customUnit?: TimeUnit | string | null,
+): string | null {
+  if (!frequency) return null;
+  if (frequency === 'custom') {
+    const n = interval ?? 1;
+    const unit = customRecurrenceUnitLabels[customUnit || 'days'] || customUnit || '天';
+    return `每 ${n} ${unit}`;
+  }
+  return recurrenceOptions.find(o => o.value === frequency)?.label || frequency;
+}
 
 /** 提前提醒选项；应用托盘常驻时由 notification_scheduler 轮询触发 */
 export const remindOptions = [

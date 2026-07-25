@@ -62,7 +62,8 @@ impl From<Reminder> for ReminderResponse {
             created_date: r.created_date.map(|d| d.format("%Y-%m-%d").to_string()),
             created_time: r.created_time.map(|t| t.format("%H:%M:%S").to_string()),
             end_date: r.end_date.map(|d| d.format("%Y-%m-%d").to_string()),
-            end_time: r.end_time.map(|t| t.format("%H:%M:%S").to_string()),
+            // 与前端 TimePicker 统一为 HH:mm，避免 09:00 / 09:00:00 反复被当成变更
+            end_time: r.end_time.map(|t| t.format("%H:%M").to_string()),
             is_all_day: r.is_all_day,
             is_completed: r.is_completed,
             is_flagged: r.is_flagged,
