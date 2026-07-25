@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import type { TagResponse } from '@/types/api';
+import { getTagColorStyle } from '@/utils/tagColors';
 
 interface ReminderTagsDropdownProps {
   editTags: string[];
@@ -30,11 +31,15 @@ export const ReminderTagsDropdown = memo(function ReminderTagsDropdown({
     <div className="w-max min-w-[150px] bg-white rounded-apple-lg shadow-lg border border-apple-divider p-2">
       <div className="flex flex-wrap gap-1 mb-2">
         {editTags.map(tag => (
-          <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-apple-blue text-xs rounded-[6px]">
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-[6px]"
+            style={getTagColorStyle(tag)}
+          >
             #{tag}
             <button
               onClick={() => onTagRemove(tag)}
-              className="hover:bg-blue-100 rounded-full p-0.5"
+              className="hover:bg-black/10 rounded-full p-0.5"
             >
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="18" y1="6" x2="6" y2="18"/>

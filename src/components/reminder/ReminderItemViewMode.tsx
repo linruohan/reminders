@@ -3,6 +3,7 @@ import type { ReminderResponse } from '@/types/api';
 import { formatRecurrenceLabel } from '@/components/reminder/formOptions';
 import { formatDate, formatTime } from '@/utils/dateUtils';
 import { isOverdue } from '@/utils/reminderDates';
+import { getTagColorStyle } from '@/utils/tagColors';
 
 export const ReminderItemViewMode = memo(function ReminderItemViewMode({
   reminder,
@@ -98,7 +99,11 @@ export const ReminderItemViewMode = memo(function ReminderItemViewMode({
             {reminder.tags && reminder.tags.length > 0 && (
               <span className="flex items-center gap-1">
                 {reminder.tags.map(t => (
-                  <span key={t.name} className="inline-flex items-center px-2 py-0.5 bg-apple-blue/10 text-apple-blue text-xs font-medium rounded-full">
+                  <span
+                    key={t.name}
+                    className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
+                    style={getTagColorStyle(t.name)}
+                  >
                     #{t.name}
                   </span>
                 ))}

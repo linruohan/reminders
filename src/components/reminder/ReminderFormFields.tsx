@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { ListResponse, Priority, TagResponse } from '@/types/api';
 import { DatePicker } from '../DatePicker';
 import { recurrenceOptions, remindOptions, priorityOptions } from './formOptions';
+import { getTagColorStyle } from '@/utils/tagColors';
 
 export interface ReminderFormFieldValues {
   endDateTime: string;
@@ -429,9 +430,13 @@ export function ReminderFormFields({
         {values.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-2">
             {values.tags.map(tag => (
-              <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 bg-apple-blue/10 text-apple-blue text-xs font-medium rounded-full">
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full"
+                style={getTagColorStyle(tag)}
+              >
                 #{tag}
-                <button type="button" onClick={() => removeTag(tag)} className="hover:bg-apple-blue/20 rounded-full p-0.5" aria-label={`移除 ${tag}`}>
+                <button type="button" onClick={() => removeTag(tag)} className="hover:bg-black/10 rounded-full p-0.5" aria-label={`移除 ${tag}`}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                 </button>
               </span>

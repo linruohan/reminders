@@ -1,6 +1,7 @@
 import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
 import { formatRecurrenceLabel } from '@/components/reminder/formOptions';
 import { formatDate, formatTime } from '@/utils/dateUtils';
+import { getTagColorStyle } from '@/utils/tagColors';
 import { useEffect } from 'react';
 
 interface ReminderDetailModalProps {
@@ -148,7 +149,13 @@ export function ReminderDetailModal({
                 <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
               </svg>
               {reminder.tags.map(t => (
-                <span key={t.id} className="text-xs bg-blue-50 text-apple-blue px-1.5 py-0.5 rounded-[6px]">#{t.name}</span>
+                <span
+                  key={t.id}
+                  className="text-xs px-1.5 py-0.5 rounded-[6px] font-medium"
+                  style={getTagColorStyle(t.name)}
+                >
+                  #{t.name}
+                </span>
               ))}
             </div>
           )}
