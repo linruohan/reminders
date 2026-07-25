@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import type { ReminderResponse, ListResponse, OwnerResponse, SubtaskResponse } from '@/types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
 import { buildUpdates } from '@/utils/reminderUpdates';
 import { validateReminderFields } from '@/utils/reminderForm';
 import { useVirtualList } from '@/hooks/useVirtualList';
@@ -15,16 +15,20 @@ interface ReminderListProps {
   onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
   onDeleteReminder: (id: string) => void;
   onCreateReminder: () => void;
-  onAddChildReminder?: (parent: { id: string; title: string; listId: string | null }) => void;
+  onAddChildReminder?: (parent: {
+    id: string;
+    title: string;
+    listId: string | null;
+    endDate: string | null;
+    endTime: string | null;
+    isAllDay: boolean;
+  }) => void;
   onEditStart: () => void;
   onEditEnd: () => void;
   onCut: (reminder: ReminderResponse) => void;
   onCopy: (reminder: ReminderResponse) => void;
   onPaste: (listId: string | null) => void;
   canPaste: boolean;
-  onCreateSubtask: (reminderId: string, title: string) => Promise<SubtaskResponse | null>;
-  onUpdateSubtask: (id: string, patch: { title?: string; is_completed?: boolean }) => Promise<SubtaskResponse | null>;
-  onDeleteSubtask: (id: string) => Promise<boolean>;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
@@ -71,9 +75,6 @@ export function ReminderList({
   onCopy,
   onPaste,
   canPaste,
-  onCreateSubtask,
-  onUpdateSubtask,
-  onDeleteSubtask,
   showToast,
 }: ReminderListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -228,6 +229,9 @@ export function ReminderList({
       id: parent.id,
       title: parent.title,
       listId: parent.list_id,
+      endDate: parent.end_date,
+      endTime: parent.end_time,
+      isAllDay: parent.is_all_day ?? false,
     });
   }, [commitEditing, onAddChildReminder]);
 
@@ -349,7 +353,7 @@ export function ReminderList({
                       ...(shouldVirtualize
                         ? {}
                         : { animationDelay: `${Math.min(absoluteIndex, 20) * 30}ms` }),
-                      ...(entry.depth > 0 ? { paddingLeft: `${entry.depth * 20}px` } : {}),
+                      ...(entry.depth > 0 ? { paddingLeft: `${entry.depth * 24}px` } : {}),
                     }}
                   >
                     <ReminderItem
@@ -368,9 +372,6 @@ export function ReminderList({
                       onCopy={onCopy}
                       onPaste={onPaste}
                       canPaste={canPaste}
-                      onCreateSubtask={onCreateSubtask}
-                      onUpdateSubtask={onUpdateSubtask}
-                      onDeleteSubtask={onDeleteSubtask}
                       onAddChildReminder={handleAddChildReminder}
                       showToast={showToast}
                     />

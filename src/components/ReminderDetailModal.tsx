@@ -1,7 +1,6 @@
-import type { ReminderResponse, ListResponse, OwnerResponse, SubtaskResponse } from '@/types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
 import { formatDate, formatTime } from '@/utils/dateUtils';
 import { useEffect } from 'react';
-import { ReminderSubtasks } from './reminder/ReminderSubtasks';
 
 interface ReminderDetailModalProps {
   reminder: ReminderResponse;
@@ -13,9 +12,6 @@ interface ReminderDetailModalProps {
   onToggleCompleted: (id: string) => void;
   onEdit: (id: string) => void;
   onUpdateReminder?: (id: string, updates: Partial<ReminderResponse>) => void;
-  onCreateSubtask?: (reminderId: string, title: string) => Promise<SubtaskResponse | null>;
-  onUpdateSubtask?: (id: string, patch: { title?: string; is_completed?: boolean }) => Promise<SubtaskResponse | null>;
-  onDeleteSubtask?: (id: string) => Promise<boolean>;
 }
 
 const priorityLabels: Record<string, string> = {
@@ -53,9 +49,6 @@ export function ReminderDetailModal({
   onToggleCompleted,
   onEdit,
   onUpdateReminder,
-  onCreateSubtask,
-  onUpdateSubtask,
-  onDeleteSubtask,
 }: ReminderDetailModalProps) {
   useEffect(() => {
     if (!isOpen) return;
@@ -165,18 +158,6 @@ export function ReminderDetailModal({
                 <span key={t.id} className="text-xs bg-blue-50 text-apple-blue px-1.5 py-0.5 rounded-[6px]">#{t.name}</span>
               ))}
             </div>
-          )}
-
-          {onCreateSubtask && onUpdateSubtask && onDeleteSubtask && (
-            <ReminderSubtasks
-              reminderId={reminder.id}
-              parentTitle={reminder.title}
-              subtasks={reminder.subtasks ?? []}
-              mode="edit"
-              onCreate={onCreateSubtask}
-              onUpdate={onUpdateSubtask}
-              onDelete={onDeleteSubtask}
-            />
           )}
 
           {onUpdateReminder && owners.length > 0 && (

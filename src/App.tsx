@@ -22,7 +22,14 @@ function AuroraBackground() {
 export function App() {
   const [currentView, setCurrentView] = useState<'reminder' | 'calendar'>('reminder');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addParent, setAddParent] = useState<{ id: string; title: string; listId: string | null } | null>(null);
+  const [addParent, setAddParent] = useState<{
+    id: string;
+    title: string;
+    listId: string | null;
+    endDate: string | null;
+    endTime: string | null;
+    isAllDay: boolean;
+  } | null>(null);
   const [listEditor, setListEditor] = useState<
     { mode: 'create' } | { mode: 'edit'; list: ListResponse } | null
   >(null);
@@ -66,9 +73,6 @@ export function App() {
     handleCutReminder,
     handleCopyReminder,
     handlePasteReminder,
-    handleCreateSubtask,
-    handleUpdateSubtask,
-    handleDeleteSubtask,
     refreshData,
   } = useReminderData(showToast);
 
@@ -90,7 +94,14 @@ export function App() {
     }
   }, [handleCreateReminder, showToast]);
 
-  const handleOpenAddChild = useCallback((parent: { id: string; title: string; listId: string | null }) => {
+  const handleOpenAddChild = useCallback((parent: {
+    id: string;
+    title: string;
+    listId: string | null;
+    endDate: string | null;
+    endTime: string | null;
+    isAllDay: boolean;
+  }) => {
     setAddParent(parent);
     setShowAddModal(true);
   }, []);
@@ -237,9 +248,6 @@ export function App() {
               onCopy={handleCopyReminder}
               onPaste={handlePasteReminder}
               canPaste={clipboard !== null}
-              onCreateSubtask={handleCreateSubtask}
-              onUpdateSubtask={handleUpdateSubtask}
-              onDeleteSubtask={handleDeleteSubtask}
               showToast={showToast}
             />
           </div>
@@ -270,6 +278,14 @@ export function App() {
               addParent?.listId
               ?? (activeFilter.startsWith('list:') ? activeFilter.slice('list:'.length) : null)
             }
+            initialEndDateTime={
+              addParent?.endDate
+                ? (addParent.endTime && !addParent.isAllDay
+                  ? `${addParent.endDate}T${addParent.endTime.slice(0, 5)}`
+                  : addParent.endDate)
+                : null
+            }
+            initialIsAllDay={addParent?.isAllDay ?? false}
             initialParentId={addParent?.id ?? null}
             initialParentTitle={addParent?.title ?? null}
             onClose={handleCloseAddModal}

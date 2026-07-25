@@ -1,5 +1,5 @@
 import { useState, useCallback, memo } from 'react';
-import type { ReminderResponse, ListResponse, OwnerResponse, Priority, SubtaskResponse } from '@/types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse, Priority } from '@/types/api';
 import { ReminderDetailModal } from './ReminderDetailModal';
 import { ContextMenu } from './ContextMenu';
 import { ReminderItemViewMode } from './reminder/ReminderItemViewMode';
@@ -21,9 +21,6 @@ interface ReminderItemProps {
   onCopy: (reminder: ReminderResponse) => void;
   onPaste: (listId: string | null) => void;
   canPaste: boolean;
-  onCreateSubtask: (reminderId: string, title: string) => Promise<SubtaskResponse | null>;
-  onUpdateSubtask: (id: string, patch: { title?: string; is_completed?: boolean }) => Promise<SubtaskResponse | null>;
-  onDeleteSubtask: (id: string) => Promise<boolean>;
   onAddChildReminder?: (parent: ReminderResponse) => void;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
@@ -44,9 +41,6 @@ export const ReminderItem = memo(function ReminderItem({
   onCopy,
   onPaste,
   canPaste,
-  onCreateSubtask,
-  onUpdateSubtask,
-  onDeleteSubtask,
   onAddChildReminder,
   showToast,
 }: ReminderItemProps) {
@@ -88,9 +82,6 @@ export const ReminderItem = memo(function ReminderItem({
         onChange={onChange}
         onDelete={onDelete}
         onUpdateReminder={onUpdateReminder}
-        onCreateSubtask={onCreateSubtask}
-        onUpdateSubtask={onUpdateSubtask}
-        onDeleteSubtask={onDeleteSubtask}
         onAddChildReminder={onAddChildReminder}
         showToast={showToast}
       />
@@ -105,9 +96,6 @@ export const ReminderItem = memo(function ReminderItem({
           onToggleCompleted={onToggleCompleted}
           onStartEditing={onStartEditing}
           onShowDetail={handleShowDetail}
-          onCreateSubtask={onCreateSubtask}
-          onUpdateSubtask={onUpdateSubtask}
-          onDeleteSubtask={onDeleteSubtask}
         />
       </div>
       
@@ -121,9 +109,6 @@ export const ReminderItem = memo(function ReminderItem({
         onToggleCompleted={onToggleCompleted}
         onEdit={onStartEditing}
         onUpdateReminder={onUpdateReminder}
-        onCreateSubtask={onCreateSubtask}
-        onUpdateSubtask={onUpdateSubtask}
-        onDeleteSubtask={onDeleteSubtask}
       />
 
       <ContextMenu

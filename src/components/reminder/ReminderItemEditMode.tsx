@@ -9,7 +9,6 @@ import type {
   TimeUnit,
   Priority,
   RecurrenceFrequency,
-  SubtaskResponse,
 } from '@/types/api';
 import { formatDate, formatTime } from '@/utils/dateUtils';
 import { buildUpdates } from '@/utils/reminderUpdates';
@@ -20,7 +19,6 @@ import {
   validateReminderFields,
 } from '@/utils/reminderForm';
 import { ReminderDetailModal } from '../ReminderDetailModal';
-import { ReminderSubtasks } from './ReminderSubtasks';
 import { recurrenceOptions, remindOptions, priorityOptions, encodeRemindValue } from './formOptions';
 import { ReminderDateDropdown } from './ReminderDateDropdown';
 import { ReminderTimeDropdown } from './ReminderTimeDropdown';
@@ -60,9 +58,6 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   onChange,
   onDelete,
   onUpdateReminder,
-  onCreateSubtask,
-  onUpdateSubtask,
-  onDeleteSubtask,
   onAddChildReminder,
   showToast,
 }: {
@@ -75,9 +70,6 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   onChange: (updates: Partial<ReminderResponse>) => void;
   onDelete: (id: string) => void;
   onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
-  onCreateSubtask: (reminderId: string, title: string) => Promise<SubtaskResponse | null>;
-  onUpdateSubtask: (id: string, patch: { title?: string; is_completed?: boolean }) => Promise<SubtaskResponse | null>;
-  onDeleteSubtask: (id: string) => Promise<boolean>;
   onAddChildReminder?: (parent: ReminderResponse) => void;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }) {
@@ -105,7 +97,6 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number } | null>(null);
   const [showDetail, setShowDetail] = useState(false);
-  const [showSubtasks, setShowSubtasks] = useState(() => (reminder.subtasks?.length ?? 0) > 0);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const draftRef = useRef<Partial<ReminderResponse>>({});
   const onChangeRef = useRef(onChange);
@@ -162,11 +153,8 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
       setEditRecurrenceEndDate(reminder.recurrence_end_date || '');
       setEditRemindValue(encodeRemindValue(reminder.remind_before_value, reminder.remind_before_unit));
       setEditTags(reminder.tags?.map(t => t.name) || []);
-      setShowSubtasks((reminder.subtasks?.length ?? 0) > 0);
       setActiveDropdown(null);
       setDropdownRect(null);
-    } else if ((reminder.subtasks?.length ?? 0) > 0) {
-      setShowSubtasks(true);
     }
     const initial = buildInitialDraft(reminder);
     draftRef.current = initial;
@@ -472,18 +460,6 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
                 </svg>
               </button>
             </div>
-
-            {showSubtasks && (
-              <ReminderSubtasks
-                reminderId={reminder.id}
-                parentTitle={editTitle || reminder.title}
-                subtasks={reminder.subtasks ?? []}
-                mode="edit"
-                onCreate={onCreateSubtask}
-                onUpdate={onUpdateSubtask}
-                onDelete={onDeleteSubtask}
-              />
-            )}
           </div>
         </div>
       </div>
@@ -503,9 +479,6 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
           onToggleCompleted={() => onToggleCompleted(reminder.id)}
           onEdit={() => { setShowDetail(false); }}
           onUpdateReminder={onUpdateReminder}
-          onCreateSubtask={onCreateSubtask}
-          onUpdateSubtask={onUpdateSubtask}
-          onDeleteSubtask={onDeleteSubtask}
         />
       )}
 
