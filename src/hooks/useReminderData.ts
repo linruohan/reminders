@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useApi } from './useApi';
-import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, UpdateReminderRequest, CreateReminderRequest, SubtaskResponse } from '@/types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, CreateReminderRequest, SubtaskResponse } from '@/types/api';
 import { isDueToday, isOverdue, isPlanned } from '@/utils/reminderDates';
+import { normalizeUpdateRequest } from '@/utils/normalizeUpdateRequest';
 
 interface ReminderCache {
   [filter: string]: {
@@ -210,19 +211,8 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
   }, [toggleReminderCompleted, syncAfterMutation, showToast, error]);
 
   const handleUpdateReminder = useCallback(async (id: string, updates: Partial<ReminderResponse>) => {
-    const { tags: tagObjs, ...rest } = updates;
-    // null 无法与「未更新」区分：清空提前提醒时用 -1 + 空字符串作为哨兵
-    const clearRemind =
-      Object.prototype.hasOwnProperty.call(updates, 'remind_before_value') &&
-      updates.remind_before_value == null;
-    const request: UpdateReminderRequest = {
-      id,
-      ...rest,
-      ...(clearRemind
-        ? { remind_before_value: -1, remind_before_unit: '' }
-        : {}),
-      ...(tagObjs ? { tags: tagObjs.map(t => typeof t === 'string' ? t : t.name) } : {}),
-    };
+    // 将前端 null 清空转为后端哨兵（'' / -1），避免 Option::None = 不更新
+    const request = normalizeUpdateRequest(id, updates);
     const result = await updateReminder(request);
     if (result) {
       await syncAfterMutation();

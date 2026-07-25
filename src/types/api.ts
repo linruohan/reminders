@@ -93,19 +93,29 @@ export interface CreateReminderRequest {
 export interface UpdateReminderRequest {
   id: string;
   title?: string;
+  /** 传空字符串可清空 */
   description?: string | null;
+  /** 传空字符串可清空 */
   url?: string | null;
+  /** 传空字符串可清空 */
   end_date?: string | null;
+  /** 传空字符串可清空 */
   end_time?: string | null;
   is_completed?: boolean;
   is_flagged?: boolean;
   priority?: Priority;
+  /** 传空字符串可清空 */
   list_id?: string | null;
+  /** 传空字符串可清空 */
   owner_id?: string | null;
   is_all_day?: boolean;
-  recurrence_frequency?: RecurrenceFrequency | null;
+  /** 传空字符串可清空 */
+  recurrence_frequency?: RecurrenceFrequency | '' | null;
+  /** 传 -1 表示清空重复间隔 */
   recurrence_interval?: number | null;
-  custom_recurrence_unit?: TimeUnit | null;
+  /** 传空字符串可清空 */
+  custom_recurrence_unit?: TimeUnit | '' | null;
+  /** 传空字符串可清空 */
   recurrence_end_date?: string | null;
   /** 传 -1 表示清空提前提醒数值 */
   remind_before_value?: number | null;

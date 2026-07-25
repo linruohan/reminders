@@ -258,7 +258,8 @@ pub fn update_reminder(
         reminder.recurrence_frequency = if rf.is_empty() { None } else { Some(rf) };
     }
     if let Some(ri) = request.recurrence_interval {
-        reminder.recurrence_interval = Some(ri);
+        // -1 为清空哨兵（与 remind_before_value 一致）
+        reminder.recurrence_interval = if ri < 0 { None } else { Some(ri) };
     }
     if let Some(cru) = request.custom_recurrence_unit {
         reminder.custom_recurrence_unit = if cru.is_empty() { None } else { Some(cru) };

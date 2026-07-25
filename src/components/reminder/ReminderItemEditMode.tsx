@@ -43,6 +43,8 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   onSaveAndStopEditing,
   onCancelEditing,
   onChange,
+  onDelete,
+  onUpdateReminder,
   onCreateSubtask,
   onUpdateSubtask,
   onDeleteSubtask,
@@ -55,6 +57,8 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   onSaveAndStopEditing: (id: string, updates: Partial<ReminderResponse>) => void;
   onCancelEditing: () => void;
   onChange: (updates: Partial<ReminderResponse>) => void;
+  onDelete: (id: string) => void;
+  onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
   onCreateSubtask: (reminderId: string, title: string) => Promise<SubtaskResponse | null>;
   onUpdateSubtask: (id: string, patch: { title?: string; is_completed?: boolean }) => Promise<SubtaskResponse | null>;
   onDeleteSubtask: (id: string) => Promise<boolean>;
@@ -263,9 +267,14 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
           owners={owners}
           isOpen={showDetail}
           onClose={() => setShowDetail(false)}
-          onDelete={() => { setShowDetail(false); onCancelEditing(); }}
+          onDelete={(id) => {
+            setShowDetail(false);
+            onCancelEditing();
+            onDelete(id);
+          }}
           onToggleCompleted={() => onToggleCompleted(reminder.id)}
           onEdit={() => { setShowDetail(false); }}
+          onUpdateReminder={onUpdateReminder}
           onCreateSubtask={onCreateSubtask}
           onUpdateSubtask={onUpdateSubtask}
           onDeleteSubtask={onDeleteSubtask}

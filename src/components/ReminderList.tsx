@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { ReminderResponse, ListResponse, OwnerResponse, SubtaskResponse } from '@/types/api';
 import { buildUpdates } from '@/utils/reminderUpdates';
+import { validateReminderFields } from '@/utils/reminderForm';
 import { useVirtualList } from '@/hooks/useVirtualList';
 import { ReminderItem } from './ReminderItem';
 
@@ -143,22 +144,39 @@ export function ReminderList({
     ? visibleReminders.slice(start, end)
     : visibleReminders;
 
-  const commitEditing = useCallback((id: string | null) => {
-    if (!id) return;
+  /** 提交当前编辑草稿；校验失败返回 false 并保持编辑态 */
+  const commitEditing = useCallback((id: string | null): boolean => {
+    if (!id) return true;
     const reminder = remindersRef.current.find(r => r.id === id);
     if (reminder) {
-      const updates = buildUpdates(reminder, editingValuesRef.current);
+      const draft = editingValuesRef.current;
+      const fieldError = validateReminderFields({
+        title: draft.title ?? reminder.title,
+        url: draft.url ?? reminder.url,
+      });
+      if (fieldError) {
+        showToast?.('error', fieldError);
+        return false;
+      }
+      const updates = buildUpdates(reminder, {
+        ...draft,
+        title: (draft.title ?? reminder.title).trim(),
+      });
       if (Object.keys(updates).length > 0) {
         onUpdateReminderRef.current(id, updates);
       }
     }
     editingValuesRef.current = {};
-  }, []);
+    return true;
+  }, [showToast]);
+
+  const commitEditingRef = useRef(commitEditing);
+  commitEditingRef.current = commitEditing;
 
   const handleStartEditing = useCallback((id: string) => {
     const prev = editingIdRef.current;
     if (prev && prev !== id) {
-      commitEditing(prev);
+      if (!commitEditing(prev)) return;
     }
     setEditingId(id);
     editingValuesRef.current = {};
@@ -181,6 +199,27 @@ export function ReminderList({
     editingValuesRef.current = {};
   }, []);
 
+  // 切换筛选时提交草稿，避免丢失修改并卡住 isEditing
+  const prevFilterRef = useRef(activeFilter);
+  useEffect(() => {
+    if (prevFilterRef.current === activeFilter) return;
+    prevFilterRef.current = activeFilter;
+    const id = editingIdRef.current;
+    if (!id) return;
+    commitEditingRef.current(id);
+    setEditingId(null);
+  }, [activeFilter]);
+
+  // 仅在真正卸载（如切到日历）时提交草稿，不用依赖 commitEditing 以免误触发
+  useEffect(() => {
+    return () => {
+      const id = editingIdRef.current;
+      if (id) {
+        commitEditingRef.current(id);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!editingId) return;
 
@@ -195,7 +234,7 @@ export function ReminderList({
       if (!armed) return;
       if (isEventInsideEditingUi(e)) return;
 
-      commitEditing(editingIdRef.current);
+      if (!commitEditingRef.current(editingIdRef.current)) return;
       setEditingId(null);
     };
 
@@ -213,7 +252,7 @@ export function ReminderList({
       document.removeEventListener('click', handleClickOutside, true);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [editingId, handleCancelEditing, commitEditing]);
+  }, [editingId, handleCancelEditing]);
 
   return (
     <main className="flex-1 h-full flex flex-col relative">

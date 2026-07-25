@@ -79,7 +79,7 @@ export function EditReminderCard({
   }, [title, description, url, fields, reminder, onSave, onClose, showToast]);
 
   return (
-    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50" onClick={handleSave}>
       <div
         className="bg-white rounded-apple-lg shadow-[0_16px_48px_rgba(0,0,0,0.16)] w-[400px] overflow-hidden animate-scale-in"
         onClick={e => e.stopPropagation()}

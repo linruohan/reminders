@@ -10,7 +10,7 @@ export function buildUpdates(
   if (values.title !== undefined && values.title !== reminder.title) {
     updates.title = values.title;
   }
-  if (values.description !== reminder.description) {
+  if (values.description !== undefined && values.description !== reminder.description) {
     updates.description = values.description ?? null;
   }
   if (values.url !== undefined && values.url !== reminder.url) {
