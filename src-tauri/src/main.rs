@@ -1,6 +1,9 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use std::path::PathBuf;
 
 use tauri::{AppHandle, Builder, Manager, WindowEvent};
+use tauri_plugin_log::{Target, TargetKind};
 
 use crate::commands::*;
 use crate::database::connection::Database;
@@ -25,6 +28,14 @@ fn main() {
 
     Builder::default()
         .plugin(tauri_plugin_notification::init())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    Target::new(TargetKind::Stdout),
+                    Target::new(TargetKind::LogDir { file_name: None }),
+                ])
+                .build(),
+        )
         .setup(|app| {
             let db_path = get_data_dir(&app.handle()).join("reminders.db");
             let db = Database::open(&db_path).expect("Failed to open database");
