@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, memo, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { invoke } from '@tauri-apps/api/core';
 import type {
   ReminderResponse,
   ListResponse,
@@ -9,10 +8,12 @@ import type {
   TimeUnit,
   Priority,
   RecurrenceFrequency,
+  SubtaskHandlers,
 } from '@/types/api';
 import { formatDate, formatTime, normalizeTimeStr } from '@/utils/dateUtils';
 import { buildUpdates } from '@/utils/reminderUpdates';
 import {
+  filterTagSuggestions,
   normalizeCustomRecurrenceUnit,
   resolveRemindFields,
   tagNamesToResponses,
@@ -27,6 +28,7 @@ import { ReminderTagsDropdown } from './ReminderTagsDropdown';
 import { ReminderRepeatDropdown } from './ReminderRepeatDropdown';
 import { ReminderEndRepeatDropdown } from './ReminderEndRepeatDropdown';
 import { ReminderListDropdown } from './ReminderListDropdown';
+import { ReminderSubtasks } from './ReminderSubtasks';
 
 const chipClass =
   'inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F7] rounded-[10px] text-[13px] font-medium text-gray-700 hover:bg-[#E5E5EA] transition-all duration-200 spring-transition';
@@ -52,6 +54,7 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   reminder,
   lists,
   owners,
+  knownTags,
   onToggleCompleted,
   onSaveAndStopEditing,
   onCancelEditing,
@@ -59,11 +62,13 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   onDelete,
   onUpdateReminder,
   onAddChildReminder,
+  subtaskHandlers,
   showToast,
 }: {
   reminder: ReminderResponse;
   lists: ListResponse[];
   owners: OwnerResponse[];
+  knownTags: TagResponse[];
   onToggleCompleted: (id: string) => void;
   onSaveAndStopEditing: (id: string, updates: Partial<ReminderResponse>) => void;
   onCancelEditing: () => void;
@@ -71,6 +76,7 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   onDelete: (id: string) => void;
   onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
   onAddChildReminder?: (parent: ReminderResponse) => void;
+  subtaskHandlers: SubtaskHandlers;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }) {
   const [editTitle, setEditTitle] = useState(reminder.title);
@@ -289,23 +295,12 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
     onCancelEditing();
   }, [onCancelEditing]);
 
-  const handleTagInputChange = useCallback(async (value: string) => {
+  const handleTagInputChange = useCallback((value: string) => {
     setTagInput(value);
-    if (!value.trim()) {
-      setTagSuggestions([]);
-      setShowTagSuggestions(false);
-      return;
-    }
-    try {
-      const data = await invoke<TagResponse[]>('search_tags', { query: value.trim() });
-      const filtered = data.filter(t => !editTags.includes(t.name));
-      setTagSuggestions(filtered);
-      setShowTagSuggestions(filtered.length > 0);
-    } catch {
-      setTagSuggestions([]);
-      setShowTagSuggestions(false);
-    }
-  }, [editTags]);
+    const filtered = filterTagSuggestions(knownTags, value, editTags);
+    setTagSuggestions(filtered);
+    setShowTagSuggestions(filtered.length > 0);
+  }, [knownTags, editTags]);
 
   const addTag = useCallback((name: string) => {
     const trimmed = name.trim().replace(/^#/, '');
@@ -488,6 +483,18 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
                 </svg>
               </button>
             </div>
+
+            <div className="mt-3">
+              <ReminderSubtasks
+                reminderId={reminder.id}
+                subtasks={reminder.subtasks ?? []}
+                mode="edit"
+                compact
+                onCreate={subtaskHandlers.create}
+                onUpdate={subtaskHandlers.update}
+                onDelete={subtaskHandlers.remove}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -507,6 +514,7 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
           onToggleCompleted={onToggleCompleted}
           onEdit={() => { setShowDetail(false); }}
           onUpdateReminder={onUpdateReminder}
+          subtaskHandlers={subtaskHandlers}
         />
       )}
 

@@ -1,8 +1,7 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import type { ReminderResponse, ListResponse, CreateReminderRequest, Priority, RecurrenceFrequency, TimeUnit } from '@/types/api';
-import { getDaysInMonth, parseISODate, toISODateStr } from '@/utils/dateUtils';
-import { effectiveDueDate } from '@/utils/reminderDates';
+import { useState, useMemo, useCallback } from 'react';
+import type { ReminderResponse, ListResponse, CreateReminderRequest, Priority, RecurrenceFrequency, TagResponse, TimeUnit } from '@/types/api';
+import { formatDateTimeLocal, getDaysInMonth, getTodayStr, parseLocalDate, toISODateStr } from '@/utils/dateUtils';
+import { matchesSearch } from '@/utils/reminderDates';
 import { AddReminderModal } from '../AddReminderModal';
 import { DayView } from './DayView';
 import { WeekView } from './WeekView';
@@ -17,26 +16,11 @@ type ViewMode = 'day' | 'week' | 'month' | 'year';
 interface CalendarViewProps {
   reminders: ReminderResponse[];
   lists: ListResponse[];
+  knownTags?: TagResponse[];
   onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
   onDeleteReminder: (id: string) => void;
   onCreateReminder: (data: CreateReminderRequest) => Promise<{ data: ReminderResponse | null; error: string | null }>;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
-}
-
-function formatDraftDateTime(date: Date, hour: number, minute: number): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  const h = String(hour).padStart(2, '0');
-  const min = String(minute).padStart(2, '0');
-  return `${y}-${m}-${d}T${h}:${min}`;
-}
-
-function formatDraftDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
 }
 
 function addDays(date: Date, n: number): Date {
@@ -45,18 +29,15 @@ function addDays(date: Date, n: number): Date {
   return d;
 }
 
-export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteReminder, onCreateReminder, showToast }: CalendarViewProps) {
+export function CalendarView({ reminders, lists, knownTags = [], onUpdateReminder, onDeleteReminder, onCreateReminder, showToast }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<ReminderResponse[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addDraft, setAddDraft] = useState<{ endDateTime?: string; isAllDay?: boolean } | null>(null);
   const [editReminder, setEditReminder] = useState<ReminderResponse | null>(null);
-  const [rangeReminders, setRangeReminders] = useState<ReminderResponse[]>([]);
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -64,7 +45,8 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
 
   const weeksStartMon = useMemo(() => getWeekStartMon(currentDate), [currentDate]);
 
-  const today = useMemo(() => { const t = new Date(); t.setHours(0, 0, 0, 0); return t; }, []);
+  const todayStr = getTodayStr();
+  const today = useMemo(() => parseLocalDate(todayStr), [todayStr]);
 
   const visibleRange = useMemo(() => {
     if (viewMode === 'day') {
@@ -81,46 +63,20 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
     return { start: new Date(year, 0, 1), end: new Date(year, 11, 31) };
   }, [viewMode, selectedDate, weeksStartMon, days, year, month]);
 
-  // 按可见日期范围拉取，父级 all 变更时同步刷新
-  useEffect(() => {
-    let cancelled = false;
+  const calendarReminders = useMemo(() => {
     const start = toISODateStr(visibleRange.start);
     const end = toISODateStr(visibleRange.end);
-    invoke<ReminderResponse[]>('get_reminders_by_date_range', {
-      startDate: start,
-      endDate: end,
-    })
-      .then((data) => {
-        if (!cancelled) setRangeReminders(data);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          // 回退：从全量 props 过滤
-          setRangeReminders(
-            reminders.filter((r) => {
-              const due = effectiveDueDate(r);
-              return due !== null && due >= start && due <= end;
-            }),
-          );
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [visibleRange, reminders]);
+    return reminders.filter((r) => {
+      const due = r.end_date;
+      return due !== null && due >= start && due <= end;
+    });
+  }, [reminders, visibleRange]);
 
-  const calendarReminders = rangeReminders;
-
-  const doSearch = useCallback(async (q: string) => {
-    if (!q.trim()) { setSearchResults([]); return; }
-    try {
-      const data = await invoke<ReminderResponse[]>('search_reminders', { query: q.trim() });
-      setSearchResults(data);
-    } catch {
-      setSearchResults([]);
-      showToast?.('error', '搜索失败');
-    }
-  }, [showToast]);
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim();
+    if (!q) return [];
+    return reminders.filter(r => matchesSearch(r, q));
+  }, [searchQuery, reminders]);
 
   const openAddModal = useCallback((draft?: { endDateTime?: string; isAllDay?: boolean } | null) => {
     setAddDraft(draft ?? null);
@@ -134,23 +90,12 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
 
   const handleSearchInput = useCallback((q: string) => {
     setSearchQuery(q);
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    searchTimerRef.current = setTimeout(() => doSearch(q), 200);
-  }, [doSearch]);
-
-  // 清理搜索定时器，防止内存泄漏
-  useEffect(() => {
-    return () => {
-      if (searchTimerRef.current) {
-        clearTimeout(searchTimerRef.current);
-      }
-    };
   }, []);
 
   const handleSearchSelect = useCallback((r: ReminderResponse) => {
-    const due = effectiveDueDate(r);
+    const due = r.end_date;
     if (due) {
-      const d = parseISODate(due);
+      const d = parseLocalDate(due);
       setCurrentDate(d);
       setSelectedDate(d);
       if (viewMode === 'year') {
@@ -163,11 +108,11 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
   }, [viewMode]);
 
   const handleDoubleClickTimeline = useCallback((hour: number, minute: number, date: Date) => {
-    openAddModal({ endDateTime: formatDraftDateTime(date, hour, minute), isAllDay: false });
+    openAddModal({ endDateTime: formatDateTimeLocal(date, hour, minute), isAllDay: false });
   }, [openAddModal]);
 
   const handleAllDayDoubleClick = useCallback((date: Date) => {
-    openAddModal({ endDateTime: formatDraftDate(date), isAllDay: true });
+    openAddModal({ endDateTime: toISODateStr(date), isAllDay: true });
   }, [openAddModal]);
 
   const handleAddSubmit = useCallback(async (data: {
@@ -233,7 +178,7 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
       case 'month': return `${year}年${month + 1}月`;
       case 'year': return `${year}年`;
     }
-  }, [viewMode, selectedDate, weeksStartMon, currentDate, year, month]);
+  }, [viewMode, year, month]);
 
   const handlePrev = () => navigatePeriod(-1);
   const handleNext = () => navigatePeriod(1);
@@ -355,13 +300,14 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
         lists={lists}
         onQueryChange={handleSearchInput}
         onSelect={handleSearchSelect}
-        onClose={() => { setSearchOpen(false); setSearchQuery(''); setSearchResults([]); }}
+        onClose={() => { setSearchOpen(false); setSearchQuery(''); }}
       />
 
       {/* Add Reminder Modal */}
       {showAddModal && (
         <AddReminderModal
           lists={lists}
+          knownTags={knownTags}
           initialEndDateTime={addDraft?.endDateTime}
           initialIsAllDay={addDraft?.isAllDay}
           onClose={closeAddModal}
@@ -375,6 +321,7 @@ export function CalendarView({ reminders, lists, onUpdateReminder, onDeleteRemin
         <EditReminderCard
           reminder={editReminder}
           lists={lists}
+          knownTags={knownTags}
           onSave={onUpdateReminder}
           onDelete={onDeleteReminder}
           onClose={() => setEditReminder(null)}

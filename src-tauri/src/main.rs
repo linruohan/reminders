@@ -1,9 +1,6 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use std::path::PathBuf;
 
 use tauri::{AppHandle, Builder, Manager, WindowEvent};
-use tauri_plugin_log::{Target, TargetKind};
 
 use crate::commands::*;
 use crate::database::connection::Database;
@@ -28,14 +25,6 @@ fn main() {
 
     Builder::default()
         .plugin(tauri_plugin_notification::init())
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .targets([
-                    Target::new(TargetKind::Stdout),
-                    Target::new(TargetKind::LogDir { file_name: None }),
-                ])
-                .build(),
-        )
         .setup(|app| {
             let db_path = get_data_dir(&app.handle()).join("reminders.db");
             let db = Database::open(&db_path).expect("Failed to open database");
@@ -53,13 +42,6 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             get_all_reminders,
-            get_reminders_by_filter,
-            get_reminders_by_list,
-            get_reminders_by_owner,
-            get_reminders_by_tag,
-            get_reminders_by_date_range,
-            get_reminder_by_id,
-            search_reminders,
             create_reminder,
             update_reminder,
             delete_reminder,
@@ -72,12 +54,9 @@ fn main() {
             create_owner,
             update_owner,
             delete_owner,
-            get_reminder_tags,
             get_all_tags,
-            search_tags,
             rename_tag,
             delete_tag,
-            get_subtasks,
             create_subtask,
             update_subtask,
             delete_subtask,

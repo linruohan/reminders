@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::models::owner::Owner;
-use crate::models::reminder::{Priority, Reminder, ReminderList};
+use crate::models::reminder::{Reminder, ReminderList};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TagResponse {
@@ -36,9 +36,6 @@ pub struct ReminderResponse {
     pub owner_id: Option<String>,
     /// 父任务 ID
     pub parent_id: Option<String>,
-    /// 父任务标题（列表展示用，可为空）
-    #[serde(default)]
-    pub parent_title: Option<String>,
 }
 
 /// 子任务；`reminder_id` 为父任务 ID
@@ -67,12 +64,7 @@ impl From<Reminder> for ReminderResponse {
             is_all_day: r.is_all_day,
             is_completed: r.is_completed,
             is_flagged: r.is_flagged,
-            priority: match r.priority {
-                Priority::None => "none".to_string(),
-                Priority::High => "high".to_string(),
-                Priority::Medium => "medium".to_string(),
-                Priority::Low => "low".to_string(),
-            },
+            priority: r.priority.as_str().to_string(),
             recurrence_frequency: r.recurrence_frequency,
             recurrence_interval: r.recurrence_interval,
             custom_recurrence_unit: r.custom_recurrence_unit,
@@ -84,7 +76,6 @@ impl From<Reminder> for ReminderResponse {
             list_id: r.list_id.map(|id| id.to_string()),
             owner_id: r.owner_id.map(|id| id.to_string()),
             parent_id: r.parent_id.map(|id| id.to_string()),
-            parent_title: None,
         }
     }
 }

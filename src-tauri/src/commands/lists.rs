@@ -1,12 +1,11 @@
 use tauri::{command, State};
-use uuid::Uuid;
 
 use crate::database::connection::Database;
 use crate::models::reminder::ReminderList;
 use crate::repository::list::ListRepository;
 
 use super::dto::{CreateListRequest, ListResponse, UpdateListRequest};
-use super::helpers::get_conn;
+use super::helpers::{get_conn, parse_uuid};
 
 #[command]
 pub fn get_all_lists(db: State<'_, Database>) -> Result<Vec<ListResponse>, String> {
@@ -36,7 +35,7 @@ pub fn create_list(
 #[command]
 pub fn delete_list(db: State<'_, Database>, id: String) -> Result<(), String> {
     let repo = ListRepository::new(get_conn(&db));
-    let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    let id = parse_uuid(&id)?;
     repo.delete(&id).map_err(|e| e.to_string())
 }
 
@@ -46,7 +45,7 @@ pub fn update_list(
     request: UpdateListRequest,
 ) -> Result<ListResponse, String> {
     let repo = ListRepository::new(get_conn(&db));
-    let id = Uuid::parse_str(&request.id).map_err(|e| e.to_string())?;
+    let id = parse_uuid(&request.id)?;
     let mut list = repo
         .get_by_id(&id)
         .map_err(|e| e.to_string())?

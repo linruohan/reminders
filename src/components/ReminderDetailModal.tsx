@@ -1,7 +1,8 @@
-import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse, SubtaskHandlers } from '@/types/api';
 import { formatRecurrenceLabel } from '@/components/reminder/formOptions';
 import { formatDate, formatTime } from '@/utils/dateUtils';
 import { getTagColorStyle } from '@/utils/tagColors';
+import { ReminderSubtasks } from './reminder/ReminderSubtasks';
 import { useEffect } from 'react';
 
 interface ReminderDetailModalProps {
@@ -14,6 +15,7 @@ interface ReminderDetailModalProps {
   onToggleCompleted: (id: string) => void;
   onEdit: (id: string) => void;
   onUpdateReminder?: (id: string, updates: Partial<ReminderResponse>) => void;
+  subtaskHandlers?: SubtaskHandlers;
 }
 
 const priorityLabels: Record<string, string> = {
@@ -42,6 +44,7 @@ export function ReminderDetailModal({
   onToggleCompleted,
   onEdit,
   onUpdateReminder,
+  subtaskHandlers,
 }: ReminderDetailModalProps) {
   useEffect(() => {
     if (!isOpen) return;
@@ -158,6 +161,17 @@ export function ReminderDetailModal({
                 </span>
               ))}
             </div>
+          )}
+
+          {subtaskHandlers && (
+            <ReminderSubtasks
+              reminderId={reminder.id}
+              subtasks={reminder.subtasks ?? []}
+              mode="view"
+              onCreate={subtaskHandlers.create}
+              onUpdate={subtaskHandlers.update}
+              onDelete={subtaskHandlers.remove}
+            />
           )}
 
           {onUpdateReminder && owners.length > 0 && (

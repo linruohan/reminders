@@ -18,12 +18,18 @@ impl ReminderRepository {
         Self { conn }
     }
 
-    pub fn get_all(&self) -> Result<Vec<Reminder>> {
+    fn query_vec(&self, sql: &str, params: impl rusqlite::Params) -> Result<Vec<Reminder>> {
         let conn = lock_conn(&self.conn)?;
-        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders ORDER BY created_at DESC");
-        let mut stmt = conn.prepare(&query)?;
-        let rows = stmt.query_map([], Self::row_to_reminder)?;
+        let mut stmt = conn.prepare(sql)?;
+        let rows = stmt.query_map(params, Self::row_to_reminder)?;
         rows.collect()
+    }
+
+    pub fn get_all(&self) -> Result<Vec<Reminder>> {
+        self.query_vec(
+            &format!("SELECT {REMINDER_FIELDS} FROM reminders ORDER BY created_at DESC"),
+            [],
+        )
     }
 
     pub fn get_by_id(&self, id: &Uuid) -> Result<Option<Reminder>> {
@@ -34,141 +40,11 @@ impl ReminderRepository {
             .optional()
     }
 
-    pub fn get_by_list_id(&self, list_id: &Uuid) -> Result<Vec<Reminder>> {
-        let conn = lock_conn(&self.conn)?;
-        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE list_id = ? ORDER BY created_at DESC");
-        let mut stmt = conn.prepare(&query)?;
-        let rows = stmt.query_map([list_id.to_string()], Self::row_to_reminder)?;
-        rows.collect()
-    }
-
-    pub fn get_today(&self) -> Result<Vec<Reminder>> {
-        let today = Local::now().date_naive();
-        let conn = lock_conn(&self.conn)?;
-        let date_str = today.format("%Y-%m-%d").to_string();
-        // 今天：逾期未完成 + 截止日期为今天的未完成（无截止日期不纳入）
-        let query = format!(
-            "SELECT {REMINDER_FIELDS} FROM reminders WHERE end_date IS NOT NULL AND end_date <= ? AND is_completed = 0 ORDER BY end_date ASC, created_at DESC"
-        );
-        let mut stmt = conn.prepare(&query)?;
-        let rows = stmt.query_map([date_str], Self::row_to_reminder)?;
-        rows.collect()
-    }
-
-    pub fn get_planned(&self) -> Result<Vec<Reminder>> {
-        let today = Local::now().date_naive();
-        let conn = lock_conn(&self.conn)?;
-        let date_str = today.format("%Y-%m-%d").to_string();
-        let query = format!(
-            "SELECT {REMINDER_FIELDS} FROM reminders WHERE end_date IS NOT NULL AND end_date > ? AND is_completed = 0 ORDER BY end_date ASC, end_time IS NULL, end_time ASC, created_at DESC"
-        );
-        let mut stmt = conn.prepare(&query)?;
-        let rows = stmt.query_map([date_str], Self::row_to_reminder)?;
-        rows.collect()
-    }
-
     pub fn get_active(&self) -> Result<Vec<Reminder>> {
-        let conn = lock_conn(&self.conn)?;
-        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE is_completed = 0 ORDER BY created_at DESC");
-        let mut stmt = conn.prepare(&query)?;
-        let rows = stmt.query_map([], Self::row_to_reminder)?;
-        rows.collect()
-    }
-
-    pub fn get_completed(&self) -> Result<Vec<Reminder>> {
-        let conn = lock_conn(&self.conn)?;
-        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE is_completed = 1 ORDER BY created_at DESC");
-        let mut stmt = conn.prepare(&query)?;
-        let rows = stmt.query_map([], Self::row_to_reminder)?;
-        rows.collect()
-    }
-
-    pub fn get_urgent(&self) -> Result<Vec<Reminder>> {
-        let conn = lock_conn(&self.conn)?;
-        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE priority = 'high' AND is_completed = 0 ORDER BY created_at DESC");
-        let mut stmt = conn.prepare(&query)?;
-        let rows = stmt.query_map([], Self::row_to_reminder)?;
-        rows.collect()
-    }
-
-    pub fn get_flagged(&self) -> Result<Vec<Reminder>> {
-        let conn = lock_conn(&self.conn)?;
-        let query = format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE is_flagged = 1 AND is_completed = 0 ORDER BY created_at DESC");
-        let mut stmt = conn.prepare(&query)?;
-        let rows = stmt.query_map([], Self::row_to_reminder)?;
-        rows.collect()
-    }
-
-    pub fn get_by_owner_id(&self, owner_id: &Uuid) -> Result<Vec<Reminder>> {
-        let conn = lock_conn(&self.conn)?;
-        let query = format!(
-            "SELECT {REMINDER_FIELDS} FROM reminders WHERE owner_id = ? AND is_completed = 0 ORDER BY created_at DESC"
-        );
-        let mut stmt = conn.prepare(&query)?;
-        let rows = stmt.query_map([owner_id.to_string()], Self::row_to_reminder)?;
-        rows.collect()
-    }
-
-    /// 按截止日期闭区间查询（含已完成，供日历渲染）
-    pub fn get_by_date_range(&self, start: &str, end: &str) -> Result<Vec<Reminder>> {
-        let conn = lock_conn(&self.conn)?;
-        let query = format!(
-            "SELECT {REMINDER_FIELDS} FROM reminders \
-             WHERE end_date IS NOT NULL AND end_date >= ?1 AND end_date <= ?2 \
-             ORDER BY end_date ASC, end_time ASC, created_at DESC"
-        );
-        let mut stmt = conn.prepare(&query)?;
-        let rows = stmt.query_map(params![start, end], Self::row_to_reminder)?;
-        rows.collect()
-    }
-
-    pub fn get_by_tag_name(&self, tag_name: &str) -> Result<Vec<Reminder>> {
-        let conn = lock_conn(&self.conn)?;
-        let query = format!(
-            "SELECT {REMINDER_FIELDS} FROM reminders WHERE id IN ( \
-               SELECT rt.reminder_id FROM reminder_tags rt \
-               INNER JOIN tags t ON rt.tag_id = t.id \
-               WHERE t.name = ?1 \
-             ) AND is_completed = 0 ORDER BY created_at DESC"
-        );
-        let mut stmt = conn.prepare(&query)?;
-        let rows = stmt.query_map([tag_name], Self::row_to_reminder)?;
-        rows.collect()
-    }
-
-    pub fn search(&self, query: &str) -> Result<Vec<Reminder>> {
-        let conn = lock_conn(&self.conn)?;
-        let like_query = format!("%{}%", query);
-
-        if let Some(fts_q) = crate::database::fts::build_match_query(query) {
-            let query_sql = format!(
-                "SELECT {REMINDER_FIELDS} FROM reminders WHERE id IN ( \
-                   SELECT reminder_id FROM reminders_fts WHERE reminders_fts MATCH ?1 \
-                 ) OR id IN ( \
-                   SELECT r.id FROM reminders r \
-                   LEFT JOIN reminder_tags rt ON r.id = rt.reminder_id \
-                   LEFT JOIN tags t ON rt.tag_id = t.id \
-                   WHERE r.title LIKE ?2 OR IFNULL(r.description,'') LIKE ?2 OR IFNULL(r.url,'') LIKE ?2 OR IFNULL(t.name,'') LIKE ?2 \
-                 ) ORDER BY created_at DESC"
-            );
-            if let Ok(mut stmt) = conn.prepare(&query_sql) {
-                if let Ok(rows) = stmt.query_map(params![fts_q, like_query], Self::row_to_reminder) {
-                    return rows.collect();
-                }
-            }
-        }
-
-        let query_sql = format!(
-            "SELECT {REMINDER_FIELDS} FROM reminders WHERE id IN ( \
-               SELECT r.id FROM reminders r \
-               LEFT JOIN reminder_tags rt ON r.id = rt.reminder_id \
-               LEFT JOIN tags t ON rt.tag_id = t.id \
-               WHERE r.title LIKE ?1 OR IFNULL(r.description,'') LIKE ?1 OR IFNULL(r.url,'') LIKE ?1 OR IFNULL(t.name,'') LIKE ?1 \
-             ) ORDER BY created_at DESC"
-        );
-        let mut stmt = conn.prepare(&query_sql)?;
-        let rows = stmt.query_map([&like_query], Self::row_to_reminder)?;
-        rows.collect()
+        self.query_vec(
+            &format!("SELECT {REMINDER_FIELDS} FROM reminders WHERE is_completed = 0 ORDER BY created_at DESC"),
+            [],
+        )
     }
 
     /// Update a reminder row on an existing connection / transaction (no lock).
@@ -186,7 +62,7 @@ impl ReminderRepository {
                 reminder.is_all_day as i32,
                 reminder.is_completed as i32,
                 reminder.is_flagged as i32,
-                Self::priority_to_str(&reminder.priority),
+                reminder.priority.as_str(),
                 reminder.list_id.map(|id| id.to_string()),
                 now.to_rfc3339(),
                 reminder.url,
@@ -202,7 +78,6 @@ impl ReminderRepository {
                 reminder.id.to_string(),
             ],
         )?;
-        let _ = crate::database::fts::upsert_reminder(conn, &reminder.id.to_string());
         Ok(())
     }
 
@@ -213,9 +88,7 @@ impl ReminderRepository {
 
     pub fn delete(&self, id: &Uuid) -> Result<()> {
         let conn = lock_conn(&self.conn)?;
-        let id_str = id.to_string();
-        let _ = crate::database::fts::delete_reminder(&conn, &id_str);
-        conn.execute("DELETE FROM reminders WHERE id = ?", [id_str])?;
+        conn.execute("DELETE FROM reminders WHERE id = ?", [id.to_string()])?;
         Ok(())
     }
 
@@ -290,7 +163,7 @@ impl ReminderRepository {
             is_all_day: is_all_day != 0,
             is_completed: is_completed != 0,
             completion_date,
-            priority: Self::str_to_priority(&priority_str),
+            priority: Priority::parse(&priority_str),
             is_flagged: is_flagged != 0,
             recurrence_frequency: row.get("recurrence_frequency").unwrap_or(None),
             recurrence_interval: row.get("recurrence_interval").unwrap_or(None),
@@ -304,23 +177,5 @@ impl ReminderRepository {
             created_at,
             updated_at,
         })
-    }
-
-    fn priority_to_str(priority: &Priority) -> &str {
-        match priority {
-            Priority::None => "none",
-            Priority::High => "high",
-            Priority::Medium => "medium",
-            Priority::Low => "low",
-        }
-    }
-
-    fn str_to_priority(s: &str) -> Priority {
-        match s {
-            "high" => Priority::High,
-            "low" => Priority::Low,
-            "medium" => Priority::Medium,
-            _ => Priority::None,
-        }
     }
 }

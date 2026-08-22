@@ -1,18 +1,18 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { ListResponse, Priority, RecurrenceFrequency, TimeUnit } from '@/types/api';
+import type { ListResponse, Priority, RecurrenceFrequency, TagResponse, TimeUnit } from '@/types/api';
 import {
   ReminderFormFields,
   type ReminderFormFieldValues,
 } from './reminder/ReminderFormFields';
+import { formatDateTimeLocal } from '@/utils/dateUtils';
 import {
-  resolveRecurrenceFields,
-  resolveRemindFields,
-  splitDateTime,
+  formFieldsToReminderPatch,
   validateReminderFields,
 } from '@/utils/reminderForm';
 
 interface AddReminderModalProps {
   lists: ListResponse[];
+  knownTags?: TagResponse[];
   initialListId?: string | null;
   initialEndDateTime?: string | null;
   initialIsAllDay?: boolean;
@@ -50,6 +50,7 @@ function isValidDateRange(start: string, end: string): boolean {
 
 export function AddReminderModal({
   lists,
+  knownTags = [],
   initialListId,
   initialEndDateTime,
   initialIsAllDay = false,
@@ -64,12 +65,7 @@ export function AddReminderModal({
   const [url, setUrl] = useState('');
   const [startDateTime] = useState(() => {
     const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    const h = String(now.getHours()).padStart(2, '0');
-    const min = String(now.getMinutes()).padStart(2, '0');
-    return `${y}-${m}-${d}T${h}:${min}`;
+    return formatDateTimeLocal(now, now.getHours(), now.getMinutes());
   });
   const [fields, setFields] = useState<ReminderFormFieldValues>({
     endDateTime: initialEndDateTime || '',
@@ -110,26 +106,24 @@ export function AddReminderModal({
     }
 
     setIsSubmitting(true);
-    const end = splitDateTime(fields.endDateTime);
+    const patch = formFieldsToReminderPatch(fields);
     try {
       onSubmit({
         title: title.trim(),
         description: description.trim() || null,
         url: url.trim() || null,
-        end_date: end?.date || null,
-        end_time: fields.isAllDay ? null : (end?.time || null),
-        list_id: fields.selectedListId || null,
-        is_all_day: fields.isAllDay,
-        is_flagged: fields.isFlagged,
-        priority: fields.priority as Priority,
-        ...resolveRecurrenceFields(
-          fields.recurrenceFreq,
-          fields.recurrenceInterval,
-          fields.customUnit,
-          fields.showEndRepeat,
-          fields.recurrenceEndDate,
-        ),
-        ...resolveRemindFields(fields.remindValue, fields.customRemindNum, fields.customRemindUnit),
+        end_date: patch.end_date,
+        end_time: patch.end_time,
+        list_id: patch.list_id,
+        is_all_day: patch.is_all_day,
+        is_flagged: patch.is_flagged,
+        priority: patch.priority,
+        recurrence_frequency: patch.recurrence_frequency,
+        recurrence_interval: patch.recurrence_interval,
+        custom_recurrence_unit: patch.custom_recurrence_unit,
+        recurrence_end_date: patch.recurrence_end_date,
+        remind_before_value: patch.remind_before_value,
+        remind_before_unit: patch.remind_before_unit,
         tags: fields.tags.length > 0 ? fields.tags : undefined,
         parent_id: initialParentId || null,
       });
@@ -215,7 +209,7 @@ export function AddReminderModal({
           />
 
           <div className="border-t border-apple-divider mt-3 mb-3" />
-          <ReminderFormFields lists={lists} values={fields} onChange={onFieldsChange} variant="add" />
+          <ReminderFormFields lists={lists} knownTags={knownTags} values={fields} onChange={onFieldsChange} variant="add" />
         </div>
       </div>
     </div>

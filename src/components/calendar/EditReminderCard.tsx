@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { ReminderResponse, ListResponse } from '@/types/api';
+import type { ReminderResponse, ListResponse, TagResponse } from '@/types/api';
 import {
   ReminderFormFields,
   type ReminderFormFieldValues,
@@ -16,6 +16,7 @@ import {
 interface EditReminderCardProps {
   reminder: ReminderResponse;
   lists: ListResponse[];
+  knownTags?: TagResponse[];
   onSave: (id: string, updates: Partial<ReminderResponse>) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
@@ -25,6 +26,7 @@ interface EditReminderCardProps {
 export function EditReminderCard({
   reminder,
   lists,
+  knownTags = [],
   onSave,
   onDelete,
   onClose,
@@ -122,7 +124,7 @@ export function EditReminderCard({
           />
 
           <div className="border-t border-apple-divider my-3" />
-          <ReminderFormFields lists={lists} values={fields} onChange={onFieldsChange} variant="edit" />
+          <ReminderFormFields lists={lists} knownTags={knownTags} values={fields} onChange={onFieldsChange} variant="edit" />
         </div>
       </div>
     </div>

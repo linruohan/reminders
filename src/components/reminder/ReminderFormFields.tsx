@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import type { ListResponse, Priority, TagResponse } from '@/types/api';
 import { DatePicker } from '../DatePicker';
 import { recurrenceOptions, remindOptions, priorityOptions } from './formOptions';
 import { getTagColorStyle } from '@/utils/tagColors';
+import { filterTagSuggestions } from '@/utils/reminderForm';
 
 export interface ReminderFormFieldValues {
   endDateTime: string;
@@ -24,6 +24,7 @@ export interface ReminderFormFieldValues {
 
 export interface ReminderFormFieldsProps {
   lists: ListResponse[];
+  knownTags?: TagResponse[];
   values: ReminderFormFieldValues;
   onChange: (patch: Partial<ReminderFormFieldValues>) => void;
   /** add：图标标题 + select 列表；edit：精简标题 + chip 列表 */
@@ -57,6 +58,7 @@ function SectionTitle({
 
 export function ReminderFormFields({
   lists,
+  knownTags = [],
   values,
   onChange,
   variant = 'add',
@@ -89,22 +91,12 @@ export function ReminderFormFields({
   }, []);
 
   const searchTags = useCallback(
-    async (q: string) => {
-      if (!q.trim()) {
-        setTagSuggestions([]);
-        setShowTagSuggestions(false);
-        return;
-      }
-      try {
-        const data = await invoke<TagResponse[]>('search_tags', { query: q.trim() });
-        setTagSuggestions(data.filter(t => !values.tags.includes(t.name)));
-        setShowTagSuggestions(true);
-      } catch {
-        setTagSuggestions([]);
-        setShowTagSuggestions(false);
-      }
+    (q: string) => {
+      const filtered = filterTagSuggestions(knownTags, q, values.tags);
+      setTagSuggestions(filtered);
+      setShowTagSuggestions(filtered.length > 0);
     },
-    [values.tags],
+    [knownTags, values.tags],
   );
 
   const addTag = useCallback(

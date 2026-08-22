@@ -11,13 +11,24 @@ pub enum Priority {
     High,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[allow(dead_code)]
-pub enum RecurrenceFrequency {
-    Daily,
-    Weekly,
-    Monthly,
-    Yearly,
+impl Priority {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Priority::None => "none",
+            Priority::High => "high",
+            Priority::Medium => "medium",
+            Priority::Low => "low",
+        }
+    }
+
+    pub fn parse(s: &str) -> Self {
+        match s {
+            "high" => Priority::High,
+            "medium" => Priority::Medium,
+            "low" => Priority::Low,
+            _ => Priority::None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -101,45 +112,6 @@ impl Reminder {
     pub fn with_description(mut self, description: String) -> Self {
         self.description = Some(description);
         self
-    }
-
-    #[allow(dead_code)]
-    pub fn with_priority(mut self, priority: Priority) -> Self {
-        self.priority = priority;
-        self
-    }
-
-    #[allow(dead_code)]
-    pub fn mark_completed(mut self) -> Self {
-        self.is_completed = true;
-        self.completion_date = Some(Local::now());
-        self.updated_at = Local::now();
-        self
-    }
-
-    #[allow(dead_code)]
-    pub fn mark_incomplete(mut self) -> Self {
-        self.is_completed = false;
-        self.completion_date = None;
-        self.updated_at = Local::now();
-        self
-    }
-
-    #[allow(dead_code)]
-    pub fn matches_search(&self, query: &str) -> bool {
-        let trimmed = query.trim();
-        if trimmed.is_empty() {
-            return false;
-        }
-        let query_lower = trimmed.to_lowercase();
-        let haystack = [
-            self.title.as_str(),
-            self.description.as_deref().unwrap_or(""),
-            self.url.as_deref().unwrap_or(""),
-        ]
-        .join("\n")
-        .to_lowercase();
-        haystack.contains(&query_lower)
     }
 }
 

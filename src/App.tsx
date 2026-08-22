@@ -9,6 +9,17 @@ import { ToastContainer, type ToastMessage, type ToastType } from './components/
 import { useReminderData } from './hooks/useReminderData';
 import type { CreateReminderRequest, ListResponse } from './types/api';
 
+function LoadingSpinner() {
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="relative">
+        <div className="w-10 h-10 border-3 border-apple-blue border-t-transparent rounded-full animate-spin" />
+        <div className="absolute inset-0 w-10 h-10 border-3 border-apple-blue/30 border-t-transparent rounded-full animate-spin" style={{ animationDuration: '1.5s' }} />
+      </div>
+    </div>
+  );
+}
+
 function AuroraBackground() {
   return (
     <div className="aurora-bg">
@@ -50,6 +61,7 @@ export function App() {
     allReminders,
     lists,
     owners,
+    tags,
     activeFilter,
     searchQuery,
     clipboard,
@@ -75,6 +87,7 @@ export function App() {
     handleCutReminder,
     handleCopyReminder,
     handlePasteReminder,
+    subtaskHandlers,
     refreshData,
   } = useReminderData(showToast);
 
@@ -230,18 +243,14 @@ export function App() {
         <TitleBar currentView={currentView} onViewChange={setCurrentView} />
 
         {isInitialLoading && currentView === 'reminder' ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="relative">
-              <div className="w-10 h-10 border-3 border-apple-blue border-t-transparent rounded-full animate-spin" />
-              <div className="absolute inset-0 w-10 h-10 border-3 border-apple-blue/30 border-t-transparent rounded-full animate-spin" style={{ animationDuration: '1.5s' }} />
-            </div>
-          </div>
+          <LoadingSpinner />
         ) : currentView === 'reminder' ? (
           <div className="flex-1 flex overflow-hidden">
             <ReminderPage
               reminders={reminders}
               lists={lists}
               owners={owners}
+              knownTags={tags}
               activeFilter={activeFilter}
               searchQuery={searchQuery}
               filterCounts={filterCounts}
@@ -266,21 +275,18 @@ export function App() {
               onCopy={handleCopyReminder}
               onPaste={handlePasteReminder}
               canPaste={clipboard !== null}
+              subtaskHandlers={subtaskHandlers}
               showToast={showToast}
             />
           </div>
         ) : isCalendarLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="relative">
-              <div className="w-10 h-10 border-3 border-apple-blue border-t-transparent rounded-full animate-spin" />
-              <div className="absolute inset-0 w-10 h-10 border-3 border-apple-blue/30 border-t-transparent rounded-full animate-spin" style={{ animationDuration: '1.5s' }} />
-            </div>
-          </div>
+          <LoadingSpinner />
         ) : (
           <div className="flex-1 flex overflow-hidden">
             <CalendarPage
               reminders={allReminders}
               lists={lists}
+              knownTags={tags}
               onUpdateReminder={handleUpdateReminder}
               onDeleteReminder={requestDeleteReminder}
               onCreateReminder={handleCreateReminder}
@@ -292,6 +298,7 @@ export function App() {
         {showAddModal && (
           <AddReminderModal
             lists={lists}
+            knownTags={tags}
             initialListId={
               addParent?.listId
               ?? (activeFilter.startsWith('list:') ? activeFilter.slice('list:'.length) : null)

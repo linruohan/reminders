@@ -16,20 +16,6 @@ impl SubtaskRepository {
         Self { conn }
     }
 
-    pub fn list_by_reminder(&self, reminder_id: &Uuid) -> Result<Vec<Subtask>> {
-        let conn = lock_conn(&self.conn)?;
-        Self::list_by_reminder_on_conn(&conn, reminder_id)
-    }
-
-    pub fn list_by_reminder_on_conn(conn: &Connection, reminder_id: &Uuid) -> Result<Vec<Subtask>> {
-        let mut stmt = conn.prepare(
-            "SELECT id, reminder_id, title, is_completed, sort_order FROM subtasks \
-             WHERE reminder_id = ? ORDER BY sort_order ASC, created_at ASC",
-        )?;
-        let rows = stmt.query_map([reminder_id.to_string()], Self::row_to_subtask)?;
-        rows.collect()
-    }
-
     pub fn create(&self, reminder_id: &Uuid, title: &str) -> Result<Subtask> {
         let conn = lock_conn(&self.conn)?;
         let id = Uuid::new_v4();

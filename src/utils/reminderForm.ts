@@ -1,4 +1,4 @@
-import type { RecurrenceFrequency, ReminderResponse, TimeUnit } from '@/types/api';
+import type { RecurrenceFrequency, ReminderResponse, TagResponse, TimeUnit } from '@/types/api';
 import { encodeRemindValue, parseRemindValue, remindOptions } from '@/components/reminder/formOptions';
 
 /** 拆分 `YYYY-MM-DD` 或 `YYYY-MM-DDTHH:mm(:ss)` */
@@ -86,6 +86,20 @@ export function tagsEqual(a: string[] | undefined, b: string[] | undefined): boo
 
 export function tagNamesToResponses(names: string[]): ReminderResponse['tags'] {
   return names.map(name => ({ id: name, name }));
+}
+
+/** 从已加载标签里做联想，避免 IPC */
+export function filterTagSuggestions(
+  tags: TagResponse[],
+  query: string,
+  exclude: string[],
+  limit = 20,
+): TagResponse[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return tags
+    .filter(t => t.name.toLowerCase().includes(q) && !exclude.includes(t.name))
+    .slice(0, limit);
 }
 
 /** 将共享表单字段转为提醒更新补丁（不含 title/description/url） */

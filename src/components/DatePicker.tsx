@@ -1,4 +1,6 @@
 import { useState, useRef, memo, useCallback } from 'react';
+import { formatDate, formatTime } from '@/utils/dateUtils';
+import { splitDateTime } from '@/utils/reminderForm';
 import { CalendarPicker } from './CalendarPicker';
 import { TimePicker } from './TimePicker';
 import { DropdownPortal } from './DropdownPortal';
@@ -15,43 +17,7 @@ interface DatePickerProps {
   icon?: React.ReactNode;
 }
 
-/**
- * 格式化日期显示文本
- */
-function formatDisplayDate(dateStr: string): string {
-  if (!dateStr) return '';
-  const d = new Date(dateStr + 'T00:00:00');
-  if (isNaN(d.getTime())) return dateStr;
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  return `${m}月${day}日`;
-}
-
-/**
- * 格式化时间显示文本
- */
-function formatDisplayTime(timeStr: string): string {
-  if (!timeStr) return '';
-  const parts = timeStr.split(':');
-  const hour = parseInt(parts[0]);
-  const minute = parseInt(parts[1]);
-  const mm = minute.toString().padStart(2, '0');
-  
-  if (hour < 12) {
-    return `上午 ${hour === 0 ? 12 : hour}:${mm}`;
-  } else if (hour === 12) {
-    return `下午 12:${mm}`;
-  } else {
-    return `下午 ${hour - 12}:${mm}`;
-  }
-}
-
-/**
- * 统一的日期时间选择器组件
- * date 模式使用自定义 Apple 风格日历弹窗
- * time 模式使用自定义 Apple 风格时间选择器
- * datetime-local 模式结合日期和时间选择
- */
+/** 日期 / 时间 / 日期时间统一选择器 */
 export const DatePicker = memo(function DatePicker({
   value,
   onChange,
@@ -86,7 +52,7 @@ export const DatePicker = memo(function DatePicker({
 
   const handleCalendarChange = useCallback((dateStr: string) => {
     if (mode === 'datetime-local') {
-      const timePart = value.includes('T') ? value.split('T')[1] : '09:00';
+      const timePart = splitDateTime(value)?.time || '09:00';
       onChange(`${dateStr}T${timePart}`);
     } else {
       onChange(dateStr);
@@ -96,7 +62,7 @@ export const DatePicker = memo(function DatePicker({
 
   const handleTimeChange = useCallback((timeStr: string) => {
     if (mode === 'datetime-local') {
-      const datePart = value.includes('T') ? value.split('T')[0] : '';
+      const datePart = splitDateTime(value)?.date || '';
       onChange(`${datePart}T${timeStr}`);
     } else {
       onChange(timeStr);
@@ -122,7 +88,7 @@ export const DatePicker = memo(function DatePicker({
 
   // date 模式：显示日期文本 + 点击弹出日历
   if (mode === 'date') {
-    const displayText = value ? formatDisplayDate(value) : (placeholder || getDefaultPlaceholder());
+    const displayText = value ? formatDate(value) : (placeholder || getDefaultPlaceholder());
 
     return (
       <div className="relative" ref={triggerRef}>
@@ -178,7 +144,7 @@ export const DatePicker = memo(function DatePicker({
 
   // time 模式：自定义时间选择器
   if (mode === 'time') {
-    const displayText = value ? formatDisplayTime(value) : (placeholder || getDefaultPlaceholder());
+    const displayText = value ? formatTime(value) : (placeholder || getDefaultPlaceholder());
 
     return (
       <div className="relative" ref={triggerRef}>
@@ -233,8 +199,9 @@ export const DatePicker = memo(function DatePicker({
   }
 
   // datetime-local 模式：日期触发 + 时间选择
-  const datePart = value.includes('T') ? value.split('T')[0] : '';
-  const timePart = value.includes('T') ? value.split('T')[1] : '';
+  const parts = splitDateTime(value);
+  const datePart = parts?.date ?? '';
+  const timePart = parts?.time ?? '';
 
   return (
     <div className="relative" ref={triggerRef}>
@@ -251,7 +218,7 @@ export const DatePicker = memo(function DatePicker({
         >
           <span className="text-gray-500">{icon || defaultIcon}</span>
           <span className={datePart ? 'text-gray-700' : 'text-apple-gray'}>
-            {datePart ? formatDisplayDate(datePart) : (placeholder || getDefaultPlaceholder())}
+            {datePart ? formatDate(datePart) : (placeholder || getDefaultPlaceholder())}
           </span>
         </button>
 
@@ -266,7 +233,7 @@ export const DatePicker = memo(function DatePicker({
             >
               <span className="text-gray-500">{timeIcon}</span>
               <span className={timePart ? 'text-gray-700' : 'text-apple-gray'}>
-                {timePart ? formatDisplayTime(timePart) : '选择时间'}
+                {timePart ? formatTime(timePart) : '选择时间'}
               </span>
             </button>
           </>
@@ -323,46 +290,6 @@ export const DatePicker = memo(function DatePicker({
           />
         </div>
       </DropdownPortal>
-    </div>
-  );
-});
-
-/**
- * 日期范围选择器
- * 用于选择开始和结束日期时间
- */
-interface DateRangePickerProps {
-  startValue: string;
-  endValue: string;
-  onStartChange: (value: string) => void;
-  onEndChange: (value: string) => void;
-  mode?: DatePickerMode;
-  className?: string;
-}
-
-export const DateRangePicker = memo(function DateRangePicker({
-  startValue,
-  endValue,
-  onStartChange,
-  onEndChange,
-  mode = 'datetime-local',
-  className = '',
-}: DateRangePickerProps) {
-  return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <DatePicker
-        value={startValue}
-        onChange={onStartChange}
-        mode={mode}
-        placeholder="开始时间"
-      />
-      <span className="text-xs text-gray-400">至</span>
-      <DatePicker
-        value={endValue}
-        onChange={onEndChange}
-        mode={mode}
-        placeholder="结束时间"
-      />
     </div>
   );
 });

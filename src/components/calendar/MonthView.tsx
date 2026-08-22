@@ -1,8 +1,7 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { ReminderResponse, ListResponse } from '@/types/api';
 import { isSameDay, toISODateStr } from '@/utils/dateUtils';
-import { getRemindersForDate, weekDays } from './utils';
-import { getListColor } from './utils';
+import { getListColor, groupRemindersByDate, weekDays, DRAG_THRESHOLD } from './utils';
 
 interface MonthViewProps {
   month: number;
@@ -19,8 +18,6 @@ interface MonthViewProps {
     is_all_day?: boolean;
   }) => void;
 }
-
-const DRAG_THRESHOLD = 5;
 
 export function MonthView({
   month,
@@ -43,6 +40,7 @@ export function MonthView({
   const dragRef = useRef(drag);
   dragRef.current = drag;
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const remindersByDate = useMemo(() => groupRemindersByDate(reminders), [reminders]);
 
   const dayIndexFromPoint = useCallback((clientX: number, clientY: number) => {
     for (let i = 0; i < cellRefs.current.length; i++) {
@@ -99,7 +97,7 @@ export function MonthView({
           const isCurrentMonth = day.getMonth() === month;
           const isToday = isSameDay(day, today);
           const isSelected = isSameDay(day, selectedDate);
-          const dayReminders = getRemindersForDate(reminders, day);
+          const dayReminders = remindersByDate.get(toISODateStr(day)) ?? [];
           const isLastRow = index >= days.length - 7;
           const isDropTarget = drag?.started && drag.dayIndex === index;
           return (

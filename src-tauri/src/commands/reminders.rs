@@ -1,6 +1,5 @@
 use chrono::Local;
 use tauri::{command, State};
-use uuid::Uuid;
 
 use crate::database::connection::Database;
 use crate::models::reminder::{Priority, Reminder};
@@ -10,105 +9,14 @@ use crate::repository::reminder::ReminderRepository;
 use super::dto::{CreateReminderRequest, ReminderResponse, UpdateReminderRequest};
 use super::helpers::{
     get_conn, get_reminder_subtasks_internal, get_reminder_tags_internal, get_reminder_with_tags,
-    insert_reminder_row, map_reminders_with_tags, parse_date, parse_priority, parse_time,
-    sync_reminder_tags_in_tx,
+    insert_reminder_row, map_reminders_with_tags, parse_date, parse_optional_uuid, parse_time,
+    parse_uuid, sync_reminder_tags_in_tx,
 };
 
 #[command]
 pub fn get_all_reminders(db: State<'_, Database>) -> Result<Vec<ReminderResponse>, String> {
     let repo = ReminderRepository::new(get_conn(&db));
     repo.get_all()
-        .map_err(|e| e.to_string())
-        .and_then(|reminders| map_reminders_with_tags(reminders, &db))
-}
-
-#[command]
-pub fn get_reminders_by_filter(
-    db: State<'_, Database>,
-    filter: String,
-) -> Result<Vec<ReminderResponse>, String> {
-    let repo = ReminderRepository::new(get_conn(&db));
-    let reminders = match filter.as_str() {
-        "today" => repo.get_today(),
-        "planned" => repo.get_planned(),
-        "completed" => repo.get_completed(),
-        "urgent" => repo.get_urgent(),
-        "flagged" => repo.get_flagged(),
-        "all" => repo.get_all(),
-        _ => repo.get_active(),
-    };
-    reminders
-        .map_err(|e| e.to_string())
-        .and_then(|rs| map_reminders_with_tags(rs, &db))
-}
-
-#[command]
-pub fn get_reminders_by_list(
-    db: State<'_, Database>,
-    list_id: String,
-) -> Result<Vec<ReminderResponse>, String> {
-    let repo = ReminderRepository::new(get_conn(&db));
-    let id = Uuid::parse_str(&list_id).map_err(|e| e.to_string())?;
-    repo.get_by_list_id(&id)
-        .map_err(|e| e.to_string())
-        .and_then(|reminders| map_reminders_with_tags(reminders, &db))
-}
-
-#[command]
-pub fn get_reminders_by_owner(
-    db: State<'_, Database>,
-    owner_id: String,
-) -> Result<Vec<ReminderResponse>, String> {
-    let repo = ReminderRepository::new(get_conn(&db));
-    let id = Uuid::parse_str(&owner_id).map_err(|e| e.to_string())?;
-    repo.get_by_owner_id(&id)
-        .map_err(|e| e.to_string())
-        .and_then(|reminders| map_reminders_with_tags(reminders, &db))
-}
-
-#[command]
-pub fn get_reminders_by_tag(
-    db: State<'_, Database>,
-    tag_name: String,
-) -> Result<Vec<ReminderResponse>, String> {
-    let repo = ReminderRepository::new(get_conn(&db));
-    repo.get_by_tag_name(&tag_name)
-        .map_err(|e| e.to_string())
-        .and_then(|reminders| map_reminders_with_tags(reminders, &db))
-}
-
-#[command]
-pub fn get_reminders_by_date_range(
-    db: State<'_, Database>,
-    start_date: String,
-    end_date: String,
-) -> Result<Vec<ReminderResponse>, String> {
-    let repo = ReminderRepository::new(get_conn(&db));
-    repo.get_by_date_range(&start_date, &end_date)
-        .map_err(|e| e.to_string())
-        .and_then(|reminders| map_reminders_with_tags(reminders, &db))
-}
-
-#[command]
-pub fn get_reminder_by_id(
-    db: State<'_, Database>,
-    id: String,
-) -> Result<Option<ReminderResponse>, String> {
-    let repo = ReminderRepository::new(get_conn(&db));
-    let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
-    repo.get_by_id(&id)
-        .map_err(|e| e.to_string())?
-        .map(|r| get_reminder_with_tags(r, &db))
-        .transpose()
-}
-
-#[command]
-pub fn search_reminders(
-    db: State<'_, Database>,
-    query: String,
-) -> Result<Vec<ReminderResponse>, String> {
-    let repo = ReminderRepository::new(get_conn(&db));
-    repo.search(&query)
         .map_err(|e| e.to_string())
         .and_then(|reminders| map_reminders_with_tags(reminders, &db))
 }
@@ -127,7 +35,7 @@ pub fn create_reminder(
     if let Some(desc) = request.description {
         reminder = reminder.with_description(desc);
     }
-    if let Some(list_id) = request.list_id.as_deref().and_then(|s| Uuid::parse_str(s).ok()) {
+    if let Some(list_id) = request.list_id.as_deref().and_then(parse_optional_uuid) {
         reminder = reminder.with_list_id(list_id);
     }
     if request.is_all_day {
@@ -146,15 +54,9 @@ pub fn create_reminder(
         reminder.is_flagged = true;
     }
     if let Some(p) = request.priority.as_deref() {
-        reminder.priority = parse_priority(p);
+        reminder.priority = crate::models::reminder::Priority::parse(p);
     }
-    if let Some(owner) = request.owner_id.as_deref().and_then(|s| {
-        if s.is_empty() {
-            None
-        } else {
-            Uuid::parse_str(s).ok()
-        }
-    }) {
+    if let Some(owner) = request.owner_id.as_deref().and_then(parse_optional_uuid) {
         reminder.owner_id = Some(owner);
     }
 
@@ -167,13 +69,7 @@ pub fn create_reminder(
     reminder.remind_before_value = request.remind_before_value;
     reminder.remind_before_unit = request.remind_before_unit;
 
-    if let Some(pid) = request.parent_id.as_deref().and_then(|s| {
-        if s.is_empty() {
-            None
-        } else {
-            Uuid::parse_str(s).ok()
-        }
-    }) {
+    if let Some(pid) = request.parent_id.as_deref().and_then(parse_optional_uuid) {
         reminder.parent_id = Some(pid);
     }
 
@@ -200,7 +96,7 @@ pub fn update_reminder(
     request: UpdateReminderRequest,
 ) -> Result<ReminderResponse, String> {
     let repo = ReminderRepository::new(get_conn(&db));
-    let id = Uuid::parse_str(&request.id).map_err(|e| e.to_string())?;
+    let id = parse_uuid(&request.id)?;
 
     let mut reminder = repo
         .get_by_id(&id)
@@ -243,22 +139,14 @@ pub fn update_reminder(
         reminder.priority = if s.is_empty() {
             Priority::None
         } else {
-            parse_priority(&s)
+            Priority::parse(&s)
         };
     }
     if let Some(s) = request.list_id {
-        reminder.list_id = if s.is_empty() {
-            None
-        } else {
-            Uuid::parse_str(&s).ok()
-        };
+        reminder.list_id = parse_optional_uuid(&s);
     }
     if let Some(s) = request.owner_id {
-        reminder.owner_id = if s.is_empty() {
-            None
-        } else {
-            Uuid::parse_str(&s).ok()
-        };
+        reminder.owner_id = parse_optional_uuid(&s);
     }
     if let Some(is_all_day) = request.is_all_day {
         reminder.is_all_day = is_all_day;
@@ -288,11 +176,7 @@ pub fn update_reminder(
         }
     }
     if let Some(s) = request.parent_id {
-        reminder.parent_id = if s.is_empty() {
-            None
-        } else {
-            Uuid::parse_str(&s).ok()
-        };
+        reminder.parent_id = parse_optional_uuid(&s);
     }
 
     let conn = get_conn(&db);
@@ -322,7 +206,7 @@ pub fn update_reminder(
 #[command]
 pub fn delete_reminder(db: State<'_, Database>, id: String) -> Result<(), String> {
     let repo = ReminderRepository::new(get_conn(&db));
-    let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    let id = parse_uuid(&id)?;
     repo.delete(&id).map_err(|e| e.to_string())
 }
 
@@ -332,7 +216,7 @@ pub fn toggle_reminder_completed(
     id: String,
 ) -> Result<ReminderResponse, String> {
     let repo = ReminderRepository::new(get_conn(&db));
-    let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    let id = parse_uuid(&id)?;
 
     let mut reminder = repo
         .get_by_id(&id)

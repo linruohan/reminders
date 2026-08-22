@@ -13,6 +13,12 @@ export interface SubtaskResponse {
   sort_order: number;
 }
 
+export interface SubtaskHandlers {
+  create: (reminderId: string, title: string) => Promise<SubtaskResponse | null>;
+  update: (id: string, patch: { title?: string; is_completed?: boolean }) => Promise<SubtaskResponse | null>;
+  remove: (id: string) => Promise<boolean>;
+}
+
 // 优先级类型定义
 export type Priority = "none" | "low" | "medium" | "high";
 
@@ -60,8 +66,6 @@ export interface ReminderResponse {
   owner_id: string | null;
   /** 父任务 ID（父子提醒层级） */
   parent_id: string | null;
-  /** 父任务标题（列表/新建展示） */
-  parent_title?: string | null;
 }
 
 export interface ListResponse {

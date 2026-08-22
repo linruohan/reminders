@@ -1,11 +1,10 @@
 use tauri::{command, State};
-use uuid::Uuid;
 
 use crate::database::connection::Database;
 use crate::repository::subtask::SubtaskRepository;
 
 use super::dto::{CreateSubtaskRequest, SubtaskResponse, UpdateSubtaskRequest};
-use super::helpers::get_conn;
+use super::helpers::{get_conn, parse_uuid};
 
 fn to_response(s: crate::models::subtask::Subtask) -> SubtaskResponse {
     SubtaskResponse {
@@ -18,18 +17,6 @@ fn to_response(s: crate::models::subtask::Subtask) -> SubtaskResponse {
 }
 
 #[command]
-pub fn get_subtasks(
-    db: State<'_, Database>,
-    reminder_id: String,
-) -> Result<Vec<SubtaskResponse>, String> {
-    let repo = SubtaskRepository::new(get_conn(&db));
-    let id = Uuid::parse_str(&reminder_id).map_err(|e| e.to_string())?;
-    repo.list_by_reminder(&id)
-        .map(|items| items.into_iter().map(to_response).collect())
-        .map_err(|e| e.to_string())
-}
-
-#[command]
 pub fn create_subtask(
     db: State<'_, Database>,
     request: CreateSubtaskRequest,
@@ -39,7 +26,7 @@ pub fn create_subtask(
         return Err("子任务标题不能为空".to_string());
     }
     let repo = SubtaskRepository::new(get_conn(&db));
-    let reminder_id = Uuid::parse_str(&request.reminder_id).map_err(|e| e.to_string())?;
+    let reminder_id = parse_uuid(&request.reminder_id)?;
     repo.create(&reminder_id, title)
         .map(to_response)
         .map_err(|e| e.to_string())
@@ -56,7 +43,7 @@ pub fn update_subtask(
         }
     }
     let repo = SubtaskRepository::new(get_conn(&db));
-    let id = Uuid::parse_str(&request.id).map_err(|e| e.to_string())?;
+    let id = parse_uuid(&request.id)?;
     let updated = repo
         .update(
             &id,
@@ -71,7 +58,7 @@ pub fn update_subtask(
 #[command]
 pub fn delete_subtask(db: State<'_, Database>, id: String) -> Result<(), String> {
     let repo = SubtaskRepository::new(get_conn(&db));
-    let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    let id = parse_uuid(&id)?;
     let ok = repo.delete(&id).map_err(|e| e.to_string())?;
     if !ok {
         return Err("Subtask not found".to_string());

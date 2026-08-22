@@ -4,9 +4,9 @@ import {
   formatHourMinute,
   hourMinuteToTop,
   minuteOfDayToTop,
+  getListColor,
 } from './utils';
 import type { ReminderResponse, ListResponse } from '@/types/api';
-import { getListColor } from './utils';
 
 export function TimelineSlot({ hour }: { hour: number }) {
   const label = formatHourMinute(hour, 0);

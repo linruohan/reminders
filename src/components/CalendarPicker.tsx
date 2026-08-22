@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, memo } from 'react';
+import { getTodayStr, parseLocalDate, toISODateStr, getDaysInMonth } from '@/utils/dateUtils';
 
 interface CalendarPickerProps {
   value: string;
@@ -17,40 +18,8 @@ const MONTH_NAMES = [
  */
 function parseDate(str: string): Date | null {
   if (!str) return null;
-  const d = new Date(str + 'T00:00:00');
+  const d = parseLocalDate(str);
   return isNaN(d.getTime()) ? null : d;
-}
-
-/**
- * 格式化日期为 YYYY-MM-DD
- */
-function formatDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-/**
- * 获取某月第一天是星期几 (0=周一, 6=周日)
- */
-function getFirstDayOfWeek(year: number, month: number): number {
-  const day = new Date(year, month, 1).getDay();
-  return day === 0 ? 6 : day - 1;
-}
-
-/**
- * 获取某月的天数
- */
-function getDaysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-/**
- * 获取上个月的天数
- */
-function getDaysInPrevMonth(year: number, month: number): number {
-  return new Date(year, month, 0).getDate();
 }
 
 /**
@@ -63,16 +32,14 @@ export const CalendarPicker = memo(function CalendarPicker({
   onClose,
 }: CalendarPickerProps) {
   const selectedDate = useMemo(() => parseDate(value), [value]);
-  const today = useMemo(() => new Date(), []);
+  const todayStr = getTodayStr();
 
   const [viewYear, setViewYear] = useState(
-    selectedDate ? selectedDate.getFullYear() : today.getFullYear()
+    selectedDate ? selectedDate.getFullYear() : parseLocalDate(todayStr).getFullYear()
   );
   const [viewMonth, setViewMonth] = useState(
-    selectedDate ? selectedDate.getMonth() : today.getMonth()
+    selectedDate ? selectedDate.getMonth() : parseLocalDate(todayStr).getMonth()
   );
-
-  const todayStr = formatDate(today);
   const selectedStr = value;
 
   /** 切换到上一个月 */
@@ -97,13 +64,15 @@ export const CalendarPicker = memo(function CalendarPicker({
     });
   }, []);
 
-  /** 选择日期 */
+  /** 选择日期（含上/下月格子，避免把日期算进当前月） */
   const handleSelect = useCallback(
-    (day: number) => {
-      const d = new Date(viewYear, viewMonth, day);
-      onChange(formatDate(d));
+    (dateStr: string) => {
+      const d = parseLocalDate(dateStr);
+      setViewYear(d.getFullYear());
+      setViewMonth(d.getMonth());
+      onChange(dateStr);
     },
-    [viewYear, viewMonth, onChange]
+    [onChange]
   );
 
   /** 点击今天 */
@@ -111,7 +80,7 @@ export const CalendarPicker = memo(function CalendarPicker({
     const d = new Date();
     setViewYear(d.getFullYear());
     setViewMonth(d.getMonth());
-    onChange(formatDate(d));
+    onChange(toISODateStr(d));
   }, [onChange]);
 
   /** 点击清除 */
@@ -122,34 +91,17 @@ export const CalendarPicker = memo(function CalendarPicker({
 
   /** 构建日历网格 */
   const calendarDays = useMemo(() => {
-    const daysInMonth = getDaysInMonth(viewYear, viewMonth);
-    const daysInPrev = getDaysInPrevMonth(viewYear, viewMonth);
-    const firstDayOfWeek = getFirstDayOfWeek(viewYear, viewMonth);
-
-    const days: { day: number; month: 'prev' | 'current' | 'next'; dateStr: string }[] = [];
-
-    // 上月末尾日期
-    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
-      const d = daysInPrev - i;
-      const m = viewMonth === 0 ? 11 : viewMonth - 1;
-      const y = viewMonth === 0 ? viewYear - 1 : viewYear;
-      days.push({ day: d, month: 'prev', dateStr: formatDate(new Date(y, m, d)) });
-    }
-
-    // 本月日期
-    for (let d = 1; d <= daysInMonth; d++) {
-      days.push({ day: d, month: 'current', dateStr: formatDate(new Date(viewYear, viewMonth, d)) });
-    }
-
-    // 下月开头日期（补齐到 42 格 = 6 行）
-    const remaining = 42 - days.length;
-    for (let d = 1; d <= remaining; d++) {
-      const m = viewMonth === 11 ? 0 : viewMonth + 1;
-      const y = viewMonth === 11 ? viewYear + 1 : viewYear;
-      days.push({ day: d, month: 'next', dateStr: formatDate(new Date(y, m, d)) });
-    }
-
-    return days;
+    return getDaysInMonth(viewYear, viewMonth).map((d) => {
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const month: 'prev' | 'current' | 'next' =
+        y < viewYear || (y === viewYear && m < viewMonth)
+          ? 'prev'
+          : y > viewYear || (y === viewYear && m > viewMonth)
+            ? 'next'
+            : 'current';
+      return { day: d.getDate(), month, dateStr: toISODateStr(d) };
+    });
   }, [viewYear, viewMonth]);
 
   return (
@@ -203,7 +155,7 @@ export const CalendarPicker = memo(function CalendarPicker({
           return (
             <button
               key={idx}
-              onClick={() => handleSelect(item.day)}
+              onClick={() => handleSelect(item.dateStr)}
               className={`
                 relative h-8 w-full rounded-full text-[13px] font-medium
                 transition-all spring-transition

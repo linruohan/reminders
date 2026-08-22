@@ -3,19 +3,22 @@ import type { ReminderResponse, ListResponse } from '@/types/api';
 import { isSameDay, toISODateStr } from '@/utils/dateUtils';
 import {
   getRemindersForDate,
+  getWeekDates,
   getWeekStartMon,
   HOUR_HEIGHT,
   TIMELINE_HEIGHT,
   TIMELINE_START_HOUR,
   timelineHours,
   clampMinuteOfDay,
+  partitionByAllDay,
   scrollTimelineToHour,
   snapMinute,
   minuteOfDayToTimeString,
   minuteOfDayToTop,
+  getListColor,
+  DRAG_THRESHOLD,
 } from './utils';
 import { TimelineSlot, HoverLine, AllDaySection, ReminderBlock } from './TimelineComponents';
-import { getListColor } from './utils';
 
 interface DayViewProps {
   date: Date;
@@ -27,8 +30,6 @@ interface DayViewProps {
   onRescheduleReminder?: (id: string, updates: { end_date: string; end_time: string }) => void;
 }
 
-const DRAG_THRESHOLD = 5;
-
 export function DayView({
   date,
   reminders,
@@ -38,8 +39,8 @@ export function DayView({
   onAllDayDoubleClick,
   onRescheduleReminder,
 }: DayViewProps) {
-  const dayAllDay = useMemo(() => getRemindersForDate(reminders, date).filter(r => r.is_all_day || !r.end_time), [reminders, date]);
-  const dayTimed = useMemo(() => getRemindersForDate(reminders, date).filter(r => !r.is_all_day && !!r.end_time), [reminders, date]);
+  const dayReminders = useMemo(() => getRemindersForDate(reminders, date), [reminders, date]);
+  const { allDay: dayAllDay, timed: dayTimed } = useMemo(() => partitionByAllDay(dayReminders), [dayReminders]);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverMinute, setHoverMinute] = useState<number | null>(null);
   const [drag, setDrag] = useState<{
@@ -52,14 +53,7 @@ export function DayView({
   const dragRef = useRef(drag);
   dragRef.current = drag;
 
-  const weekDates = useMemo(() => {
-    const start = getWeekStartMon(date);
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      return d;
-    });
-  }, [date]);
+  const weekDates = useMemo(() => getWeekDates(getWeekStartMon(date)), [date]);
 
   const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 

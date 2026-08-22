@@ -6,7 +6,7 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::database::connection::Database;
-use crate::models::reminder::{Priority, Reminder};
+use crate::models::reminder::Reminder;
 
 use super::dto::{ReminderResponse, SubtaskResponse, TagResponse};
 
@@ -24,21 +24,15 @@ pub(crate) fn parse_time(s: &str) -> Option<NaiveTime> {
         .ok()
 }
 
-pub(crate) fn parse_priority(s: &str) -> Priority {
-    match s {
-        "high" => Priority::High,
-        "medium" => Priority::Medium,
-        "low" => Priority::Low,
-        _ => Priority::None,
-    }
+pub(crate) fn parse_uuid(s: &str) -> Result<Uuid, String> {
+    Uuid::parse_str(s).map_err(|e| e.to_string())
 }
 
-pub(crate) fn priority_str(p: &Priority) -> &'static str {
-    match p {
-        Priority::None => "none",
-        Priority::High => "high",
-        Priority::Medium => "medium",
-        Priority::Low => "low",
+pub(crate) fn parse_optional_uuid(s: &str) -> Option<Uuid> {
+    if s.is_empty() {
+        None
+    } else {
+        Uuid::parse_str(s).ok()
     }
 }
 
@@ -73,7 +67,6 @@ pub(crate) fn sync_reminder_tags_in_tx(
         )
         .map_err(|e| e.to_string())?;
     }
-    crate::database::fts::upsert_reminder(tx, reminder_id).map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -108,6 +101,16 @@ pub(crate) fn get_reminder_with_tags(
     Ok(resp)
 }
 
+fn map_subtask_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SubtaskResponse> {
+    Ok(SubtaskResponse {
+        id: row.get(0)?,
+        reminder_id: row.get(1)?,
+        title: row.get(2)?,
+        is_completed: row.get::<_, i32>(3)? != 0,
+        sort_order: row.get(4)?,
+    })
+}
+
 pub(crate) fn get_reminder_subtasks_internal(
     conn: Arc<Mutex<Connection>>,
     reminder_id: &str,
@@ -120,15 +123,7 @@ pub(crate) fn get_reminder_subtasks_internal(
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map([reminder_id], |row| {
-            Ok(SubtaskResponse {
-                id: row.get(0)?,
-                reminder_id: row.get(1)?,
-                title: row.get(2)?,
-                is_completed: row.get::<_, i32>(3)? != 0,
-                sort_order: row.get(4)?,
-            })
-        })
+        .query_map([reminder_id], map_subtask_row)
         .map_err(|e| e.to_string())?;
     Ok(rows.filter_map(|r| r.ok()).collect())
 }
@@ -182,15 +177,7 @@ pub(crate) fn map_reminders_with_tags(
     );
     let mut sub_stmt = conn_guard.prepare(&subtasks_sql).map_err(|e| e.to_string())?;
     let sub_rows = sub_stmt
-        .query_map(rusqlite::params_from_iter(ids.iter()), |row| {
-            Ok(SubtaskResponse {
-                id: row.get(0)?,
-                reminder_id: row.get(1)?,
-                title: row.get(2)?,
-                is_completed: row.get::<_, i32>(3)? != 0,
-                sort_order: row.get(4)?,
-            })
-        })
+        .query_map(rusqlite::params_from_iter(ids.iter()), map_subtask_row)
         .map_err(|e| e.to_string())?;
 
     let mut subtasks_by_reminder: std::collections::HashMap<String, Vec<SubtaskResponse>> =
@@ -212,19 +199,7 @@ pub(crate) fn map_reminders_with_tags(
             resp.subtasks = subtasks_by_reminder.remove(&resp.id).unwrap_or_default();
             resp
         })
-        .collect::<Vec<_>>())
-        .map(|mut list| {
-            let titles: std::collections::HashMap<String, String> = list
-                .iter()
-                .map(|r| (r.id.clone(), r.title.clone()))
-                .collect();
-            for r in &mut list {
-                if let Some(pid) = r.parent_id.as_ref() {
-                    r.parent_title = titles.get(pid).cloned();
-                }
-            }
-            list
-        })
+        .collect())
 }
 
 pub(crate) fn insert_reminder_row(
@@ -244,7 +219,7 @@ pub(crate) fn insert_reminder_row(
             reminder.is_all_day as i32,
             reminder.is_completed as i32,
             reminder.is_flagged as i32,
-            priority_str(&reminder.priority),
+            reminder.priority.as_str(),
             reminder.list_id.map(|id| id.to_string()),
             reminder.created_at.to_rfc3339(),
             reminder.updated_at.to_rfc3339(),
@@ -261,6 +236,5 @@ pub(crate) fn insert_reminder_row(
         ],
     )
     .map_err(|e| e.to_string())?;
-    crate::database::fts::upsert_reminder(tx, &reminder.id.to_string()).map_err(|e| e.to_string())?;
     Ok(())
 }

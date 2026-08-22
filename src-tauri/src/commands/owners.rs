@@ -1,12 +1,11 @@
 use tauri::{command, State};
-use uuid::Uuid;
 
 use crate::database::connection::Database;
 use crate::models::owner::Owner;
 use crate::repository::owner::OwnerRepository;
 
 use super::dto::{CreateOwnerRequest, OwnerResponse, UpdateOwnerRequest};
-use super::helpers::get_conn;
+use super::helpers::{get_conn, parse_uuid};
 
 #[command]
 pub fn get_all_owners(db: State<'_, Database>) -> Result<Vec<OwnerResponse>, String> {
@@ -33,7 +32,7 @@ pub fn create_owner(
 #[command]
 pub fn delete_owner(db: State<'_, Database>, id: String) -> Result<(), String> {
     let repo = OwnerRepository::new(get_conn(&db));
-    let id = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    let id = parse_uuid(&id)?;
     repo.delete(&id).map_err(|e| e.to_string())
 }
 
@@ -43,7 +42,7 @@ pub fn update_owner(
     request: UpdateOwnerRequest,
 ) -> Result<OwnerResponse, String> {
     let repo = OwnerRepository::new(get_conn(&db));
-    let id = Uuid::parse_str(&request.id).map_err(|e| e.to_string())?;
+    let id = parse_uuid(&request.id)?;
     let mut owner = repo
         .get_by_id(&id)
         .map_err(|e| e.to_string())?

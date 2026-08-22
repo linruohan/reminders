@@ -1,12 +1,13 @@
 import { Sidebar } from '../components/Sidebar';
 import { ReminderList } from '../components/ReminderList';
-import type { ReminderResponse, ListResponse, OwnerResponse } from '../types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse, SubtaskHandlers, TagResponse } from '../types/api';
 import type { FilterCounts } from '../types/filters';
 
 interface ReminderPageProps {
   reminders: ReminderResponse[];
   lists: ListResponse[];
   owners: OwnerResponse[];
+  knownTags: TagResponse[];
   activeFilter: string;
   searchQuery: string;
   filterCounts: FilterCounts;
@@ -38,6 +39,7 @@ interface ReminderPageProps {
   onCopy: (reminder: ReminderResponse) => void;
   onPaste: (listId: string | null) => void;
   canPaste: boolean;
+  subtaskHandlers: SubtaskHandlers;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
@@ -45,6 +47,7 @@ export function ReminderPage({
   reminders,
   lists,
   owners,
+  knownTags,
   activeFilter,
   searchQuery,
   filterCounts,
@@ -69,6 +72,7 @@ export function ReminderPage({
   onCopy,
   onPaste,
   canPaste,
+  subtaskHandlers,
   showToast,
 }: ReminderPageProps) {
   return (
@@ -94,6 +98,7 @@ export function ReminderPage({
         reminders={reminders}
         lists={lists}
         owners={owners}
+        knownTags={knownTags}
         activeFilter={activeFilter}
         searchQuery={searchQuery}
         onToggleCompleted={onToggleCompleted}
@@ -107,6 +112,7 @@ export function ReminderPage({
         onCopy={onCopy}
         onPaste={onPaste}
         canPaste={canPaste}
+        subtaskHandlers={subtaskHandlers}
         showToast={showToast}
       />
     </div>

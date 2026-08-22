@@ -1,6 +1,5 @@
 import type { ReminderResponse, ListResponse } from '@/types/api';
 import { toISODateStr } from '@/utils/dateUtils';
-import { effectiveDueDate } from '@/utils/reminderDates';
 
 export const weekDays = ['一', '二', '三', '四', '五', '六', '日'];
 
@@ -12,6 +11,7 @@ export const HOUR_HEIGHT = 56;
 export const TIMELINE_HEIGHT = TIMELINE_HOURS * HOUR_HEIGHT;
 export const TIMELINE_TOTAL_MINUTES = TIMELINE_HOURS * 60;
 export const BLOCK_MINUTES = 30;
+export const DRAG_THRESHOLD = 5;
 
 export function clampMinuteOfDay(minute: number): number {
   return Math.max(0, Math.min(TIMELINE_TOTAL_MINUTES - 1, Math.round(minute)));
@@ -47,9 +47,41 @@ export function scrollTimelineToHour(container: HTMLElement | null, hour: number
   container.scrollTop = target;
 }
 
+export function groupRemindersByDate(reminders: ReminderResponse[]): Map<string, ReminderResponse[]> {
+  const map = new Map<string, ReminderResponse[]>();
+  for (const r of reminders) {
+    if (!r.end_date) continue;
+    const list = map.get(r.end_date);
+    if (list) list.push(r);
+    else map.set(r.end_date, [r]);
+  }
+  return map;
+}
+
+export function reminderDateSet(reminders: ReminderResponse[]): Set<string> {
+  const set = new Set<string>();
+  for (const r of reminders) {
+    if (r.end_date) set.add(r.end_date);
+  }
+  return set;
+}
+
 export function getRemindersForDate(reminders: ReminderResponse[], date: Date): ReminderResponse[] {
   const targetDate = toISODateStr(date);
-  return reminders.filter(r => effectiveDueDate(r) === targetDate);
+  return reminders.filter(r => r.end_date === targetDate);
+}
+
+export function partitionByAllDay(reminders: ReminderResponse[]): {
+  allDay: ReminderResponse[];
+  timed: ReminderResponse[];
+} {
+  const allDay: ReminderResponse[] = [];
+  const timed: ReminderResponse[] = [];
+  for (const r of reminders) {
+    if (r.is_all_day || !r.end_time) allDay.push(r);
+    else timed.push(r);
+  }
+  return { allDay, timed };
 }
 
 export function getWeekStartMon(date: Date): Date {
@@ -60,7 +92,22 @@ export function getWeekStartMon(date: Date): Date {
   return d;
 }
 
+export function getWeekDates(startMonday: Date): Date[] {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(startMonday);
+    d.setDate(startMonday.getDate() + i);
+    return d;
+  });
+}
+
+const listColorCache = new WeakMap<ListResponse[], Map<string, string>>();
+
 export function getListColor(lists: ListResponse[], listId: string | null): string {
   if (!listId) return '#FF3B30';
-  return lists.find(l => l.id === listId)?.color || '#FF3B30';
+  let map = listColorCache.get(lists);
+  if (!map) {
+    map = new Map(lists.map(l => [l.id, l.color]));
+    listColorCache.set(lists, map);
+  }
+  return map.get(listId) || '#FF3B30';
 }

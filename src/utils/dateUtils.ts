@@ -1,14 +1,18 @@
-function formatDateToISO(date: Date): string {
+/** 按本地时区解析 YYYY-MM-DD，避免 UTC 午夜导致日期偏移 */
+export function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
+export function toISODateStr(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
-/** 按本地时区解析 YYYY-MM-DD，避免 UTC 午夜导致日期偏移 */
-export function parseLocalDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, (m || 1) - 1, d || 1);
+export function formatDateTimeLocal(date: Date, hour: number, minute: number): string {
+  return `${toISODateStr(date)}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
 export function formatDate(dateStr: string | null | undefined): string {
@@ -59,25 +63,14 @@ export function formatTime(timeStr: string | null | undefined): string {
   }
 }
 
-export function getDateColor(dateStr: string | null | undefined): string {
-  if (!dateStr) return 'text-apple-gray';
-  const date = parseLocalDate(dateStr);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  date.setHours(0, 0, 0, 0);
-
-  if (date < today) return 'text-apple-red';
-  return 'text-apple-orange';
-}
-
 export function getTodayStr(): string {
-  return formatDateToISO(new Date());
+  return toISODateStr(new Date());
 }
 
 export function getTomorrowStr(): string {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  return formatDateToISO(tomorrow);
+  return toISODateStr(tomorrow);
 }
 
 export function getWeekendStr(): string {
@@ -86,7 +79,7 @@ export function getWeekendStr(): string {
   const daysUntilWeekend = dayOfWeek === 0 ? 0 : (7 - dayOfWeek);
   const weekend = new Date(today);
   weekend.setDate(today.getDate() + daysUntilWeekend);
-  return formatDateToISO(weekend);
+  return toISODateStr(weekend);
 }
 
 export function getNextMondayStr(): string {
@@ -95,7 +88,7 @@ export function getNextMondayStr(): string {
   const daysUntilMonday = dayOfWeek === 1 ? 7 : (8 - dayOfWeek);
   const nextMonday = new Date(today);
   nextMonday.setDate(today.getDate() + daysUntilMonday);
-  return formatDateToISO(nextMonday);
+  return toISODateStr(nextMonday);
 }
 
 export const suggestedTimes = [
@@ -126,15 +119,6 @@ export const groupedTimes = {
   夜间: suggestedTimes.filter(t => t.period === '夜间'),
 };
 
-export function getDateLabel(dateStr: string | null | undefined): string {
-  if (!dateStr) return '';
-  if (dateStr === getTodayStr()) return '今天';
-  if (dateStr === getTomorrowStr()) return '明天';
-  if (dateStr === getWeekendStr()) return '本周末';
-  if (dateStr === getNextMondayStr()) return '下周一';
-  return formatDate(dateStr);
-}
-
 export function getDaysInMonth(year: number, month: number): Date[] {
   const days: Date[] = [];
   const firstDay = new Date(year, month, 1);
@@ -158,33 +142,8 @@ export function getDaysInMonth(year: number, month: number): Date[] {
   return days;
 }
 
-export function formatMonthYear(date: Date): string {
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  return `${year}年${month}月`;
-}
-
-export function formatMonthYearShort(date: Date): string {
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  return `${year}/${month.toString().padStart(2, '0')}`;
-}
-
 export function isSameDay(date1: Date, date2: Date): boolean {
   return date1.getDate() === date2.getDate() &&
          date1.getMonth() === date2.getMonth() &&
          date1.getFullYear() === date2.getFullYear();
-}
-
-export function toISODateStr(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-export function parseISODate(dateStr: string): Date {
-  const date = parseLocalDate(dateStr);
-  date.setHours(0, 0, 0, 0);
-  return date;
 }

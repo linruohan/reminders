@@ -1,405 +1,312 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useApi } from './useApi';
-import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, CreateReminderRequest, SubtaskResponse } from '@/types/api';
-import { isDueToday, isPlanned } from '@/utils/reminderDates';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import * as api from '@/api';
+import type {
+  ReminderResponse,
+  ListResponse,
+  OwnerResponse,
+  TagResponse,
+  CreateReminderRequest,
+  SubtaskResponse,
+  SubtaskHandlers,
+} from '@/types/api';
+import { getTodayStr } from '@/utils/dateUtils';
+import { matchesFilter, matchesSearch } from '@/utils/reminderDates';
 import { normalizeUpdateRequest } from '@/utils/normalizeUpdateRequest';
 
-interface ReminderCache {
-  [filter: string]: {
-    data: ReminderResponse[];
-    timestamp: number;
-  };
+function maySpawnNext(r: ReminderResponse): boolean {
+  return Boolean(r.is_completed && r.recurrence_frequency);
 }
 
-/** 缓存 TTL，略大于自动刷新间隔（60s），确保在自动刷新前缓存不会过期 */
-const CACHE_TTL = 65000;
+function mergeTagsInto(prev: TagResponse[], incoming: TagResponse[]): TagResponse[] {
+  if (incoming.length === 0) return prev;
+  const byId = new Map(prev.map(t => [t.id, t]));
+  let changed = false;
+  for (const t of incoming) {
+    const existing = byId.get(t.id);
+    if (!existing || existing.name !== t.name) {
+      byId.set(t.id, t);
+      changed = true;
+    }
+  }
+  if (!changed) return prev;
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+}
 
 export function useReminderData(showToast?: (type: 'success' | 'error' | 'info', message: string) => void) {
-  const {
-    getReminders,
-    getRemindersByList,
-    getRemindersByOwner,
-    getRemindersByTag,
-    searchReminders,
-    getLists,
-    getOwners,
-    getAllTags,
-    createReminder,
-    updateReminder,
-    deleteReminder,
-    toggleReminderCompleted,
-    createList,
-    updateList,
-    deleteList,
-    createOwner,
-    updateOwner,
-    deleteOwner,
-    renameTag,
-    deleteTag,
-    createSubtask,
-    updateSubtask,
-    deleteSubtask,
-    isLoading,
-    error,
-  } = useApi();
-
-  const [reminders, setReminders] = useState<ReminderResponse[]>([]);
+  const [allReminders, setAllReminders] = useState<ReminderResponse[]>([]);
   const [lists, setLists] = useState<ListResponse[]>([]);
   const [owners, setOwners] = useState<OwnerResponse[]>([]);
   const [tags, setTags] = useState<TagResponse[]>([]);
   const [activeFilter, setActiveFilter] = useState('today');
-  const [cache, setCache] = useState<ReminderCache>({});
-  const [activeFilterLoaded, setActiveFilterLoaded] = useState(false);
   const [allDataLoaded, setAllDataLoaded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [clipboard, setClipboard] = useState<{ action: 'cut' | 'copy'; reminder: ReminderResponse } | null>(null);
-  const cacheRef = useRef(cache);
-  useEffect(() => {
-    cacheRef.current = cache;
-  }, [cache]);
+  const [dayKey, setDayKey] = useState(getTodayStr);
 
-  /** 从全量缓存派生，用于计数和日历视图，避免日历只看到当前过滤器的数据 */
-  const allReminders = useMemo(() => cache['all']?.data ?? [], [cache]);
-
-  const getCachedReminders = useCallback((filter: string): ReminderResponse[] | null => {
-    const cached = cacheRef.current[filter];
-    if (!cached) return null;
-    if (Date.now() - cached.timestamp > CACHE_TTL) return null;
-    return cached.data;
-  }, []);
-
-  const setCachedReminders = useCallback((filter: string, data: ReminderResponse[]) => {
-    setCache(prev => ({
-      ...prev,
-      [filter]: { data, timestamp: Date.now() },
-    }));
-  }, []);
-
-  /** 立刻写回 all 缓存，避免侧栏计数与列表因异步双请求短暂不一致 */
-  const upsertInAllCache = useCallback((reminder: ReminderResponse) => {
-    setCache(prev => {
-      const all = prev['all'];
-      if (!all) {
-        return {
-          ...prev,
-          all: { data: [reminder], timestamp: Date.now() },
-        };
+  const upsertReminder = useCallback((reminder: ReminderResponse) => {
+    setAllReminders(prev => {
+      const idx = prev.findIndex(r => r.id === reminder.id);
+      if (idx >= 0) {
+        return prev.map((r, i) =>
+          i === idx ? { ...reminder, subtasks: reminder.subtasks ?? r.subtasks } : r,
+        );
       }
-      const idx = all.data.findIndex(r => r.id === reminder.id);
-      const data = idx >= 0
-        ? all.data.map((r, i) => (i === idx ? { ...reminder, subtasks: reminder.subtasks ?? r.subtasks } : r))
-        : [reminder, ...all.data];
-      return { ...prev, all: { data, timestamp: Date.now() } };
+      return [reminder, ...prev];
     });
   }, []);
 
-  const removeFromAllCache = useCallback((id: string) => {
-    setCache(prev => {
-      const all = prev['all'];
-      if (!all) return prev;
-      return {
-        ...prev,
-        all: {
-          data: all.data.filter(r => r.id !== id),
-          timestamp: Date.now(),
-        },
-      };
-    });
-  }, []);
-
-  /** 加载指定过滤器的提醒数据，force=true 时跳过缓存强制拉取 */
-  const loadReminders = useCallback(async (filter: string, force: boolean = false, skipSetReminders: boolean = false) => {
-    const cached = getCachedReminders(filter);
-
-    if (cached && !skipSetReminders) {
-      setReminders(cached);
-      if (filter === 'all') {
-        setAllDataLoaded(true);
-      } else {
-        setActiveFilterLoaded(true);
-      }
-    }
-
-    if (!force && cached) {
-      return;
-    }
-
-    try {
-      let data: ReminderResponse[] | null;
-      if (filter.startsWith('list:')) {
-        const listId = filter.slice('list:'.length);
-        data = await getRemindersByList(listId);
-      } else if (filter.startsWith('owner:')) {
-        const ownerId = filter.slice('owner:'.length);
-        data = await getRemindersByOwner(ownerId);
-      } else if (filter.startsWith('tag:')) {
-        const tagName = decodeURIComponent(filter.slice('tag:'.length));
-        data = await getRemindersByTag(tagName);
-      } else {
-        data = await getReminders(filter);
-      }
-
-      if (data) {
-        if (!skipSetReminders) {
-          setReminders(data);
+  const removeReminder = useCallback((id: string) => {
+    setAllReminders(prev => {
+      const drop = new Set<string>([id]);
+      let grew = true;
+      while (grew) {
+        grew = false;
+        for (const r of prev) {
+          if (r.parent_id && drop.has(r.parent_id) && !drop.has(r.id)) {
+            drop.add(r.id);
+            grew = true;
+          }
         }
-        setCachedReminders(filter, data);
       }
-    } catch {
+      return prev.filter(r => !drop.has(r.id));
+    });
+  }, []);
+
+  const loadAllReminders = useCallback(async () => {
+    const data = await api.getAllReminders();
+    if (data) {
+      setAllReminders(data);
+    } else {
       showToast?.('error', '加载提醒失败');
-    } finally {
-      if (filter === 'all') {
-        setAllDataLoaded(true);
-      } else {
-        setActiveFilterLoaded(true);
-      }
     }
-  }, [getReminders, getRemindersByList, getRemindersByOwner, getRemindersByTag, getCachedReminders, setCachedReminders, showToast]);
+    setAllDataLoaded(true);
+  }, [showToast]);
 
-  /** 处理搜索查询 */
-  const handleSearch = useCallback(async (query: string) => {
+  const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
-    if (!query.trim()) {
-      loadReminders(activeFilter);
-      return;
-    }
-    try {
-      const data = await searchReminders(query.trim());
-      if (data) {
-        setReminders(data);
-      }
-    } catch {
-      showToast?.('error', '搜索失败');
-    }
-  }, [searchReminders, activeFilter, loadReminders, showToast]);
-
-  const loadRemindersRef = useRef<typeof loadReminders>(loadReminders);
-
-  useEffect(() => {
-    loadRemindersRef.current = loadReminders;
-  }, [loadReminders]);
+  }, []);
 
   const loadLists = useCallback(async () => {
-    const data = await getLists();
+    const data = await api.getLists();
     if (data) setLists(data);
-  }, [getLists]);
+  }, []);
 
   const loadOwners = useCallback(async () => {
-    const data = await getOwners();
+    const data = await api.getOwners();
     if (data) setOwners(data);
-  }, [getOwners]);
+  }, []);
 
   const loadTags = useCallback(async () => {
-    const data = await getAllTags();
+    const data = await api.getAllTags();
     if (data) setTags(data);
-  }, [getAllTags]);
-
-  // 初始加载 lists / owners / tags
-  useEffect(() => {
-    loadLists();
-    loadOwners();
-    loadTags();
-  }, [loadLists, loadOwners, loadTags]);
-
-  // 切换过滤器时加载对应数据
-  useEffect(() => {
-    loadReminders(activeFilter);
-  }, [activeFilter, loadReminders]);
-
-  // 后台加载 all 数据用于计数和日历视图，skipSetReminders=true 避免覆盖当前过滤器的数据
-  useEffect(() => {
-    loadRemindersRef.current('all', false, true);
   }, []);
+
+  useEffect(() => {
+    void Promise.all([loadLists(), loadOwners(), loadTags(), loadAllReminders()]);
+  }, [loadLists, loadOwners, loadTags, loadAllReminders]);
 
   const handleFilterChange = useCallback((filter: string) => {
     setActiveFilter(filter);
-    setActiveFilterLoaded(false);
   }, []);
 
-  /** mutation 后统一失效并重取：搜索态重跑搜索，否则并发重取 all + 当前过滤器 */
-  const syncAfterMutation = useCallback(async () => {
-    if (searchQuery.trim()) {
-      await handleSearch(searchQuery);
-      return;
-    }
-    // 并发加载 all 和当前过滤器数据，提升响应速度
-    if (activeFilter === 'all') {
-      await loadReminders('all', true);
-    } else {
-      await Promise.all([
-        loadReminders('all', true, true),
-        loadReminders(activeFilter, true)
-      ]);
-    }
-  }, [searchQuery, handleSearch, loadReminders, activeFilter]);
-
   const handleToggleCompleted = useCallback(async (id: string) => {
-    const result = await toggleReminderCompleted(id);
+    const result = await api.toggleReminderCompleted(id);
     if (result) {
-      upsertInAllCache(result);
-      await syncAfterMutation();
+      upsertReminder(result);
+      if (maySpawnNext(result)) {
+        await loadAllReminders();
+      }
     } else {
-      const errorMsg = error[`toggle_reminder_${id}`] || '更新提醒状态失败';
-      showToast?.('error', errorMsg);
+      showToast?.('error', '更新提醒状态失败');
     }
-  }, [toggleReminderCompleted, upsertInAllCache, syncAfterMutation, showToast, error]);
+  }, [upsertReminder, loadAllReminders, showToast]);
 
   const handleUpdateReminder = useCallback(async (id: string, updates: Partial<ReminderResponse>) => {
-    // 将前端 null 清空转为后端哨兵（'' / -1），避免 Option::None = 不更新
     const request = normalizeUpdateRequest(id, updates);
-    const result = await updateReminder(request);
+    const result = await api.updateReminder(request);
     if (result) {
-      upsertInAllCache(result);
-      await syncAfterMutation();
-      await loadTags();
+      upsertReminder(result);
+      if (updates.tags) {
+        setTags(prev => mergeTagsInto(prev, result.tags ?? []));
+      }
+      if (maySpawnNext(result)) {
+        await loadAllReminders();
+      }
     } else {
-      const errorMsg = error[`update_reminder_${id}`] || '更新提醒失败';
-      showToast?.('error', errorMsg);
+      showToast?.('error', '更新提醒失败');
     }
-  }, [updateReminder, upsertInAllCache, syncAfterMutation, showToast, error, loadTags]);
+  }, [upsertReminder, loadAllReminders, showToast]);
 
   const handleAddList = useCallback(async (name: string, icon?: string, color?: string) => {
-    const result = await createList({ name, icon: icon || 'list', color });
+    const result = await api.createList({ name, icon: icon || 'list', color });
     if (result) {
-      await loadLists();
+      setLists(prev => [...prev, result].sort((a, b) => a.name.localeCompare(b.name, 'zh')));
     }
     return result;
-  }, [createList, loadLists]);
+  }, []);
 
   const handleDeleteReminder = useCallback(async (id: string) => {
-    const success = await deleteReminder(id);
+    const success = await api.deleteReminder(id);
     if (success) {
-      removeFromAllCache(id);
-      await syncAfterMutation();
+      removeReminder(id);
       showToast?.('success', '提醒已删除');
     } else {
-      const errorMsg = error[`delete_reminder_${id}`] || '删除提醒失败';
-      showToast?.('error', errorMsg);
+      showToast?.('error', '删除提醒失败');
     }
     return success;
-  }, [deleteReminder, removeFromAllCache, syncAfterMutation, showToast, error]);
+  }, [removeReminder, showToast]);
 
   const handleCreateReminder = useCallback(async (data: CreateReminderRequest) => {
-    const result = await createReminder(data);
+    const result = await api.createReminder(data);
     if (result.data) {
-      upsertInAllCache(result.data);
-      await syncAfterMutation();
-      await loadTags();
+      const created = result.data;
+      upsertReminder(created);
+      if (created.tags.length > 0) {
+        setTags(prev => mergeTagsInto(prev, created.tags));
+      }
     }
     return result;
-  }, [createReminder, upsertInAllCache, syncAfterMutation, loadTags]);
+  }, [upsertReminder]);
 
   const handleDeleteList = useCallback(async (id: string) => {
-    const success = await deleteList(id);
+    const success = await api.deleteList(id);
     if (success) {
-      // ON DELETE SET NULL：关联提醒的 list_id 已清空，需刷新缓存
-      await loadLists();
+      setLists(prev => prev.filter(l => l.id !== id));
+      setAllReminders(prev => prev.map(r => (r.list_id === id ? { ...r, list_id: null } : r)));
       if (activeFilter === `list:${id}`) {
         setActiveFilter('today');
-        await loadReminders('all', true, true);
-        await loadReminders('today', true);
-      } else {
-        await syncAfterMutation();
       }
     } else {
-      const errorMsg = error[`delete_list_${id}`] || '删除列表失败';
-      showToast?.('error', errorMsg);
+      showToast?.('error', '删除列表失败');
     }
     return success;
-  }, [deleteList, activeFilter, loadLists, loadReminders, syncAfterMutation, showToast, error]);
+  }, [activeFilter, showToast]);
 
   const handleUpdateList = useCallback(async (id: string, updates: Partial<ListResponse>) => {
-    const result = await updateList({ id, ...updates });
+    const result = await api.updateList({ id, ...updates });
     if (result) {
-      await loadLists();
+      setLists(prev => prev.map(l => (l.id === id ? result : l)));
     } else {
-      const errorMsg = error[`update_list_${id}`] || '更新列表失败';
-      showToast?.('error', errorMsg);
+      showToast?.('error', '更新列表失败');
     }
     return result;
-  }, [updateList, loadLists, showToast, error]);
+  }, [showToast]);
 
   const handleUpdateOwner = useCallback(async (id: string, updates: Partial<OwnerResponse>) => {
-    const result = await updateOwner({ id, ...updates });
+    const result = await api.updateOwner({ id, ...updates });
     if (result) {
-      await loadOwners();
+      setOwners(prev => prev.map(o => (o.id === id ? result : o)));
     } else {
-      const errorMsg = error[`update_owner_${id}`] || '更新所有者失败';
-      showToast?.('error', errorMsg);
+      showToast?.('error', '更新所有者失败');
     }
     return result;
-  }, [updateOwner, loadOwners, showToast, error]);
+  }, [showToast]);
 
   const handleAddOwner = useCallback(async (name: string) => {
-    const result = await createOwner({ name });
+    const result = await api.createOwner({ name });
     if (result) {
-      await loadOwners();
+      setOwners(prev => [...prev, result].sort((a, b) => a.name.localeCompare(b.name, 'zh')));
     } else {
-      const errorMsg = error['create_owner'] || '创建所有者失败';
-      showToast?.('error', errorMsg);
+      showToast?.('error', '创建所有者失败');
     }
     return result;
-  }, [createOwner, loadOwners, showToast, error]);
+  }, [showToast]);
 
   const handleDeleteOwner = useCallback(async (id: string) => {
-    const success = await deleteOwner(id);
+    const success = await api.deleteOwner(id);
     if (success) {
-      // ON DELETE SET NULL：关联提醒的 owner_id 已清空
-      await loadOwners();
+      setOwners(prev => prev.filter(o => o.id !== id));
+      setAllReminders(prev => prev.map(r => (r.owner_id === id ? { ...r, owner_id: null } : r)));
       if (activeFilter === `owner:${id}`) {
         setActiveFilter('today');
-        await loadReminders('all', true, true);
-        await loadReminders('today', true);
-      } else {
-        await syncAfterMutation();
       }
     } else {
-      const errorMsg = error[`delete_owner_${id}`] || '删除所有者失败';
-      showToast?.('error', errorMsg);
+      showToast?.('error', '删除所有者失败');
     }
     return success;
-  }, [deleteOwner, loadOwners, loadReminders, syncAfterMutation, showToast, error, activeFilter]);
+  }, [showToast, activeFilter]);
 
   const handleRenameTag = useCallback(async (id: string, name: string) => {
-    const result = await renameTag(id, name);
+    const result = await api.renameTag(id, name);
     if (result) {
       const oldTag = tags.find(t => t.id === id);
-      await loadTags();
+      setTags(prev => prev.map(t => (t.id === id ? result : t)));
+      setAllReminders(prev =>
+        prev.map(r => ({
+          ...r,
+          tags: (r.tags ?? []).map(t => (t.id === id ? result : t)),
+        })),
+      );
       if (oldTag && activeFilter === `tag:${encodeURIComponent(oldTag.name)}`) {
-        const nextFilter = `tag:${encodeURIComponent(result.name)}`;
-        setActiveFilter(nextFilter);
-        await loadReminders('all', true, true);
-        await loadReminders(nextFilter, true);
-      } else {
-        await syncAfterMutation();
+        setActiveFilter(`tag:${encodeURIComponent(result.name)}`);
       }
     } else {
-      const errorMsg = error[`rename_tag_${id}`] || '重命名标签失败';
-      showToast?.('error', errorMsg);
+      showToast?.('error', '重命名标签失败');
     }
     return result;
-  }, [renameTag, tags, activeFilter, loadTags, loadReminders, syncAfterMutation, showToast, error]);
+  }, [tags, activeFilter, showToast]);
 
   const handleDeleteTag = useCallback(async (id: string) => {
     const tag = tags.find(t => t.id === id);
-    const success = await deleteTag(id);
+    const success = await api.deleteTag(id);
     if (success) {
-      // ON DELETE CASCADE：已从 reminder_tags 移除关联
-      await loadTags();
+      setTags(prev => prev.filter(t => t.id !== id));
+      setAllReminders(prev =>
+        prev.map(r => ({
+          ...r,
+          tags: (r.tags ?? []).filter(t => t.id !== id),
+        })),
+      );
       if (tag && activeFilter === `tag:${encodeURIComponent(tag.name)}`) {
         setActiveFilter('today');
-        await loadReminders('all', true, true);
-        await loadReminders('today', true);
-      } else {
-        await syncAfterMutation();
       }
     } else {
-      const errorMsg = error[`delete_tag_${id}`] || '删除标签失败';
-      showToast?.('error', errorMsg);
+      showToast?.('error', '删除标签失败');
     }
     return success;
-  }, [deleteTag, tags, activeFilter, loadTags, loadReminders, syncAfterMutation, showToast, error]);
+  }, [tags, activeFilter, showToast]);
+
+  const patchSubtasks = useCallback((reminderId: string, fn: (subs: SubtaskResponse[]) => SubtaskResponse[]) => {
+    setAllReminders(prev =>
+      prev.map(r => (r.id === reminderId ? { ...r, subtasks: fn(r.subtasks ?? []) } : r)),
+    );
+  }, []);
+
+  const createSubtask = useCallback(async (reminderId: string, title: string) => {
+    const created = await api.createSubtask({ reminder_id: reminderId, title });
+    if (created) patchSubtasks(reminderId, subs => [...subs, created]);
+    return created;
+  }, [patchSubtasks]);
+
+  const updateSubtask = useCallback(async (id: string, patch: { title?: string; is_completed?: boolean }) => {
+    const updated = await api.updateSubtask({ id, ...patch });
+    if (updated) {
+      patchSubtasks(updated.reminder_id, subs =>
+        subs.map(s => (s.id === id ? updated : s)),
+      );
+    }
+    return updated;
+  }, [patchSubtasks]);
+
+  const deleteSubtask = useCallback(async (id: string) => {
+    const ok = await api.deleteSubtask(id);
+    if (ok) {
+      setAllReminders(prev =>
+        prev.map(r =>
+          r.subtasks?.some(s => s.id === id)
+            ? { ...r, subtasks: r.subtasks.filter(s => s.id !== id) }
+            : r,
+        ),
+      );
+    }
+    return ok;
+  }, []);
+
+  const subtaskHandlers = useMemo<SubtaskHandlers>(
+    () => ({ create: createSubtask, update: updateSubtask, remove: deleteSubtask }),
+    [createSubtask, updateSubtask, deleteSubtask],
+  );
 
   const handleCutReminder = useCallback((reminder: ReminderResponse) => {
     setClipboard({ action: 'cut', reminder });
@@ -413,8 +320,8 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
 
   const handlePasteReminder = useCallback(async (targetListId: string | null) => {
     if (!clipboard) return;
-    
-    const newReminderData: Parameters<typeof handleCreateReminder>[0] = {
+
+    const result = await api.createReminder({
       title: clipboard.reminder.title,
       description: clipboard.reminder.description,
       url: clipboard.reminder.url,
@@ -432,168 +339,87 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
       remind_before_value: clipboard.reminder.remind_before_value,
       remind_before_unit: clipboard.reminder.remind_before_unit,
       tags: clipboard.reminder.tags?.map(t => t.name) ?? [],
-    };
-    
-    const result = await createReminder(newReminderData);
+    });
     if (result.data) {
+      upsertReminder(result.data);
       if (clipboard.action === 'cut') {
-        await deleteReminder(clipboard.reminder.id);
+        const deleted = await api.deleteReminder(clipboard.reminder.id);
+        if (deleted) removeReminder(clipboard.reminder.id);
         showToast?.('success', '提醒已移动');
       } else {
         showToast?.('success', '提醒已粘贴');
       }
-      await syncAfterMutation();
-      await loadTags();
     } else {
       showToast?.('error', result.error || '粘贴提醒失败');
     }
-    
+
     setClipboard(null);
     return result.data;
-  }, [clipboard, createReminder, deleteReminder, syncAfterMutation, showToast, loadTags]);
+  }, [clipboard, upsertReminder, removeReminder, showToast]);
 
-  const patchSubtasksInCaches = useCallback((
-    reminderId: string,
-    updater: (subs: SubtaskResponse[]) => SubtaskResponse[],
-  ) => {
-    const patchList = (list: ReminderResponse[]) =>
-      list.map(r =>
-        r.id === reminderId ? { ...r, subtasks: updater(r.subtasks ?? []) } : r,
-      );
-    setReminders(prev => patchList(prev));
-    setCache(prev => {
-      const next: ReminderCache = { ...prev };
-      for (const key of Object.keys(next)) {
-        next[key] = { ...next[key], data: patchList(next[key].data) };
-      }
-      return next;
-    });
+  const refreshData = useCallback(() => {
+    setDayKey(getTodayStr());
   }, []);
 
-  const handleCreateSubtask = useCallback(async (reminderId: string, title: string) => {
-    const result = await createSubtask({ reminder_id: reminderId, title });
-    if (result) {
-      patchSubtasksInCaches(reminderId, subs => [...subs, result]);
-    } else {
-      showToast?.('error', '添加子任务失败');
-    }
-    return result;
-  }, [createSubtask, patchSubtasksInCaches, showToast]);
-
-  const handleUpdateSubtask = useCallback(async (
-    id: string,
-    patch: { title?: string; is_completed?: boolean },
-  ) => {
-    const result = await updateSubtask({ id, ...patch });
-    if (result) {
-      patchSubtasksInCaches(result.reminder_id, subs =>
-        subs.map(s => (s.id === id ? result : s)),
-      );
-    } else {
-      showToast?.('error', '更新子任务失败');
-    }
-    return result;
-  }, [updateSubtask, patchSubtasksInCaches, showToast]);
-
-  const handleDeleteSubtask = useCallback(async (id: string) => {
-    let reminderId: string | null = null;
-    for (const r of reminders) {
-      if ((r.subtasks ?? []).some(s => s.id === id)) {
-        reminderId = r.id;
-        break;
-      }
-    }
-    if (!reminderId) {
-      for (const entry of Object.values(cacheRef.current)) {
-        const found = entry.data.find(r => (r.subtasks ?? []).some(s => s.id === id));
-        if (found) {
-          reminderId = found.id;
-          break;
-        }
-      }
-    }
-    const ok = await deleteSubtask(id);
-    if (ok && reminderId) {
-      patchSubtasksInCaches(reminderId, subs => subs.filter(s => s.id !== id));
-    } else if (!ok) {
-      showToast?.('error', '删除子任务失败');
-    }
-    return ok;
-  }, [deleteSubtask, reminders, patchSubtasksInCaches, showToast]);
-
-  /** 强制刷新列表、所有者与提醒（all + 当前过滤器） */
-  const refreshData = useCallback(async () => {
-    await loadLists();
-    await loadOwners();
-    await loadTags();
-    await loadReminders('all', true, true);
-    if (activeFilter !== 'all') {
-      await loadReminders(activeFilter, true);
-    } else {
-      await loadReminders('all', true);
-    }
-  }, [loadLists, loadOwners, loadTags, loadReminders, activeFilter]);
-
-  /** 基于全量数据计算各过滤器计数，避免用当前过滤器数据误算 */
   const filterCounts = useMemo(() => {
-    const incomplete = allReminders.filter(r => !r.is_completed);
-    const tagCountMap = new Map<string, number>();
-    for (const r of incomplete) {
+    const today = dayKey;
+    const listCount = new Map<string, number>();
+    const ownerCount = new Map<string, number>();
+    const tagCount = new Map<string, number>();
+    let todayN = 0;
+    let plannedN = 0;
+    let completedN = 0;
+    let urgentN = 0;
+    let flaggedN = 0;
+
+    for (const r of allReminders) {
+      if (r.is_completed) {
+        completedN++;
+        continue;
+      }
+      if (r.end_date) {
+        if (r.end_date <= today) todayN++;
+        else plannedN++;
+      }
+      if (r.priority === 'high') urgentN++;
+      if (r.is_flagged) flaggedN++;
+      if (r.list_id) listCount.set(r.list_id, (listCount.get(r.list_id) ?? 0) + 1);
+      if (r.owner_id) ownerCount.set(r.owner_id, (ownerCount.get(r.owner_id) ?? 0) + 1);
       for (const t of r.tags ?? []) {
-        tagCountMap.set(t.name, (tagCountMap.get(t.name) ?? 0) + 1);
+        tagCount.set(t.name, (tagCount.get(t.name) ?? 0) + 1);
       }
     }
+
     return {
       all: allReminders.length,
-      today: allReminders.filter(isDueToday).length,
-      planned: allReminders.filter(isPlanned).length,
-      completed: allReminders.filter(r => r.is_completed).length,
-      urgent: incomplete.filter(r => r.priority === 'high').length,
-      flagged: incomplete.filter(r => r.is_flagged).length,
+      today: todayN,
+      planned: plannedN,
+      completed: completedN,
+      urgent: urgentN,
+      flagged: flaggedN,
       lists: lists.map(list => ({
         id: list.id,
-        count: incomplete.filter(r => r.list_id === list.id).length,
+        count: listCount.get(list.id) ?? 0,
       })),
       owners: owners.map(owner => ({
         id: owner.id,
-        count: incomplete.filter(r => r.owner_id === owner.id).length,
+        count: ownerCount.get(owner.id) ?? 0,
       })),
       tags: tags.map(tag => ({
         id: tag.id,
         name: tag.name,
-        count: tagCountMap.get(tag.name) ?? 0,
+        count: tagCount.get(tag.name) ?? 0,
       })),
     };
-  }, [allReminders, lists, owners, tags]);
+  }, [allReminders, lists, owners, tags, dayKey]);
 
-  /**
-   * 智能筛选（今天/计划/旗标等）从 all 派生，与侧栏计数同一数据源。
-   * 列表/负责人/标签/搜索仍用服务端筛选结果。
-   */
   const viewReminders = useMemo(() => {
-    if (searchQuery.trim()) return reminders;
-    if (!allDataLoaded) return reminders;
-    switch (activeFilter) {
-      case 'today':
-        return allReminders.filter(isDueToday);
-      case 'planned':
-        return allReminders.filter(isPlanned);
-      case 'flagged':
-        return allReminders.filter(r => !r.is_completed && r.is_flagged);
-      case 'urgent':
-        return allReminders.filter(r => !r.is_completed && r.priority === 'high');
-      case 'completed':
-        return allReminders.filter(r => r.is_completed);
-      case 'all':
-        return allReminders;
-      default:
-        return reminders;
-    }
-  }, [searchQuery, reminders, allDataLoaded, activeFilter, allReminders]);
+    const q = searchQuery.trim();
+    if (q) return allReminders.filter(r => matchesSearch(r, q));
+    return allReminders.filter(r => matchesFilter(r, activeFilter, dayKey));
+  }, [searchQuery, allReminders, activeFilter, dayKey]);
 
-  const isInitialLoading = 
-    (activeFilterLoaded === false || allDataLoaded === false) && viewReminders.length === 0;
-
+  const isInitialLoading = !allDataLoaded && viewReminders.length === 0;
   const isCalendarLoading = !allDataLoaded;
 
   return {
@@ -605,7 +431,6 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     activeFilter,
     searchQuery,
     clipboard,
-    isLoading,
     isInitialLoading,
     isCalendarLoading,
     isEditing,
@@ -628,9 +453,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     handleCutReminder,
     handleCopyReminder,
     handlePasteReminder,
-    handleCreateSubtask,
-    handleUpdateSubtask,
-    handleDeleteSubtask,
+    subtaskHandlers,
     refreshData,
   };
 }

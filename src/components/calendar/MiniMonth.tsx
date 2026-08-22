@@ -1,10 +1,17 @@
 import { useMemo } from 'react';
-import type { ReminderResponse } from '@/types/api';
-import { isSameDay } from '@/utils/dateUtils';
-import { weekDays, getRemindersForDate } from './utils';
+import { isSameDay, toISODateStr } from '@/utils/dateUtils';
+import { weekDays } from './utils';
 
 /** 年视图中的单月小日历组件 */
-export function MiniMonth({ year, month, reminders }: { year: number; month: number; reminders: ReminderResponse[] }) {
+export function MiniMonth({
+  year,
+  month,
+  datesWithReminders,
+}: {
+  year: number;
+  month: number;
+  datesWithReminders: Set<string>;
+}) {
   const days = useMemo(() => {
     const result: (Date | null)[] = [];
     const firstDay = new Date(year, month, 1);
@@ -30,7 +37,7 @@ export function MiniMonth({ year, month, reminders }: { year: number; month: num
         ))}
         {days.map((d, i) => {
           if (!d) return <div key={`e-${i}`} />;
-          const hasReminder = getRemindersForDate(reminders, d).length > 0;
+          const hasReminder = datesWithReminders.has(toISODateStr(d));
           const isToday = isSameDay(d, today);
           return (
             <div key={i} className="text-center h-5 leading-5 relative">

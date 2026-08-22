@@ -2,21 +2,24 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import type { ReminderResponse, ListResponse } from '@/types/api';
 import { isSameDay, toISODateStr } from '@/utils/dateUtils';
 import {
-  getRemindersForDate,
   HOUR_HEIGHT,
   TIMELINE_HEIGHT,
   TIMELINE_START_HOUR,
   timelineHours,
   weekDays,
   clampMinuteOfDay,
+  groupRemindersByDate,
+  partitionByAllDay,
   hourMinuteToTop,
   minuteOfDayToTop,
   scrollTimelineToHour,
   snapMinute,
   minuteOfDayToTimeString,
+  getListColor,
+  getWeekDates,
+  DRAG_THRESHOLD,
 } from './utils';
 import { TimelineSlot, HoverLine } from './TimelineComponents';
-import { getListColor } from './utils';
 
 interface WeekViewProps {
   startDate: Date;
@@ -28,8 +31,6 @@ interface WeekViewProps {
   onRescheduleReminder?: (id: string, updates: { end_date: string; end_time: string | null; is_all_day?: boolean }) => void;
 }
 
-const DRAG_THRESHOLD = 5;
-
 export function WeekView({
   startDate,
   reminders,
@@ -39,13 +40,15 @@ export function WeekView({
   onAllDayDoubleClick,
   onRescheduleReminder,
 }: WeekViewProps) {
-  const weekDates = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(startDate);
-      d.setDate(startDate.getDate() + i);
-      return d;
-    });
-  }, [startDate]);
+  const weekDates = useMemo(() => getWeekDates(startDate), [startDate]);
+  const remindersByDate = useMemo(() => groupRemindersByDate(reminders), [reminders]);
+  const partitionedByDate = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof partitionByAllDay>>();
+    for (const [date, items] of remindersByDate) {
+      map.set(date, partitionByAllDay(items));
+    }
+    return map;
+  }, [remindersByDate]);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverInfo, setHoverInfo] = useState<{ minute: number; col: number } | null>(null);
@@ -205,7 +208,7 @@ export function WeekView({
         </div>
         <div className="flex-1 grid grid-cols-7 allday-grid">
           {weekDates.map((d, i) => {
-            const dayAllDay = getRemindersForDate(reminders, d).filter(r => r.is_all_day || !r.end_time);
+            const dayAllDay = partitionedByDate.get(toISODateStr(d))?.allDay ?? [];
             return (
               <div
                 key={i}
@@ -268,7 +271,7 @@ export function WeekView({
           </div>
           <div className="flex-1 grid grid-cols-7 relative">
             {weekDates.map((d, colIdx) => {
-              const dayTimed = getRemindersForDate(reminders, d).filter(r => !r.is_all_day && !!r.end_time);
+              const dayTimed = partitionedByDate.get(toISODateStr(d))?.timed ?? [];
               return (
                 <div key={colIdx} className="relative border-l border-gray-200">
                   {dayTimed.map(r => {

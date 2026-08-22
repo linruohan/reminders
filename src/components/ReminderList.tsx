@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import type { ReminderResponse, ListResponse, OwnerResponse } from '@/types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse, SubtaskHandlers, TagResponse } from '@/types/api';
 import { buildUpdates } from '@/utils/reminderUpdates';
 import { validateReminderFields } from '@/utils/reminderForm';
 import { formatDate } from '@/utils/dateUtils';
@@ -14,6 +14,7 @@ interface ReminderListProps {
   reminders: ReminderResponse[];
   lists: ListResponse[];
   owners: OwnerResponse[];
+  knownTags: TagResponse[];
   activeFilter: string;
   searchQuery?: string;
   onToggleCompleted: (id: string) => void;
@@ -34,39 +35,24 @@ interface ReminderListProps {
   onCopy: (reminder: ReminderResponse) => void;
   onPaste: (listId: string | null) => void;
   canPaste: boolean;
+  subtaskHandlers: SubtaskHandlers;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
 function isEventInsideEditingUi(e: MouseEvent): boolean {
-  const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
-  for (const node of path) {
-    if (!(node instanceof HTMLElement)) continue;
-    if (
-      node.classList.contains('reminder-item-editing') ||
-      node.classList.contains('reminder-edit-dropdown') ||
-      node.classList.contains('date-picker-chip') ||
-      node.classList.contains('time-picker-chip')
-    ) {
-      return true;
-    }
-  }
-
-  const target = e.target;
-  if (target instanceof Element) {
-    return Boolean(
-      target.closest('.reminder-item-editing') ||
-      target.closest('.reminder-edit-dropdown') ||
-      target.closest('.date-picker-chip') ||
-      target.closest('.time-picker-chip')
-    );
-  }
-  return false;
+  const el = e.target instanceof Element
+    ? e.target
+    : e.target instanceof Node
+      ? e.target.parentElement
+      : null;
+  return Boolean(el?.closest('.reminder-item-editing, .reminder-edit-dropdown'));
 }
 
 export function ReminderList({
   reminders,
   lists,
   owners,
+  knownTags,
   activeFilter,
   searchQuery = '',
   onToggleCompleted,
@@ -80,6 +66,7 @@ export function ReminderList({
   onCopy,
   onPaste,
   canPaste,
+  subtaskHandlers,
   showToast,
 }: ReminderListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -390,6 +377,7 @@ export function ReminderList({
         reminder={entry.reminder}
         lists={lists}
         owners={owners}
+        knownTags={knownTags}
         isEditing={editingId === entry.reminder.id}
         onToggleCompleted={handleToggleCompleted}
         onDelete={onDeleteReminder}
@@ -403,6 +391,7 @@ export function ReminderList({
         onPaste={onPaste}
         canPaste={canPaste}
         onAddChildReminder={handleAddChildReminder}
+        subtaskHandlers={subtaskHandlers}
         showToast={showToast}
       />
     </div>
