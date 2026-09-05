@@ -24,6 +24,22 @@ npm install
 cargo install tauri-cli
 ```
 
+## 更新依赖
+
+### 更新前端依赖
+
+```bash
+npm update
+```
+
+### 更新 Tauri CLI
+
+```bash
+cd src-tauri
+cargo update
+cargo upgrade
+```
+
 ## 开发模式运行
 
 ```bash
@@ -35,6 +51,7 @@ cargo tauri dev
 ```
 
 开发模式会同时启动：
+
 - Vite 开发服务器 (http://localhost:5173)
 - Tauri 桌面应用
 
@@ -49,6 +66,7 @@ cargo tauri build
 ```
 
 构建完成后，可执行文件位于：
+
 - Windows: `src-tauri/target/release/reminders.exe`
 - macOS: `src-tauri/target/release/bundle/macos/Reminders.app`
 - Linux: `src-tauri/target/release/reminders`
