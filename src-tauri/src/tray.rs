@@ -20,6 +20,7 @@ pub fn setup(app: &tauri::App) -> tauri::Result<()> {
             "show" => show_main(app),
             "hide" => hide_main(app),
             "quit" => {
+                crate::app_log!(info, "quit from tray");
                 app.exit(0);
             }
             _ => {}
@@ -44,6 +45,7 @@ pub fn setup(app: &tauri::App) -> tauri::Result<()> {
 }
 
 fn show_main(app: &AppHandle) {
+    crate::app_log!(info, "show main window");
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();
@@ -52,6 +54,7 @@ fn show_main(app: &AppHandle) {
 }
 
 fn hide_main(app: &AppHandle) {
+    crate::app_log!(info, "hide main window");
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();
     }

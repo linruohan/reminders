@@ -7,6 +7,7 @@ import { ListEditorDialog, type ListEditorValues } from './components/CreateList
 import { Dialog } from './components/Dialog';
 import { ToastContainer, type ToastMessage, type ToastType } from './components/Toast';
 import { useReminderData } from './hooks/useReminderData';
+import { useTheme } from './hooks/useTheme';
 import type { CreateReminderRequest, ListResponse } from './types/api';
 
 function LoadingSpinner() {
@@ -31,6 +32,7 @@ function AuroraBackground() {
 }
 
 export function App() {
+  const { theme, toggleTheme } = useTheme();
   const [currentView, setCurrentView] = useState<'reminder' | 'calendar'>('reminder');
   const [showAddModal, setShowAddModal] = useState(false);
   const [addParent, setAddParent] = useState<{
@@ -240,7 +242,12 @@ export function App() {
       <AuroraBackground />
 
       <div className="relative z-10 h-full flex flex-col">
-        <TitleBar currentView={currentView} onViewChange={setCurrentView} />
+        <TitleBar
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
 
         {isInitialLoading && currentView === 'reminder' ? (
           <LoadingSpinner />

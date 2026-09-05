@@ -25,6 +25,7 @@ const NOTIFIED_SOFT_MAX: usize = 400;
 type NotifiedMap = HashMap<String, Instant>;
 
 pub fn start(app: AppHandle) {
+    crate::app_log!(info, "notification scheduler started");
     let notified: Arc<Mutex<NotifiedMap>> = Arc::new(Mutex::new(HashMap::new()));
 
     thread::spawn(move || {
@@ -33,7 +34,7 @@ pub fn start(app: AppHandle) {
         // 启动后立即扫一次，补发休眠/关闭前错过的通知
         if let Some(db) = app.try_state::<Database>() {
             if let Err(e) = tick(&app, &db, &notified) {
-                eprintln!("[notification] initial tick error: {e}");
+                crate::app_log!(error, "[notification] initial tick error: {e}");
             }
         }
 
@@ -41,7 +42,7 @@ pub fn start(app: AppHandle) {
             thread::sleep(Duration::from_secs(POLL_SECS));
             if let Some(db) = app.try_state::<Database>() {
                 if let Err(e) = tick(&app, &db, &notified) {
-                    eprintln!("[notification] tick error: {e}");
+                    crate::app_log!(error, "[notification] tick error: {e}");
                 }
             }
         }
@@ -73,10 +74,11 @@ fn tick(
                 .show()
             {
                 Ok(()) => {
+                    crate::app_log!(info, "[notification] shown: {title} — {body}");
                     guard.insert(key, Instant::now());
                 }
                 Err(e) => {
-                    eprintln!("[notification] show failed: {e}");
+                    crate::app_log!(error, "[notification] show failed: {e}");
                 }
             }
         }
