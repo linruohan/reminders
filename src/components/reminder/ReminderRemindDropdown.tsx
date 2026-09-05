@@ -1,5 +1,5 @@
-import { memo, useState } from 'react';
-import { remindOptions } from './formOptions';
+import { memo, useMemo, useState } from 'react';
+import { parseRemindValue, remindOptions } from './formOptions';
 
 interface ReminderRemindDropdownProps {
   editRemindValue: string;
@@ -7,21 +7,33 @@ interface ReminderRemindDropdownProps {
   onClose: () => void;
 }
 
-/**
- * 提醒时间选择下拉组件
- * 提供预设提醒选项和自定义提醒配置
- */
+const PRESET_VALUES = remindOptions
+  .filter(o => o.value && o.value !== 'custom')
+  .map(o => o.value);
+
 export const ReminderRemindDropdown = memo(function ReminderRemindDropdown({
   editRemindValue,
   onRemindChange,
-  onClose
+  onClose,
 }: ReminderRemindDropdownProps) {
-  const [customNum, setCustomNum] = useState(1);
-  const [customUnit, setCustomUnit] = useState('days');
+  const encodedIsCustom = editRemindValue === 'custom'
+    || (!!editRemindValue && !PRESET_VALUES.includes(editRemindValue));
+
+  const parsed = useMemo(() => parseRemindValue(editRemindValue), [editRemindValue]);
+  const [showCustom, setShowCustom] = useState(encodedIsCustom);
+  const [customNum, setCustomNum] = useState(parsed.remind_before_value ?? 1);
+  const [customUnit, setCustomUnit] = useState<string>(parsed.remind_before_unit || 'minutes');
 
   const handleCustomConfirm = () => {
-    const unitMap: Record<string, string> = { hours: 'h', days: 'd', weeks: 'w', months: 'M', years: 'y' };
-    const suffix = unitMap[customUnit] || 'd';
+    const unitMap: Record<string, string> = {
+      minutes: 'm',
+      hours: 'h',
+      days: 'd',
+      weeks: 'w',
+      months: 'M',
+      years: 'y',
+    };
+    const suffix = unitMap[customUnit] || 'm';
     onRemindChange(`${customNum}${suffix}`);
     onClose();
   };
@@ -31,21 +43,28 @@ export const ReminderRemindDropdown = memo(function ReminderRemindDropdown({
       {remindOptions.map(o => (
         <button
           key={o.value}
+          type="button"
           onClick={() => {
+            if (o.value === 'custom') {
+              setShowCustom(true);
+              return;
+            }
+            setShowCustom(false);
             onRemindChange(o.value);
-            // 自定义需继续配置数值/单位，不关闭下拉
-            if (o.value !== 'custom') onClose();
+            onClose();
           }}
           className={`block w-full text-left px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
-            editRemindValue === o.value || (o.value === 'custom' && editRemindValue === 'custom')
-              ? 'bg-apple-blue/10 text-apple-blue'
-              : 'text-gray-700 hover:bg-gray-50'
+            o.value === 'custom'
+              ? (showCustom ? 'bg-apple-blue/10 text-apple-blue' : 'text-gray-700 hover:bg-gray-50')
+              : editRemindValue === o.value
+                ? 'bg-apple-blue/10 text-apple-blue'
+                : 'text-gray-700 hover:bg-gray-50'
           }`}
         >
           {o.label}
         </button>
       ))}
-      {editRemindValue === 'custom' && (
+      {showCustom && (
         <>
           <div className="border-t border-apple-divider my-1" />
           <div className="flex items-center gap-1.5 px-4 py-2">
@@ -54,7 +73,7 @@ export const ReminderRemindDropdown = memo(function ReminderRemindDropdown({
               type="number"
               min={1}
               value={customNum}
-              onChange={e => setCustomNum(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={e => setCustomNum(Math.max(1, parseInt(e.target.value, 10) || 1))}
               className="w-12 px-1 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none text-center"
             />
             <select
@@ -62,6 +81,7 @@ export const ReminderRemindDropdown = memo(function ReminderRemindDropdown({
               onChange={e => setCustomUnit(e.target.value)}
               className="px-1 py-1 text-xs bg-[#F2F2F7] rounded-[8px] border-none outline-none"
             >
+              <option value="minutes">分钟</option>
               <option value="hours">小时</option>
               <option value="days">天</option>
               <option value="weeks">周</option>
@@ -69,6 +89,7 @@ export const ReminderRemindDropdown = memo(function ReminderRemindDropdown({
               <option value="years">年</option>
             </select>
             <button
+              type="button"
               onClick={handleCustomConfirm}
               className="px-2 py-1 text-xs bg-apple-blue text-white rounded-[8px] hover:bg-[#0066CC] transition-colors"
             >

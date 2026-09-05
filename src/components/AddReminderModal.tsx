@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { ListResponse, Priority, RecurrenceFrequency, TagResponse, TimeUnit } from '@/types/api';
+import type { ListResponse, OwnerResponse, Priority, RecurrenceFrequency, TagResponse, TimeUnit } from '@/types/api';
 import {
   ReminderFormFields,
   type ReminderFormFieldValues,
 } from './reminder/ReminderFormFields';
-import { formatDateTimeLocal } from '@/utils/dateUtils';
 import {
   formFieldsToReminderPatch,
   validateReminderFields,
@@ -12,8 +11,10 @@ import {
 
 interface AddReminderModalProps {
   lists: ListResponse[];
+  owners?: OwnerResponse[];
   knownTags?: TagResponse[];
   initialListId?: string | null;
+  initialOwnerId?: string | null;
   initialEndDateTime?: string | null;
   initialIsAllDay?: boolean;
   /** 默认父任务 ID */
@@ -28,6 +29,7 @@ interface AddReminderModalProps {
     end_date?: string | null;
     end_time?: string | null;
     list_id?: string | null;
+    owner_id?: string | null;
     is_all_day?: boolean;
     is_flagged?: boolean;
     priority?: Priority;
@@ -43,15 +45,12 @@ interface AddReminderModalProps {
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
-function isValidDateRange(start: string, end: string): boolean {
-  if (!start || !end) return true;
-  return new Date(end) >= new Date(start);
-}
-
 export function AddReminderModal({
   lists,
+  owners = [],
   knownTags = [],
   initialListId,
+  initialOwnerId,
   initialEndDateTime,
   initialIsAllDay = false,
   initialParentId = null,
@@ -63,10 +62,6 @@ export function AddReminderModal({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
-  const [startDateTime] = useState(() => {
-    const now = new Date();
-    return formatDateTimeLocal(now, now.getHours(), now.getMinutes());
-  });
   const [fields, setFields] = useState<ReminderFormFieldValues>({
     endDateTime: initialEndDateTime || '',
     isAllDay: initialIsAllDay,
@@ -79,6 +74,7 @@ export function AddReminderModal({
     customRemindNum: 1,
     customRemindUnit: 'minutes',
     selectedListId: initialListId || '',
+    selectedOwnerId: initialOwnerId || '',
     isFlagged: false,
     priority: 'none',
     tags: [],
@@ -100,10 +96,6 @@ export function AddReminderModal({
       showToast?.('error', fieldError);
       return;
     }
-    if (startDateTime && fields.endDateTime && !isValidDateRange(startDateTime, fields.endDateTime)) {
-      showToast?.('error', '截止日期不能早于创建日期');
-      return;
-    }
 
     setIsSubmitting(true);
     const patch = formFieldsToReminderPatch(fields);
@@ -115,6 +107,7 @@ export function AddReminderModal({
         end_date: patch.end_date,
         end_time: patch.end_time,
         list_id: patch.list_id,
+        owner_id: patch.owner_id,
         is_all_day: patch.is_all_day,
         is_flagged: patch.is_flagged,
         priority: patch.priority,
@@ -130,7 +123,7 @@ export function AddReminderModal({
     } finally {
       setIsSubmitting(false);
     }
-  }, [title, description, url, startDateTime, fields, onSubmit, showToast, initialParentId]);
+  }, [title, description, url, fields, onSubmit, showToast, initialParentId]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -209,7 +202,7 @@ export function AddReminderModal({
           />
 
           <div className="border-t border-apple-divider mt-3 mb-3" />
-          <ReminderFormFields lists={lists} knownTags={knownTags} values={fields} onChange={onFieldsChange} variant="add" />
+          <ReminderFormFields lists={lists} owners={owners} knownTags={knownTags} values={fields} onChange={onFieldsChange} variant="add" />
         </div>
       </div>
     </div>

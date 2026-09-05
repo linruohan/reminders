@@ -23,6 +23,9 @@ export function buildUpdates(
   if (values.list_id !== undefined && values.list_id !== reminder.list_id) {
     updates.list_id = values.list_id ?? null;
   }
+  if (values.owner_id !== undefined && values.owner_id !== reminder.owner_id) {
+    updates.owner_id = values.owner_id ?? null;
+  }
   if (values.recurrence_frequency !== undefined && values.recurrence_frequency !== reminder.recurrence_frequency) {
     updates.recurrence_frequency = values.recurrence_frequency ?? null;
   }

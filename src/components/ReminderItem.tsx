@@ -104,9 +104,11 @@ export const ReminderItem = memo(function ReminderItem({
       <div onContextMenu={handleContextMenu}>
         <ReminderItemViewMode
           reminder={reminder}
+          ownerName={owners.find(o => o.id === reminder.owner_id)?.name}
           onToggleCompleted={onToggleCompleted}
           onStartEditing={onStartEditing}
           onShowDetail={handleShowDetail}
+          subtaskHandlers={subtaskHandlers}
         />
       </div>
       

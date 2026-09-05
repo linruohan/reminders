@@ -1,20 +1,25 @@
 import { memo } from 'react';
-import type { ReminderResponse } from '@/types/api';
+import type { ReminderResponse, SubtaskHandlers } from '@/types/api';
 import { formatRecurrenceLabel } from '@/components/reminder/formOptions';
 import { formatDate, formatTime } from '@/utils/dateUtils';
 import { isOverdue } from '@/utils/reminderDates';
 import { getTagColorStyle } from '@/utils/tagColors';
+import { ReminderSubtasks } from './ReminderSubtasks';
 
 export const ReminderItemViewMode = memo(function ReminderItemViewMode({
   reminder,
+  ownerName,
   onToggleCompleted,
   onStartEditing,
   onShowDetail,
+  subtaskHandlers,
 }: {
   reminder: ReminderResponse;
+  ownerName?: string | null;
   onToggleCompleted: (id: string) => void;
   onStartEditing: (id: string) => void;
   onShowDetail: () => void;
+  subtaskHandlers: SubtaskHandlers;
 }) {
   const overdue = isOverdue(reminder);
   const recurrenceLabel = formatRecurrenceLabel(
@@ -109,6 +114,15 @@ export const ReminderItemViewMode = memo(function ReminderItemViewMode({
                 ))}
               </span>
             )}
+            {ownerName && (
+              <span className="text-[13px] font-medium text-apple-gray flex items-center gap-1">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                {ownerName}
+              </span>
+            )}
           </div>
         </div>
 
@@ -126,6 +140,20 @@ export const ReminderItemViewMode = memo(function ReminderItemViewMode({
           </svg>
         </button>
       </div>
+
+      {reminder.subtasks && reminder.subtasks.length > 0 && (
+        <div className="pl-[38px] mt-2">
+          <ReminderSubtasks
+            reminderId={reminder.id}
+            subtasks={reminder.subtasks}
+            mode="view"
+            compact
+            onCreate={subtaskHandlers.create}
+            onUpdate={subtaskHandlers.update}
+            onDelete={subtaskHandlers.remove}
+          />
+        </div>
+      )}
     </div>
   );
 });

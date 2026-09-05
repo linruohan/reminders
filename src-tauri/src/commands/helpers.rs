@@ -238,3 +238,41 @@ pub(crate) fn insert_reminder_row(
     .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+pub(crate) fn clone_subtasks_in_tx(
+    tx: &rusqlite::Transaction,
+    source_id: &str,
+    target_id: &str,
+    reset_completed: bool,
+) -> Result<(), String> {
+    let mut stmt = tx
+        .prepare(
+            "SELECT title, is_completed, sort_order FROM subtasks \
+             WHERE reminder_id = ? ORDER BY sort_order ASC, created_at ASC",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([source_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i32>(1)?,
+                row.get::<_, i32>(2)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+    let items: Vec<(String, i32, i32)> = rows.filter_map(|r| r.ok()).collect();
+    drop(stmt);
+
+    let now = chrono::Local::now().to_rfc3339();
+    for (title, is_completed, sort_order) in items {
+        let id = Uuid::new_v4().to_string();
+        let completed = if reset_completed { 0 } else { is_completed };
+        tx.execute(
+            "INSERT INTO subtasks (id, reminder_id, title, is_completed, sort_order, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            rusqlite::params![id, target_id, title, completed, sort_order, now, now],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}

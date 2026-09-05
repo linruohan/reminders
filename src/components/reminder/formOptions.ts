@@ -56,6 +56,7 @@ export const priorityOptions = [
 
 /** 单字符后缀 → TimeUnit */
 export const remindSuffixToUnit: Record<string, TimeUnit> = {
+  m: 'minutes',
   h: 'hours',
   d: 'days',
   w: 'weeks',
@@ -65,6 +66,8 @@ export const remindSuffixToUnit: Record<string, TimeUnit> = {
 
 /** TimeUnit → 单字符后缀（含兼容旧单数写法） */
 export const remindUnitToSuffix: Record<string, string> = {
+  minutes: 'm',
+  minute: 'm',
   hours: 'h',
   hour: 'h',
   days: 'd',
@@ -77,7 +80,7 @@ export const remindUnitToSuffix: Record<string, string> = {
   year: 'y',
 };
 
-/** 解析提醒值（如 1d / 2w / 1M / 3h / 1y） */
+/** 解析提醒值（如 1d / 2w / 1M / 3h / 1y / 30m） */
 export function parseRemindValue(value: string): { remind_before_value: number | null; remind_before_unit: TimeUnit | null } {
   if (!value || value === 'custom') return { remind_before_value: null, remind_before_unit: null };
   const unit = value.slice(-1);

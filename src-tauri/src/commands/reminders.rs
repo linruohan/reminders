@@ -8,9 +8,9 @@ use crate::repository::reminder::ReminderRepository;
 
 use super::dto::{CreateReminderRequest, ReminderResponse, UpdateReminderRequest};
 use super::helpers::{
-    get_conn, get_reminder_subtasks_internal, get_reminder_tags_internal, get_reminder_with_tags,
-    insert_reminder_row, map_reminders_with_tags, parse_date, parse_optional_uuid, parse_time,
-    parse_uuid, sync_reminder_tags_in_tx,
+    clone_subtasks_in_tx, get_conn, get_reminder_subtasks_internal, get_reminder_tags_internal,
+    get_reminder_with_tags, insert_reminder_row, map_reminders_with_tags, parse_date,
+    parse_optional_uuid, parse_time, parse_uuid, sync_reminder_tags_in_tx,
 };
 
 #[command]
@@ -280,6 +280,7 @@ fn spawn_next_occurrence(
     next.priority = source.priority.clone();
     next.list_id = source.list_id;
     next.owner_id = source.owner_id;
+    next.parent_id = source.parent_id;
     next.recurrence_frequency = source.recurrence_frequency.clone();
     next.recurrence_interval = source.recurrence_interval;
     next.custom_recurrence_unit = source.custom_recurrence_unit.clone();
@@ -301,6 +302,7 @@ fn spawn_next_occurrence(
     if !tag_names.is_empty() {
         sync_reminder_tags_in_tx(&tx, &next_id, &tag_names)?;
     }
+    clone_subtasks_in_tx(&tx, &source_id, &next_id, true)?;
     tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }

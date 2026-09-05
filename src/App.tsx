@@ -39,6 +39,7 @@ export function App() {
     id: string;
     title: string;
     listId: string | null;
+    ownerId: string | null;
     endDate: string | null;
     endTime: string | null;
     isAllDay: boolean;
@@ -93,6 +94,22 @@ export function App() {
     refreshData,
   } = useReminderData(showToast);
 
+  const pendingDeleteChildCount = useMemo(() => {
+    if (!pendingDeleteReminderId) return 0;
+    const ids = new Set<string>([pendingDeleteReminderId]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const r of allReminders) {
+        if (r.parent_id && ids.has(r.parent_id) && !ids.has(r.id)) {
+          ids.add(r.id);
+          grew = true;
+        }
+      }
+    }
+    return ids.size - 1;
+  }, [pendingDeleteReminderId, allReminders]);
+
   const pendingDeleteTitle = useMemo(() => {
     if (!pendingDeleteReminderId) return '';
     const fromView = reminders.find(r => r.id === pendingDeleteReminderId);
@@ -115,6 +132,7 @@ export function App() {
     id: string;
     title: string;
     listId: string | null;
+    ownerId: string | null;
     endDate: string | null;
     endTime: string | null;
     isAllDay: boolean;
@@ -293,10 +311,12 @@ export function App() {
             <CalendarPage
               reminders={allReminders}
               lists={lists}
+              owners={owners}
               knownTags={tags}
               onUpdateReminder={handleUpdateReminder}
               onDeleteReminder={requestDeleteReminder}
               onCreateReminder={handleCreateReminder}
+              subtaskHandlers={subtaskHandlers}
               showToast={showToast}
             />
           </div>
@@ -304,12 +324,17 @@ export function App() {
 
         {showAddModal && (
           <AddReminderModal
-            lists={lists}
-            knownTags={tags}
             initialListId={
               addParent?.listId
               ?? (activeFilter.startsWith('list:') ? activeFilter.slice('list:'.length) : null)
             }
+            initialOwnerId={
+              addParent?.ownerId
+              ?? (activeFilter.startsWith('owner:') ? activeFilter.slice('owner:'.length) : null)
+            }
+            lists={lists}
+            owners={owners}
+            knownTags={tags}
             initialEndDateTime={
               addParent?.endDate
                 ? (addParent.endTime && !addParent.isAllDay
@@ -348,7 +373,9 @@ export function App() {
           title="删除提醒"
           message={
             pendingDeleteTitle
-              ? `确定删除「${pendingDeleteTitle}」？此操作无法撤销。`
+              ? pendingDeleteChildCount > 0
+                ? `确定删除「${pendingDeleteTitle}」？将同时删除 ${pendingDeleteChildCount} 条子提醒，此操作无法撤销。`
+                : `确定删除「${pendingDeleteTitle}」？此操作无法撤销。`
               : '确定删除此提醒事项？此操作无法撤销。'
           }
           confirmLabel="删除"

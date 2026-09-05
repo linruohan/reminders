@@ -21,6 +21,7 @@ interface ReminderPageProps {
     id: string;
     title: string;
     listId: string | null;
+    ownerId: string | null;
     endDate: string | null;
     endTime: string | null;
     isAllDay: boolean;

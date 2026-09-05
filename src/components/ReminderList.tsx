@@ -25,6 +25,7 @@ interface ReminderListProps {
     id: string;
     title: string;
     listId: string | null;
+    ownerId: string | null;
     endDate: string | null;
     endTime: string | null;
     isAllDay: boolean;
@@ -270,6 +271,7 @@ export function ReminderList({
       id: parent.id,
       title: parent.title,
       listId: parent.list_id,
+      ownerId: parent.owner_id,
       endDate: parent.end_date,
       endTime: parent.end_time,
       isAllDay: parent.is_all_day ?? false,

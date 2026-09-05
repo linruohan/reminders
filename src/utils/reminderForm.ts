@@ -116,6 +116,7 @@ export function formFieldsToReminderPatch(
     customRemindNum: number;
     customRemindUnit: string;
     selectedListId: string;
+    selectedOwnerId?: string;
     isFlagged: boolean;
     priority: string;
     tags: string[];
@@ -127,6 +128,7 @@ export function formFieldsToReminderPatch(
     end_time: fields.isAllDay ? null : (end?.time || null),
     is_all_day: fields.isAllDay,
     list_id: fields.selectedListId || null,
+    owner_id: fields.selectedOwnerId || null,
     is_flagged: fields.isFlagged,
     priority: fields.priority as ReminderResponse['priority'],
     ...resolveRecurrenceFields(

@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
-import type { ReminderResponse, ListResponse, CreateReminderRequest, Priority, RecurrenceFrequency, TagResponse, TimeUnit } from '@/types/api';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import type { ReminderResponse, ListResponse, CreateReminderRequest, Priority, RecurrenceFrequency, TagResponse, TimeUnit, OwnerResponse, SubtaskHandlers } from '@/types/api';
 import { formatDateTimeLocal, getDaysInMonth, getTodayStr, parseLocalDate, toISODateStr } from '@/utils/dateUtils';
 import { matchesSearch } from '@/utils/reminderDates';
 import { AddReminderModal } from '../AddReminderModal';
@@ -16,10 +16,12 @@ type ViewMode = 'day' | 'week' | 'month' | 'year';
 interface CalendarViewProps {
   reminders: ReminderResponse[];
   lists: ListResponse[];
+  owners?: OwnerResponse[];
   knownTags?: TagResponse[];
   onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
   onDeleteReminder: (id: string) => void;
   onCreateReminder: (data: CreateReminderRequest) => Promise<{ data: ReminderResponse | null; error: string | null }>;
+  subtaskHandlers?: SubtaskHandlers;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
@@ -29,7 +31,7 @@ function addDays(date: Date, n: number): Date {
   return d;
 }
 
-export function CalendarView({ reminders, lists, knownTags = [], onUpdateReminder, onDeleteReminder, onCreateReminder, showToast }: CalendarViewProps) {
+export function CalendarView({ reminders, lists, owners = [], knownTags = [], onUpdateReminder, onDeleteReminder, onCreateReminder, subtaskHandlers, showToast }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('day');
@@ -38,6 +40,27 @@ export function CalendarView({ reminders, lists, knownTags = [], onUpdateReminde
   const [showAddModal, setShowAddModal] = useState(false);
   const [addDraft, setAddDraft] = useState<{ endDateTime?: string; isAllDay?: boolean } | null>(null);
   const [editReminder, setEditReminder] = useState<ReminderResponse | null>(null);
+
+  useEffect(() => {
+    if (!editReminder) return;
+    const fresh = reminders.find(r => r.id === editReminder.id);
+    if (!fresh) {
+      setEditReminder(null);
+      return;
+    }
+    if (fresh !== editReminder) setEditReminder(fresh);
+  }, [reminders, editReminder]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -122,6 +145,7 @@ export function CalendarView({ reminders, lists, knownTags = [], onUpdateReminde
     end_date?: string | null;
     end_time?: string | null;
     list_id?: string | null;
+    owner_id?: string | null;
     is_all_day?: boolean;
     is_flagged?: boolean;
     priority?: Priority;
@@ -256,6 +280,10 @@ export function CalendarView({ reminders, lists, knownTags = [], onUpdateReminde
             onDoubleClickTimeline={(h, m) => handleDoubleClickTimeline(h, m, selectedDate)}
             onReminderClick={handleTimelineReminderClick}
             onAllDayDoubleClick={() => handleAllDayDoubleClick(selectedDate)}
+            onSelectDate={(d) => {
+              setSelectedDate(d);
+              setCurrentDate(d);
+            }}
             onRescheduleReminder={(id, updates) => onUpdateReminder(id, updates)}
           />
         )}
@@ -283,6 +311,7 @@ export function CalendarView({ reminders, lists, knownTags = [], onUpdateReminde
               setCurrentDate(d);
               setViewMode('day');
             }}
+            onDayDoubleClick={(d) => handleAllDayDoubleClick(d)}
             onReminderClick={handleTimelineReminderClick}
             onRescheduleReminder={(id, updates) => onUpdateReminder(id, updates)}
           />
@@ -307,6 +336,7 @@ export function CalendarView({ reminders, lists, knownTags = [], onUpdateReminde
       {showAddModal && (
         <AddReminderModal
           lists={lists}
+          owners={owners}
           knownTags={knownTags}
           initialEndDateTime={addDraft?.endDateTime}
           initialIsAllDay={addDraft?.isAllDay}
@@ -321,10 +351,12 @@ export function CalendarView({ reminders, lists, knownTags = [], onUpdateReminde
         <EditReminderCard
           reminder={editReminder}
           lists={lists}
+          owners={owners}
           knownTags={knownTags}
           onSave={onUpdateReminder}
           onDelete={onDeleteReminder}
           onClose={() => setEditReminder(null)}
+          subtaskHandlers={subtaskHandlers}
           showToast={showToast}
         />
       )}

@@ -1,37 +1,19 @@
-# Reminders 项目 — 未完善与可优化点
+# Reminders 项目 — 进度备忘
 
-> 审查日期：2026-07-24  
-> **进度**：P0 / P1 / 续 1–6 均已落地
+> 审查日期：2026-09-05  
+> 以当前代码与 README 为准。早期「FTS5 / get_reminders_by_date_range / 内联已接 ReminderFormFields」等表述已过时。
 
----
+## 已落地
 
-## 已完成摘要
-
-| 批次 | 内容 |
-|------|------|
-| P0 | 完成筛选、标签保存、重复生成、通知补扫 |
-| P1 | 新建继承列表、Toast、全天、负责人/标签筛选、校验 |
-| 续 1 | 24h 时间轴、FTS5、列表虚拟化、共享校验 |
-| 续 2 | `ReminderFormFields`、日历有时事件拖拽、`get_reminders_by_date_range` |
-| 续 3 | 周/月全天拖拽改日期；内联校验 + Toast；`update_on_conn` |
-| 续 4 | 内联编辑接入 `ReminderFormFields`；删除旧 chip 下拉；`design.md` 对齐 |
-| 续 5 | 系统托盘常驻（关窗隐藏）；通知正文含截止时间 |
-| 续 6 | 子任务（表 + CRUD + 列表/编辑/详情 UI） |
-
----
+- 筛选、标签、重复生成、通知补扫
+- 新建继承列表/负责人、Toast、全天、校验
+- 24h 时间轴、列表虚拟化、共享 `ReminderFormFields`（新建弹窗 / 日历编辑）
+- 日历有时事件拖拽；周/月全天拖拽改期；日视图周条点选与全天拖到其它日
+- 系统托盘常驻；通知提前+到期可各弹一次
+- 子任务（表 + CRUD + 列表只读勾选 / 编辑与详情可改）
+- 父子提醒；剪切改列表；拷贝复制子任务
 
 ## 仍待（可选）
 
 - 可选 lint/format 脚本
-
----
-
-## 关键新文件
-
-- `src/components/reminder/ReminderFormFields.tsx`
-- `src/components/reminder/ReminderSubtasks.tsx`
-- `src-tauri/src/database/fts.rs`
-- `src-tauri/src/tray.rs`
-- `src-tauri/src/commands/subtasks.rs`
-- `src-tauri/src/repository/subtask.rs`
-- `src/hooks/useVirtualList.ts`
+- 后端 FTS / 按日期范围拉取（当前全量加载 + 前端过滤）

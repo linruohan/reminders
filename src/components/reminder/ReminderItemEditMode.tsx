@@ -14,6 +14,7 @@ import { formatDate, formatTime, normalizeTimeStr } from '@/utils/dateUtils';
 import { buildUpdates } from '@/utils/reminderUpdates';
 import {
   filterTagSuggestions,
+  initRemindUiState,
   normalizeCustomRecurrenceUnit,
   resolveRemindFields,
   tagNamesToResponses,
@@ -28,6 +29,7 @@ import { ReminderTagsDropdown } from './ReminderTagsDropdown';
 import { ReminderRepeatDropdown } from './ReminderRepeatDropdown';
 import { ReminderEndRepeatDropdown } from './ReminderEndRepeatDropdown';
 import { ReminderListDropdown } from './ReminderListDropdown';
+import { ReminderOwnerDropdown } from './ReminderOwnerDropdown';
 import { ReminderSubtasks } from './ReminderSubtasks';
 
 const chipClass =
@@ -84,8 +86,10 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const [editUrl, setEditUrl] = useState(reminder.url || '');
   const [editEndDate, setEditEndDate] = useState(reminder.end_date || '');
   const [editEndTime, setEditEndTime] = useState(normalizeTimeStr(reminder.end_time) || '');
+  const [editIsAllDay, setEditIsAllDay] = useState(reminder.is_all_day ?? !normalizeTimeStr(reminder.end_time));
   const [editPriority, setEditPriority] = useState<Priority>(reminder.priority || 'none');
   const [editListId, setEditListId] = useState(reminder.list_id || '');
+  const [editOwnerId, setEditOwnerId] = useState(reminder.owner_id || '');
   const [editIsFlagged, setEditIsFlagged] = useState(reminder.is_flagged ?? false);
   const [editRecurrenceFreq, setEditRecurrenceFreq] = useState<string>(reminder.recurrence_frequency ?? '');
   const [editRecurrenceInterval, setEditRecurrenceInterval] = useState(reminder.recurrence_interval ?? 1);
@@ -110,9 +114,11 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const reminderIdRef = useRef(reminder.id);
+  const reminderRef = useRef(reminder);
+  reminderRef.current = reminder;
 
   const toRemindFields = useCallback(
-    (remindValue: string) => resolveRemindFields(remindValue, 1, 'days'),
+    (remindValue: string) => resolveRemindFields(remindValue, 1, 'minutes'),
     [],
   );
 
@@ -121,31 +127,29 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
     onChangeRef.current(draftRef.current);
   }, []);
 
-  const buildInitialDraft = useCallback((r: ReminderResponse): Partial<ReminderResponse> => ({
-    title: r.title,
-    description: r.description || null,
-    url: r.url || null,
-    end_date: r.end_date || null,
-    end_time: normalizeTimeStr(r.end_time),
-    is_all_day: r.is_all_day ?? false,
-    is_flagged: r.is_flagged ?? false,
-    priority: r.priority || 'none',
-    list_id: r.list_id || null,
-    recurrence_frequency: r.recurrence_frequency ?? null,
-    recurrence_interval: r.recurrence_frequency === 'custom' ? (r.recurrence_interval ?? 1) : null,
-    custom_recurrence_unit: r.recurrence_frequency === 'custom' ? (r.custom_recurrence_unit ?? 'days') : null,
-    recurrence_end_date: r.recurrence_end_date || null,
-    tags: r.tags ?? [],
-    ...resolveRemindFields(
-      encodeRemindValue(r.remind_before_value, r.remind_before_unit),
-      1,
-      'days',
-    ),
-  }), []);
+  const buildInitialDraft = useCallback((r: ReminderResponse): Partial<ReminderResponse> => {
+    const remindUi = initRemindUiState(r.remind_before_value, r.remind_before_unit);
+    return {
+      title: r.title,
+      description: r.description || null,
+      url: r.url || null,
+      end_date: r.end_date || null,
+      end_time: normalizeTimeStr(r.end_time),
+      is_all_day: r.is_all_day ?? false,
+      is_flagged: r.is_flagged ?? false,
+      priority: r.priority || 'none',
+      list_id: r.list_id || null,
+      owner_id: r.owner_id || null,
+      recurrence_frequency: r.recurrence_frequency ?? null,
+      recurrence_interval: r.recurrence_frequency === 'custom' ? (r.recurrence_interval ?? 1) : null,
+      custom_recurrence_unit: r.recurrence_frequency === 'custom' ? (r.custom_recurrence_unit ?? 'days') : null,
+      recurrence_end_date: r.recurrence_end_date || null,
+      tags: r.tags ?? [],
+      ...resolveRemindFields(remindUi.remindValue, remindUi.customRemindNum, remindUi.customRemindUnit),
+    };
+  }, []);
 
   // 仅挂载 / 切换编辑目标时初始化草稿；完成勾选后的数据刷新不得反复写回截止时间
-  const reminderRef = useRef(reminder);
-  reminderRef.current = reminder;
   useEffect(() => {
     const r = reminderRef.current;
     reminderIdRef.current = r.id;
@@ -154,8 +158,10 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
     setEditUrl(r.url || '');
     setEditEndDate(r.end_date || '');
     setEditEndTime(normalizeTimeStr(r.end_time) || '');
+    setEditIsAllDay(r.is_all_day ?? !normalizeTimeStr(r.end_time));
     setEditPriority(r.priority || 'none');
     setEditListId(r.list_id || '');
+    setEditOwnerId(r.owner_id || '');
     setEditIsFlagged(r.is_flagged ?? false);
     setEditRecurrenceFreq(r.recurrence_frequency ?? '');
     setEditRecurrenceInterval(r.recurrence_interval ?? 1);
@@ -226,6 +232,10 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
     setEditListId(value);
     publishDraft({ list_id: value || null });
   };
+  const updateOwnerId = (value: string) => {
+    setEditOwnerId(value);
+    publishDraft({ owner_id: value || null });
+  };
   const updateFlagged = (value: boolean) => {
     setEditIsFlagged(value);
     publishDraft({ is_flagged: value });
@@ -261,7 +271,17 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const updateEndTime = (value: string) => {
     const normalized = normalizeTimeStr(value) || '';
     setEditEndTime(normalized);
+    setEditIsAllDay(!normalized);
     publishDraft({ end_time: normalized || null, is_all_day: !normalized });
+  };
+  const updateIsAllDay = (value: boolean) => {
+    setEditIsAllDay(value);
+    if (value) {
+      setEditEndTime('');
+      publishDraft({ is_all_day: true, end_time: null });
+    } else {
+      publishDraft({ is_all_day: false, end_time: editEndTime || null });
+    }
   };
 
   const updatePriority = (value: Priority) => {
@@ -413,7 +433,17 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
                 </button>
                 <button type="button" title="设置提醒的时间" onClick={(e) => toggleDropdown('endTime', e)} className={chipClass}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                  {editEndTime ? formatTime(editEndTime) : '截止时间'}
+                  {editEndTime && !editIsAllDay ? formatTime(editEndTime) : '截止时间'}
+                </button>
+                <button
+                  type="button"
+                  title={editIsAllDay ? '取消全天' : '设为全天'}
+                  onClick={() => updateIsAllDay(!editIsAllDay)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-[13px] font-medium transition-all duration-200 spring-transition ${
+                    editIsAllDay ? 'bg-apple-blue/10 text-apple-blue' : 'bg-[#F2F2F7] text-gray-700 hover:bg-[#E5E5EA]'
+                  }`}
+                >
+                  全天
                 </button>
               </ChipGroup>
 
@@ -454,6 +484,14 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
                   {editListId ? (lists.find(l => l.id === editListId)?.name || '列表') : '提醒事项'}
                 </button>
               </ChipGroup>
+
+              {owners.length > 0 && (
+                <ChipGroup label="负责人">
+                  <button type="button" title="选择负责人" onClick={(e) => toggleDropdown('owner', e)} className={chipClass}>
+                    {editOwnerId ? (owners.find(o => o.id === editOwnerId)?.name || '负责人') : '未分配'}
+                  </button>
+                </ChipGroup>
+              )}
 
               <ChipGroup label="提醒">
                 <button type="button" title="设置提前提醒" onClick={(e) => toggleDropdown('remind', e)} className={chipClass}>
@@ -506,11 +544,7 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
           owners={owners}
           isOpen={showDetail}
           onClose={() => setShowDetail(false)}
-          onDelete={(id) => {
-            setShowDetail(false);
-            onCancelEditing();
-            onDelete(id);
-          }}
+          onDelete={onDelete}
           onToggleCompleted={onToggleCompleted}
           onEdit={() => { setShowDetail(false); }}
           onUpdateReminder={onUpdateReminder}
@@ -607,6 +641,14 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
               editListId={editListId}
               lists={lists}
               onListChange={updateListId}
+              onClose={closeDropdown}
+            />
+          )}
+          {activeDropdown === 'owner' && (
+            <ReminderOwnerDropdown
+              editOwnerId={editOwnerId}
+              owners={owners}
+              onOwnerChange={updateOwnerId}
               onClose={closeDropdown}
             />
           )}

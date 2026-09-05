@@ -167,7 +167,7 @@ export function ReminderDetailModal({
             <ReminderSubtasks
               reminderId={reminder.id}
               subtasks={reminder.subtasks ?? []}
-              mode="view"
+              mode="edit"
               onCreate={subtaskHandlers.create}
               onUpdate={subtaskHandlers.update}
               onDelete={subtaskHandlers.remove}

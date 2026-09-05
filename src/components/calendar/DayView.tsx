@@ -27,7 +27,12 @@ interface DayViewProps {
   onDoubleClickTimeline: (hour: number, minute: number) => void;
   onReminderClick: (r: ReminderResponse) => void;
   onAllDayDoubleClick: () => void;
-  onRescheduleReminder?: (id: string, updates: { end_date: string; end_time: string }) => void;
+  onSelectDate?: (d: Date) => void;
+  onRescheduleReminder?: (id: string, updates: {
+    end_date: string;
+    end_time?: string | null;
+    is_all_day?: boolean;
+  }) => void;
 }
 
 export function DayView({
@@ -37,6 +42,7 @@ export function DayView({
   onDoubleClickTimeline,
   onReminderClick,
   onAllDayDoubleClick,
+  onSelectDate,
   onRescheduleReminder,
 }: DayViewProps) {
   const dayReminders = useMemo(() => getRemindersForDate(reminders, date), [reminders, date]);
@@ -52,6 +58,17 @@ export function DayView({
   } | null>(null);
   const dragRef = useRef(drag);
   dragRef.current = drag;
+
+  const [allDayDrag, setAllDayDrag] = useState<{
+    reminder: ReminderResponse;
+    col: number;
+    started: boolean;
+    ox: number;
+    oy: number;
+  } | null>(null);
+  const allDayDragRef = useRef(allDayDrag);
+  allDayDragRef.current = allDayDrag;
+  const skipWeekClickRef = useRef(false);
 
   const weekDates = useMemo(() => getWeekDates(getWeekStartMon(date)), [date]);
 
@@ -125,24 +142,83 @@ export function DayView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex border-b border-apple-divider bg-gray-50/50">
-        {weekDates.map((d, i) => {
-          const isToday = isSameDay(d, new Date());
-          return (
-            <div key={i} className="flex-1 text-center py-2 border-l border-gray-200">
-              <div className={`text-sm font-medium ${isToday ? 'text-apple-red' : 'text-gray-500'}`}>
-                {d.getDate()} {dayNames[d.getDay()]}
-              </div>
-            </div>
-          );
-        })}
+      <div
+        onPointerMove={(e) => {
+          const d = allDayDragRef.current;
+          if (!d) return;
+          const dist = Math.hypot(e.clientX - d.ox, e.clientY - d.oy);
+          const bar = e.currentTarget.querySelector('[data-week-bar]');
+          if (!(bar instanceof HTMLElement)) return;
+          const rect = bar.getBoundingClientRect();
+          const colWidth = rect.width / weekDates.length;
+          const col = Math.min(weekDates.length - 1, Math.max(0, Math.floor((e.clientX - rect.left) / colWidth)));
+          if (!d.started && dist < DRAG_THRESHOLD) return;
+          setAllDayDrag({ ...d, started: true, col });
+        }}
+        onPointerUp={(e) => {
+          const d = allDayDragRef.current;
+          setAllDayDrag(null);
+          if (!d) return;
+          try {
+            (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+          } catch { /* ignore */ }
+          if (!d.started) {
+            onReminderClick(d.reminder);
+            return;
+          }
+          skipWeekClickRef.current = true;
+          window.setTimeout(() => { skipWeekClickRef.current = false; }, 0);
+          onRescheduleReminder?.(d.reminder.id, {
+            end_date: toISODateStr(weekDates[d.col]),
+            end_time: '',
+            is_all_day: true,
+          });
+        }}
+      >
+        <div data-week-bar className="flex border-b border-apple-divider bg-gray-50/50">
+          {weekDates.map((d, i) => {
+            const isToday = isSameDay(d, new Date());
+            const isSelected = isSameDay(d, date);
+            const isDrop = allDayDrag?.started && allDayDrag.col === i;
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => {
+                  if (skipWeekClickRef.current || allDayDragRef.current?.started) return;
+                  onSelectDate?.(new Date(d));
+                }}
+                className={`flex-1 text-center py-2 border-l border-gray-200 first:border-l-0 transition-colors ${
+                  isDrop ? 'bg-blue-50' : isSelected ? 'bg-white' : 'hover:bg-white/70'
+                }`}
+              >
+                <div className={`text-sm font-medium ${isToday ? 'text-apple-red' : isSelected ? 'text-apple-blue' : 'text-gray-500'}`}>
+                  {d.getDate()} {dayNames[d.getDay()]}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <AllDaySection
+          reminders={dayAllDay}
+          lists={lists}
+          onReminderClick={onReminderClick}
+          onDoubleClick={onAllDayDoubleClick}
+          onPointerDownReminder={onRescheduleReminder ? (e, r) => {
+            if (e.button !== 0) return;
+            const col = weekDates.findIndex(day => isSameDay(day, date));
+            setAllDayDrag({
+              reminder: r,
+              col: col < 0 ? 0 : col,
+              started: false,
+              ox: e.clientX,
+              oy: e.clientY,
+            });
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+          } : undefined}
+          draggingId={allDayDrag?.started ? allDayDrag.reminder.id : null}
+        />
       </div>
-      <AllDaySection
-        reminders={dayAllDay}
-        lists={lists}
-        onReminderClick={onReminderClick}
-        onDoubleClick={onAllDayDoubleClick}
-      />
       <div
         ref={timelineRef}
         className="flex-1 overflow-y-auto relative"

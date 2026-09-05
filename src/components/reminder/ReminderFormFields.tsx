@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ListResponse, Priority, TagResponse } from '@/types/api';
+import type { ListResponse, OwnerResponse, Priority, TagResponse } from '@/types/api';
 import { DatePicker } from '../DatePicker';
 import { recurrenceOptions, remindOptions, priorityOptions } from './formOptions';
 import { getTagColorStyle } from '@/utils/tagColors';
@@ -17,6 +17,7 @@ export interface ReminderFormFieldValues {
   customRemindNum: number;
   customRemindUnit: string;
   selectedListId: string;
+  selectedOwnerId: string;
   isFlagged: boolean;
   priority: Priority | string;
   tags: string[];
@@ -24,6 +25,7 @@ export interface ReminderFormFieldValues {
 
 export interface ReminderFormFieldsProps {
   lists: ListResponse[];
+  owners?: OwnerResponse[];
   knownTags?: TagResponse[];
   values: ReminderFormFieldValues;
   onChange: (patch: Partial<ReminderFormFieldValues>) => void;
@@ -58,6 +60,7 @@ function SectionTitle({
 
 export function ReminderFormFields({
   lists,
+  owners = [],
   knownTags = [],
   values,
   onChange,
@@ -359,6 +362,58 @@ export function ReminderFormFields({
           </>
         )}
       </div>
+
+      {owners.length > 0 && (
+        <div className="border-t border-apple-divider mt-3 pt-3">
+          <SectionTitle
+            variant={variant}
+            label="负责人"
+            icon={
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            }
+          />
+          {variant === 'add' ? (
+            <select
+              value={values.selectedOwnerId}
+              onChange={(e) => patch({ selectedOwnerId: e.target.value })}
+              className="w-full px-3 py-1.5 text-sm bg-[#F2F2F7] rounded-[10px] border-none outline-none text-gray-700"
+            >
+              <option value="">未分配</option>
+              {owners.map(owner => (
+                <option key={owner.id} value={owner.id}>{owner.name}</option>
+              ))}
+            </select>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => patch({ selectedOwnerId: '' })}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-sm font-medium transition-colors ${
+                  !values.selectedOwnerId ? 'bg-blue-50 text-apple-blue' : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                未分配
+              </button>
+              {owners.map(owner => (
+                <button
+                  key={owner.id}
+                  type="button"
+                  onClick={() => patch({ selectedOwnerId: values.selectedOwnerId === owner.id ? '' : owner.id })}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-sm font-medium transition-colors ${
+                    values.selectedOwnerId === owner.id ? 'bg-blue-50 text-apple-blue' : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: owner.color }} />
+                  {owner.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {variant === 'add' && (
         <div className="border-t border-apple-divider mt-3 pt-3 flex items-center justify-between">

@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { ReminderResponse, ListResponse, TagResponse } from '@/types/api';
+import type { ReminderResponse, ListResponse, OwnerResponse, TagResponse, SubtaskHandlers } from '@/types/api';
 import {
   ReminderFormFields,
   type ReminderFormFieldValues,
 } from '../reminder/ReminderFormFields';
+import { ReminderSubtasks } from '../reminder/ReminderSubtasks';
 import { buildUpdates } from '@/utils/reminderUpdates';
 import {
   formFieldsToReminderPatch,
@@ -16,20 +17,24 @@ import {
 interface EditReminderCardProps {
   reminder: ReminderResponse;
   lists: ListResponse[];
+  owners?: OwnerResponse[];
   knownTags?: TagResponse[];
   onSave: (id: string, updates: Partial<ReminderResponse>) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
+  subtaskHandlers?: SubtaskHandlers;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
 
 export function EditReminderCard({
   reminder,
   lists,
+  owners = [],
   knownTags = [],
   onSave,
   onDelete,
   onClose,
+  subtaskHandlers,
   showToast,
 }: EditReminderCardProps) {
   const [title, setTitle] = useState(reminder.title);
@@ -48,6 +53,7 @@ export function EditReminderCard({
     customRemindNum: initialRemind.customRemindNum,
     customRemindUnit: initialRemind.customRemindUnit,
     selectedListId: reminder.list_id || '',
+    selectedOwnerId: reminder.owner_id || '',
     isFlagged: reminder.is_flagged ?? false,
     priority: reminder.priority || 'none',
     tags: reminder.tags?.map(t => t.name) || [],
@@ -57,6 +63,14 @@ export function EditReminderCard({
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const onFieldsChange = useCallback((patch: Partial<ReminderFormFieldValues>) => {
     setFields(prev => ({ ...prev, ...patch }));
@@ -81,7 +95,7 @@ export function EditReminderCard({
   }, [title, description, url, fields, reminder, onSave, onClose, showToast]);
 
   return (
-    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50" onClick={handleSave}>
+    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50" onClick={onClose}>
       <div
         className="bg-white rounded-apple-lg shadow-[0_16px_48px_rgba(0,0,0,0.16)] w-[400px] overflow-hidden animate-scale-in"
         onClick={e => e.stopPropagation()}
@@ -94,7 +108,7 @@ export function EditReminderCard({
           </button>
           <span className="text-sm font-semibold text-gray-900">编辑提醒</span>
           <div className="flex gap-2">
-            <button onClick={() => { onDelete(reminder.id); onClose(); }} className="text-sm font-medium text-red-500 hover:text-red-600 transition-colors">删除</button>
+            <button onClick={() => onDelete(reminder.id)} className="text-sm font-medium text-red-500 hover:text-red-600 transition-colors">删除</button>
             <button onClick={handleSave} className="text-sm font-semibold text-apple-blue transition-opacity">完成</button>
           </div>
         </div>
@@ -124,7 +138,17 @@ export function EditReminderCard({
           />
 
           <div className="border-t border-apple-divider my-3" />
-          <ReminderFormFields lists={lists} knownTags={knownTags} values={fields} onChange={onFieldsChange} variant="edit" />
+          <ReminderFormFields lists={lists} owners={owners} knownTags={knownTags} values={fields} onChange={onFieldsChange} variant="edit" />
+          {subtaskHandlers && (
+            <ReminderSubtasks
+              reminderId={reminder.id}
+              subtasks={reminder.subtasks ?? []}
+              mode="edit"
+              onCreate={subtaskHandlers.create}
+              onUpdate={subtaskHandlers.update}
+              onDelete={subtaskHandlers.remove}
+            />
+          )}
         </div>
       </div>
     </div>

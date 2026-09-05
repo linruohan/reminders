@@ -321,41 +321,85 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
   const handlePasteReminder = useCallback(async (targetListId: string | null) => {
     if (!clipboard) return;
 
+    const source = clipboard.reminder;
+    const listId = targetListId ?? source.list_id;
+
+    if (clipboard.action === 'cut') {
+      const ids = new Set<string>([source.id]);
+      let grew = true;
+      while (grew) {
+        grew = false;
+        for (const r of allReminders) {
+          if (r.parent_id && ids.has(r.parent_id) && !ids.has(r.id)) {
+            ids.add(r.id);
+            grew = true;
+          }
+        }
+      }
+      let failed = false;
+      for (const id of ids) {
+        const current = allReminders.find(r => r.id === id);
+        if (current && current.list_id === listId) continue;
+        const result = await api.updateReminder(normalizeUpdateRequest(id, { list_id: listId }));
+        if (result) {
+          upsertReminder(result);
+        } else {
+          failed = true;
+        }
+      }
+      if (failed) {
+        showToast?.('error', '移动提醒失败');
+      } else {
+        showToast?.('success', '提醒已移动');
+      }
+      setClipboard(null);
+      return;
+    }
+
     const result = await api.createReminder({
-      title: clipboard.reminder.title,
-      description: clipboard.reminder.description,
-      url: clipboard.reminder.url,
-      end_date: clipboard.reminder.end_date,
-      end_time: clipboard.reminder.end_time,
-      list_id: targetListId ?? clipboard.reminder.list_id,
-      owner_id: clipboard.reminder.owner_id,
-      is_all_day: clipboard.reminder.is_all_day,
-      is_flagged: clipboard.reminder.is_flagged,
-      priority: clipboard.reminder.priority,
-      recurrence_frequency: clipboard.reminder.recurrence_frequency,
-      recurrence_interval: clipboard.reminder.recurrence_interval,
-      custom_recurrence_unit: clipboard.reminder.custom_recurrence_unit,
-      recurrence_end_date: clipboard.reminder.recurrence_end_date,
-      remind_before_value: clipboard.reminder.remind_before_value,
-      remind_before_unit: clipboard.reminder.remind_before_unit,
-      tags: clipboard.reminder.tags?.map(t => t.name) ?? [],
+      title: source.title,
+      description: source.description,
+      url: source.url,
+      end_date: source.end_date,
+      end_time: source.end_time,
+      list_id: listId,
+      owner_id: source.owner_id,
+      is_all_day: source.is_all_day,
+      is_flagged: source.is_flagged,
+      priority: source.priority,
+      recurrence_frequency: source.recurrence_frequency,
+      recurrence_interval: source.recurrence_interval,
+      custom_recurrence_unit: source.custom_recurrence_unit,
+      recurrence_end_date: source.recurrence_end_date,
+      remind_before_value: source.remind_before_value,
+      remind_before_unit: source.remind_before_unit,
+      tags: source.tags?.map(t => t.name) ?? [],
+      parent_id: source.parent_id,
     });
     if (result.data) {
-      upsertReminder(result.data);
-      if (clipboard.action === 'cut') {
-        const deleted = await api.deleteReminder(clipboard.reminder.id);
-        if (deleted) removeReminder(clipboard.reminder.id);
-        showToast?.('success', '提醒已移动');
-      } else {
-        showToast?.('success', '提醒已粘贴');
+      let created = result.data;
+      const cloned: SubtaskResponse[] = [];
+      for (const sub of source.subtasks ?? []) {
+        const item = await api.createSubtask({ reminder_id: created.id, title: sub.title });
+        if (!item) continue;
+        let next = item;
+        if (sub.is_completed) {
+          next = await api.updateSubtask({ id: item.id, is_completed: true }) ?? item;
+        }
+        cloned.push(next);
       }
+      if (cloned.length > 0) {
+        created = { ...created, subtasks: cloned };
+      }
+      upsertReminder(created);
+      showToast?.('success', '提醒已粘贴');
     } else {
       showToast?.('error', result.error || '粘贴提醒失败');
     }
 
     setClipboard(null);
     return result.data;
-  }, [clipboard, upsertReminder, removeReminder, showToast]);
+  }, [clipboard, allReminders, upsertReminder, showToast]);
 
   const refreshData = useCallback(() => {
     setDayKey(getTodayStr());

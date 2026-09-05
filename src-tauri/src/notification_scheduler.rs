@@ -62,7 +62,7 @@ fn tick(
     prune_notified(&mut guard);
 
     for reminder in active {
-        if let Some((key, title, body)) = due_notification(&reminder, now) {
+        for (key, title, body) in due_notifications(&reminder, now) {
             if guard.contains_key(&key) {
                 continue;
             }
@@ -105,32 +105,14 @@ fn prune_notified(map: &mut NotifiedMap) {
     }
 }
 
-/// 若当前应弹出通知，返回 (去重 key, title, body)
-fn due_notification(
+/// 若当前应弹出通知，返回若干 (去重 key, title, body)
+/// 有提前提醒时：提前时刻与到期时刻各可弹一次
+fn due_notifications(
     reminder: &Reminder,
     now: chrono::DateTime<Local>,
-) -> Option<(String, String, String)> {
-    let due = due_datetime(reminder)?;
-    let notify_at = if let (Some(value), Some(unit)) = (
-        reminder.remind_before_value,
-        reminder.remind_before_unit.as_deref(),
-    ) {
-        subtract_remind(due, value, unit)
-    } else {
-        due
-    };
-
-    let delta = (now - notify_at).num_seconds();
-    if delta < 0 || delta > FIRE_WINDOW_SECS {
-        return None;
-    }
-
-    let key = format!("{}@{}", reminder.id, notify_at.timestamp());
-    let is_early = reminder.remind_before_value.is_some();
-    let title = if is_early {
-        "即将到期".to_string()
-    } else {
-        "提醒事项".to_string()
+) -> Vec<(String, String, String)> {
+    let Some(due) = due_datetime(reminder) else {
+        return Vec::new();
     };
 
     let due_label = if reminder.is_all_day || reminder.end_time.is_none() {
@@ -138,13 +120,38 @@ fn due_notification(
     } else {
         due.format("%m月%d日 %H:%M").to_string()
     };
-
     let body = match reminder.description.as_ref().filter(|s| !s.is_empty()) {
         Some(desc) => format!("{} · {} — {}", reminder.title, due_label, desc),
         None => format!("{} · {}", reminder.title, due_label),
     };
 
-    Some((key, title, body))
+    let in_window = |at: chrono::DateTime<Local>| {
+        let delta = (now - at).num_seconds();
+        delta >= 0 && delta <= FIRE_WINDOW_SECS
+    };
+
+    let mut out = Vec::new();
+    if let (Some(value), Some(unit)) = (
+        reminder.remind_before_value,
+        reminder.remind_before_unit.as_deref(),
+    ) {
+        let early_at = subtract_remind(due, value, unit);
+        if in_window(early_at) {
+            out.push((
+                format!("{}@early@{}", reminder.id, early_at.timestamp()),
+                "即将到期".to_string(),
+                body.clone(),
+            ));
+        }
+    }
+    if in_window(due) {
+        out.push((
+            format!("{}@due@{}", reminder.id, due.timestamp()),
+            "提醒事项".to_string(),
+            body,
+        ));
+    }
+    out
 }
 
 fn due_datetime(reminder: &Reminder) -> Option<chrono::DateTime<Local>> {

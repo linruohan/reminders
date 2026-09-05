@@ -12,6 +12,7 @@ const CLEARABLE_STRING_KEYS = [
   'custom_recurrence_unit',
   'recurrence_end_date',
   'remind_before_unit',
+  'parent_id',
 ] as const;
 
 type ClearableStringKey = (typeof CLEARABLE_STRING_KEYS)[number];

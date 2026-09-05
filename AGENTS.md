@@ -54,7 +54,7 @@ Automatic builds triggered on:
 - `src/` — React frontend (entry: `src/main.tsx`)
   - `@/` path alias maps to `src/`
 - `src-tauri/` — Rust backend (entry: `src-tauri/src/main.rs`)
-  - Tauri commands in `commands.rs`, Repository pattern in `repository/`, SQLite schema in `database/schema.rs`
+  - Tauri commands in `src-tauri/src/commands/`, Repository pattern in `repository/`, SQLite schema in `database/schema.rs`
 - `dist/` — Vite build output (consumed by Tauri via `frontendDist: "../dist"`)
 - `target/` — Rust build artifacts (gitignored)
 
@@ -64,7 +64,7 @@ Automatic builds triggered on:
 - Date model: `created_date/time` = record creation stamp; `end_date/time` = user due/deadline (drives today/planned filters and calendar). Today includes overdue incomplete items.
 - All IDs are UUID v4 strings. Tauri commands accept/return them as plain `String` (not `Uuid`).
 - Rust backend: each command receives `State<'_, Database>` which wraps `Arc<Mutex<Connection>>`.
-- Frontend: `src/hooks/useApi.ts` (Tauri invoke wrappers) + `src/hooks/useReminderData.ts` (data layer / cache).
+- Frontend: `src/api.ts` (Tauri invoke wrappers) + `src/hooks/useReminderData.ts` (data layer / cache).
 - Tauri window: 800×660, frameless (`decorations: false`), transparent background.
 
 ## Tailwind Design System

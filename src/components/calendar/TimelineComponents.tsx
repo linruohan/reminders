@@ -40,11 +40,15 @@ export function AllDaySection({
   lists,
   onReminderClick,
   onDoubleClick,
+  onPointerDownReminder,
+  draggingId,
 }: {
   reminders: ReminderResponse[];
   lists: ListResponse[];
   onReminderClick: (r: ReminderResponse) => void;
   onDoubleClick: () => void;
+  onPointerDownReminder?: (e: React.PointerEvent, r: ReminderResponse) => void;
+  draggingId?: string | null;
 }) {
   return (
     <div
@@ -57,12 +61,17 @@ export function AllDaySection({
       </div>
       <div className="flex-1 flex items-center gap-1 overflow-x-auto px-2">
         {reminders.map(r => {
+          if (draggingId === r.id) return null;
           const color = getListColor(lists, r.list_id);
           return (
             <button
               key={r.id}
-              onClick={() => onReminderClick(r)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-white/80 hover:bg-white hover:ring-1 hover:ring-apple-blue/45 shadow-sm text-xs transition-all whitespace-nowrap"
+              type="button"
+              onClick={() => { if (!draggingId) onReminderClick(r); }}
+              onPointerDown={(e) => onPointerDownReminder?.(e, r)}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-white/80 hover:bg-white hover:ring-1 hover:ring-apple-blue/45 shadow-sm text-xs transition-all whitespace-nowrap ${
+                onPointerDownReminder ? 'cursor-grab active:cursor-grabbing' : ''
+              }`}
             >
               <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
               <span className={r.is_completed ? 'text-gray-400 line-through' : 'text-gray-700'}>{r.title}</span>
