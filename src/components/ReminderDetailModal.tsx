@@ -79,7 +79,7 @@ export function ReminderDetailModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-4 py-3 border-b border-apple-divider flex items-center gap-2">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-apple-blue">
             <path d="m9 11 3 3L22 4"/>
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
           </svg>
@@ -92,7 +92,7 @@ export function ReminderDetailModal({
               <div className="text-lg text-gray-900 font-medium">{reminder.title}</div>
             </div>
             {reminder.is_flagged && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="#FF9500" stroke="#FF9500" strokeWidth="2" className="flex-shrink-0 mt-1">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 mt-1 text-apple-orange">
                 <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
               </svg>
             )}

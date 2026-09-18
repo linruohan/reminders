@@ -68,6 +68,7 @@ export function AllDaySection({
               key={r.id}
               type="button"
               onClick={() => { if (!draggingId) onReminderClick(r); }}
+              onDoubleClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => onPointerDownReminder?.(e, r)}
               className={`flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-white/80 hover:bg-white hover:ring-1 hover:ring-apple-blue/45 shadow-sm text-xs transition-all whitespace-nowrap ${
                 onPointerDownReminder ? 'cursor-grab active:cursor-grabbing' : ''

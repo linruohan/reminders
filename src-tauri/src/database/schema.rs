@@ -191,6 +191,13 @@ fn migrate_schema(conn: &Connection) -> Result<()> {
         [],
     )?;
 
+    // 责任人重名数据先合并，再加唯一索引（历史版本曾因前端重复提交产生重名行）
+    dedupe_owners_by_name(conn)?;
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_owners_name_unique ON owners(name)",
+        [],
+    )?;
+
     // 重命名 due_date/due_time → created_date/created_time
     // 语义变更：创建时自动记录，用户不再手动设置
     let cols = table_columns(conn, "reminders")?;
@@ -263,6 +270,32 @@ fn migrate_schema(conn: &Connection) -> Result<()> {
         )?;
     }
 
+    Ok(())
+}
+
+/// 合并同名人责任人：每组保留 id 最小的一条，
+/// 先把提醒的 owner_id 迁到保留行，再删除多余行，最后可安全建立唯一索引。
+fn dedupe_owners_by_name(conn: &Connection) -> Result<()> {
+    let mut stmt = conn.prepare(
+        "SELECT name, MIN(id) AS keep_id FROM owners \
+         GROUP BY name HAVING COUNT(*) > 1",
+    )?;
+    let groups: Vec<(String, String)> = stmt
+        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
+        .collect::<Result<Vec<_>>>()?;
+    drop(stmt);
+
+    for (name, keep_id) in groups {
+        conn.execute(
+            "UPDATE reminders SET owner_id = ?1 \
+             WHERE owner_id IN (SELECT id FROM owners WHERE name = ?2 AND id != ?1)",
+            rusqlite::params![keep_id, name],
+        )?;
+        conn.execute(
+            "DELETE FROM owners WHERE name = ?1 AND id != ?2",
+            rusqlite::params![name, keep_id],
+        )?;
+    }
     Ok(())
 }
 

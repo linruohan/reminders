@@ -22,13 +22,27 @@ impl OwnerRepository {
         rows.collect()
     }
 
-    pub fn insert(&self, owner: &Owner) -> Result<()> {
-        let conn = lock_conn(&self.conn)?;
-        conn.execute(
+    /// 按名称查找责任人；不存在时在同一事务内插入。
+    /// 依赖 owners(name) 唯一索引，保证并发/重复请求也只产生一条记录。
+    pub fn find_or_create(&self, owner: &Owner) -> Result<Owner> {
+        let mut conn = lock_conn(&self.conn)?;
+        let tx = conn.transaction()?;
+        if let Some(existing) = tx
+            .query_row(
+                "SELECT id, name, color FROM owners WHERE name = ?1",
+                params![owner.name],
+                Self::row_to_owner,
+            )
+            .optional()?
+        {
+            return Ok(existing);
+        }
+        tx.execute(
             "INSERT INTO owners (id, name, color) VALUES (?, ?, ?)",
             params![owner.id.to_string(), owner.name, owner.color],
         )?;
-        Ok(())
+        tx.commit()?;
+        Ok(owner.clone())
     }
 
     pub fn delete(&self, id: &Uuid) -> Result<()> {

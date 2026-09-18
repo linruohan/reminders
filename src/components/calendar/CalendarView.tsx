@@ -295,6 +295,11 @@ export function CalendarView({ reminders, lists, owners = [], knownTags = [], on
             onDoubleClickTimeline={(h, m, d) => handleDoubleClickTimeline(h, m, d)}
             onReminderClick={handleTimelineReminderClick}
             onAllDayDoubleClick={(d) => handleAllDayDoubleClick(d)}
+            onSelectDate={(d) => {
+              setSelectedDate(d);
+              setCurrentDate(d);
+              setViewMode('day');
+            }}
             onRescheduleReminder={(id, updates) => onUpdateReminder(id, updates)}
           />
         )}

@@ -47,7 +47,16 @@ pub(crate) fn sync_reminder_tags_in_tx(
         rusqlite::params![reminder_id],
     )
     .map_err(|e| e.to_string())?;
-    for name in tag_names {
+
+    // 名称统一 trim 并去重，避免同一标签被重复写入
+    let mut seen = std::collections::HashSet::new();
+    let names: Vec<String> = tag_names
+        .iter()
+        .map(|n| n.trim().to_string())
+        .filter(|n| !n.is_empty() && seen.insert(n.clone()))
+        .collect();
+
+    for name in &names {
         let tag_id = Uuid::new_v4().to_string();
         tx.execute(
             "INSERT OR IGNORE INTO tags (id, name) VALUES (?, ?)",

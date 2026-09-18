@@ -17,6 +17,72 @@ function maySpawnNext(r: ReminderResponse): boolean {
   return Boolean(r.is_completed && r.recurrence_frequency);
 }
 
+function collectTreeIds(rootId: string, reminders: ReminderResponse[]): Set<string> {
+  const ids = new Set<string>([rootId]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const r of reminders) {
+      if (r.parent_id && ids.has(r.parent_id) && !ids.has(r.id)) {
+        ids.add(r.id);
+        grew = true;
+      }
+    }
+  }
+  return ids;
+}
+
+function toCreatePayload(
+  source: ReminderResponse,
+  listId: string | null,
+  parentId: string | null,
+): CreateReminderRequest {
+  return {
+    title: source.title,
+    description: source.description,
+    url: source.url,
+    end_date: source.end_date,
+    end_time: source.end_time,
+    list_id: listId,
+    owner_id: source.owner_id,
+    is_all_day: source.is_all_day,
+    is_flagged: source.is_flagged,
+    priority: source.priority,
+    recurrence_frequency: source.recurrence_frequency,
+    recurrence_interval: source.recurrence_interval,
+    custom_recurrence_unit: source.custom_recurrence_unit,
+    recurrence_end_date: source.recurrence_end_date,
+    remind_before_value: source.remind_before_value,
+    remind_before_unit: source.remind_before_unit,
+    tags: source.tags?.map(t => t.name) ?? [],
+    parent_id: parentId,
+  };
+}
+
+async function cloneReminderWithSubtasks(
+  source: ReminderResponse,
+  listId: string | null,
+  parentId: string | null,
+): Promise<{ data: ReminderResponse | null; error: string | null }> {
+  const result = await api.createReminder(toCreatePayload(source, listId, parentId));
+  if (!result.data) return result;
+  let created = result.data;
+  const cloned: SubtaskResponse[] = [];
+  for (const sub of source.subtasks ?? []) {
+    const item = await api.createSubtask({ reminder_id: created.id, title: sub.title });
+    if (!item) continue;
+    let next = item;
+    if (sub.is_completed) {
+      next = await api.updateSubtask({ id: item.id, is_completed: true }) ?? item;
+    }
+    cloned.push(next);
+  }
+  if (cloned.length > 0) {
+    created = { ...created, subtasks: cloned };
+  }
+  return { data: created, error: null };
+}
+
 function mergeTagsInto(prev: TagResponse[], incoming: TagResponse[]): TagResponse[] {
   if (incoming.length === 0) return prev;
   const byId = new Map(prev.map(t => [t.id, t]));
@@ -58,17 +124,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
 
   const removeReminder = useCallback((id: string) => {
     setAllReminders(prev => {
-      const drop = new Set<string>([id]);
-      let grew = true;
-      while (grew) {
-        grew = false;
-        for (const r of prev) {
-          if (r.parent_id && drop.has(r.parent_id) && !drop.has(r.id)) {
-            drop.add(r.id);
-            grew = true;
-          }
-        }
-      }
+      const drop = collectTreeIds(id, prev);
       return prev.filter(r => !drop.has(r.id));
     });
   }, []);
@@ -204,9 +260,16 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
   }, [showToast]);
 
   const handleAddOwner = useCallback(async (name: string) => {
-    const result = await api.createOwner({ name });
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+    const result = await api.createOwner({ name: trimmed });
     if (result) {
-      setOwners(prev => [...prev, result].sort((a, b) => a.name.localeCompare(b.name, 'zh')));
+      // 后端同名幂等：重复请求会返回同一条记录，本地状态按 id/名称去重避免侧栏显示两个
+      setOwners(prev =>
+        prev.some(o => o.id === result.id || o.name === result.name)
+          ? prev
+          : [...prev, result].sort((a, b) => a.name.localeCompare(b.name, 'zh')),
+      );
     } else {
       showToast?.('error', '创建所有者失败');
     }
@@ -325,17 +388,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     const listId = targetListId ?? source.list_id;
 
     if (clipboard.action === 'cut') {
-      const ids = new Set<string>([source.id]);
-      let grew = true;
-      while (grew) {
-        grew = false;
-        for (const r of allReminders) {
-          if (r.parent_id && ids.has(r.parent_id) && !ids.has(r.id)) {
-            ids.add(r.id);
-            grew = true;
-          }
-        }
-      }
+      const ids = collectTreeIds(source.id, allReminders);
       let failed = false;
       for (const id of ids) {
         const current = allReminders.find(r => r.id === id);
@@ -356,49 +409,56 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
       return;
     }
 
-    const result = await api.createReminder({
-      title: source.title,
-      description: source.description,
-      url: source.url,
-      end_date: source.end_date,
-      end_time: source.end_time,
-      list_id: listId,
-      owner_id: source.owner_id,
-      is_all_day: source.is_all_day,
-      is_flagged: source.is_flagged,
-      priority: source.priority,
-      recurrence_frequency: source.recurrence_frequency,
-      recurrence_interval: source.recurrence_interval,
-      custom_recurrence_unit: source.custom_recurrence_unit,
-      recurrence_end_date: source.recurrence_end_date,
-      remind_before_value: source.remind_before_value,
-      remind_before_unit: source.remind_before_unit,
-      tags: source.tags?.map(t => t.name) ?? [],
-      parent_id: source.parent_id,
-    });
-    if (result.data) {
-      let created = result.data;
-      const cloned: SubtaskResponse[] = [];
-      for (const sub of source.subtasks ?? []) {
-        const item = await api.createSubtask({ reminder_id: created.id, title: sub.title });
-        if (!item) continue;
-        let next = item;
-        if (sub.is_completed) {
-          next = await api.updateSubtask({ id: item.id, is_completed: true }) ?? item;
+    const liveSource = allReminders.find(r => r.id === source.id) ?? source;
+    const rootResult = await cloneReminderWithSubtasks(liveSource, listId, liveSource.parent_id);
+    if (!rootResult.data) {
+      showToast?.('error', rootResult.error || '粘贴提醒失败');
+      return;
+    }
+
+    upsertReminder(rootResult.data);
+
+    const childrenByParent = new Map<string, ReminderResponse[]>();
+    for (const r of allReminders) {
+      if (!r.parent_id) continue;
+      const list = childrenByParent.get(r.parent_id) ?? [];
+      list.push(r);
+      childrenByParent.set(r.parent_id, list);
+    }
+
+    const queue: { oldId: string; newId: string }[] = [
+      { oldId: liveSource.id, newId: rootResult.data.id },
+    ];
+    const visited = new Set<string>([liveSource.id]);
+    let extra = 0;
+    let childFailed = false;
+
+    while (queue.length > 0) {
+      const { oldId, newId } = queue.shift()!;
+      for (const child of childrenByParent.get(oldId) ?? []) {
+        if (visited.has(child.id)) continue;
+        visited.add(child.id);
+        const copied = await cloneReminderWithSubtasks(child, listId, newId);
+        if (!copied.data) {
+          childFailed = true;
+          continue;
         }
-        cloned.push(next);
+        extra++;
+        upsertReminder(copied.data);
+        queue.push({ oldId: child.id, newId: copied.data.id });
       }
-      if (cloned.length > 0) {
-        created = { ...created, subtasks: cloned };
-      }
-      upsertReminder(created);
-      showToast?.('success', '提醒已粘贴');
+    }
+
+    if (childFailed) {
+      showToast?.('error', '提醒已粘贴，但部分子提醒复制失败');
+    } else if (extra > 0) {
+      showToast?.('success', `提醒已粘贴（含 ${extra} 条子提醒）`);
     } else {
-      showToast?.('error', result.error || '粘贴提醒失败');
+      showToast?.('success', '提醒已粘贴');
     }
 
     setClipboard(null);
-    return result.data;
+    return rootResult.data;
   }, [clipboard, allReminders, upsertReminder, showToast]);
 
   const refreshData = useCallback(() => {

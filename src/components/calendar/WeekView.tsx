@@ -28,6 +28,7 @@ interface WeekViewProps {
   onDoubleClickTimeline: (hour: number, minute: number, date: Date) => void;
   onReminderClick: (r: ReminderResponse) => void;
   onAllDayDoubleClick: (date: Date) => void;
+  onSelectDate?: (d: Date) => void;
   onRescheduleReminder?: (id: string, updates: { end_date: string; end_time: string | null; is_all_day?: boolean }) => void;
 }
 
@@ -38,6 +39,7 @@ export function WeekView({
   onDoubleClickTimeline,
   onReminderClick,
   onAllDayDoubleClick,
+  onSelectDate,
   onRescheduleReminder,
 }: WeekViewProps) {
   const weekDates = useMemo(() => getWeekDates(startDate), [startDate]);
@@ -162,10 +164,15 @@ export function WeekView({
           {weekDates.map((d, i) => {
             const isToday = isSameDay(d, new Date());
             return (
-              <div key={i} className="text-center py-2 border-l border-gray-200">
+              <button
+                key={i}
+                type="button"
+                onClick={() => onSelectDate?.(new Date(d))}
+                className="w-full text-center py-2 border-l border-gray-200 hover:bg-white/70 transition-colors"
+              >
                 <div className={`text-xs font-semibold ${isToday ? 'text-apple-red' : 'text-gray-500'}`}>{weekDays[i]}</div>
                 <div className={`text-base font-semibold ${isToday ? 'text-apple-red' : 'text-gray-800'}`}>{d.getDate()}</div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -173,7 +180,6 @@ export function WeekView({
       <div
         className="flex border-b border-apple-divider bg-gray-50/40"
         style={{ height: HOUR_HEIGHT }}
-        onDoubleClick={() => onAllDayDoubleClick(weekDates[0])}
         onPointerMove={(e) => {
           const d = allDayDragRef.current;
           if (!d) return;
@@ -236,6 +242,7 @@ export function WeekView({
                         });
                         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                       }}
+                      onDoubleClick={(e) => e.stopPropagation()}
                       className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-white/80 hover:bg-white hover:ring-1 hover:ring-apple-blue/45 shadow-sm text-xs transition-all whitespace-nowrap cursor-grab active:cursor-grabbing"
                     >
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />

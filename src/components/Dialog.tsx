@@ -54,6 +54,8 @@ export function Dialog({
     }
   };
 
+  // 键盘监听只挂在弹窗容器上：输入框的按键事件会冒泡到这里，
+  // 若输入框再绑一次，回车会连续触发两次 onSubmit（曾导致责任人重复创建）。
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -94,7 +96,6 @@ export function Dialog({
               type="text"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              onKeyDown={handleKeyDown}
               placeholder={placeholder}
               className="w-full px-4 py-3 bg-[#F2F2F7] rounded-[14px] text-[15px] text-gray-900 placeholder-apple-gray outline-none focus:ring-2 focus:ring-apple-blue/30 focus:bg-white focus:shadow-[0_0_0_3px_rgba(0,122,255,0.1)] transition-all duration-250 spring-transition"
             />
