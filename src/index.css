@@ -672,6 +672,12 @@ html.dark .hover\:bg-apple-blue\/10:hover {
   background-color: rgb(10 132 255 / 0.22);
 }
 
+html.dark .hover\:border-apple-blue:hover,
+html.dark .hover\:border-apple-blue\/25:hover,
+html.dark .hover\:border-apple-blue\/35:hover {
+  border-color: rgb(10 132 255 / 0.45);
+}
+
 html.dark .bg-white {
   background-color: #1c1c1e;
 }
@@ -738,7 +744,8 @@ html.dark .bg-gray-100\/80 {
 }
 
 html.dark .hover\:bg-gray-100:hover,
-html.dark .hover\:bg-gray-100\/90:hover {
+html.dark .hover\:bg-gray-100\/90:hover,
+html.dark .hover\:bg-gray-100\/80:hover {
   background-color: rgb(72 72 74 / 0.9);
 }
 
@@ -773,6 +780,10 @@ html.dark .hover\:bg-red-50\/90:hover {
 html.dark .text-red-500,
 html.dark .hover\:text-red-500:hover {
   color: #ff6961;
+}
+
+html.dark .text-red-600 {
+  color: #ff453a;
 }
 
 html.dark .hover\:text-red-600:hover {

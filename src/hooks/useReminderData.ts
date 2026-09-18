@@ -186,13 +186,31 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
       if (updates.tags) {
         setTags(prev => mergeTagsInto(prev, result.tags ?? []));
       }
+      if (updates.list_id !== undefined) {
+        const listId = updates.list_id ?? null;
+        let failed = false;
+        for (const childId of collectTreeIds(id, allReminders)) {
+          if (childId === id) continue;
+          const current = allReminders.find(r => r.id === childId);
+          if (current && current.list_id === listId) continue;
+          const moved = await api.updateReminder(normalizeUpdateRequest(childId, { list_id: listId }));
+          if (moved) {
+            upsertReminder(moved);
+          } else {
+            failed = true;
+          }
+        }
+        if (failed) {
+          showToast?.('error', '部分子提醒未能移到新列表');
+        }
+      }
       if (maySpawnNext(result)) {
         await loadAllReminders();
       }
     } else {
       showToast?.('error', '更新提醒失败');
     }
-  }, [upsertReminder, loadAllReminders, showToast]);
+  }, [allReminders, upsertReminder, loadAllReminders, showToast]);
 
   const handleAddList = useCallback(async (name: string, icon?: string, color?: string) => {
     const result = await api.createList({ name, icon: icon || 'list', color });
@@ -410,7 +428,7 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
     }
 
     const liveSource = allReminders.find(r => r.id === source.id) ?? source;
-    const rootResult = await cloneReminderWithSubtasks(liveSource, listId, liveSource.parent_id);
+    const rootResult = await cloneReminderWithSubtasks(liveSource, listId, null);
     if (!rootResult.data) {
       showToast?.('error', rootResult.error || '粘贴提醒失败');
       return;
@@ -457,7 +475,6 @@ export function useReminderData(showToast?: (type: 'success' | 'error' | 'info',
       showToast?.('success', '提醒已粘贴');
     }
 
-    setClipboard(null);
     return rootResult.data;
   }, [clipboard, allReminders, upsertReminder, showToast]);
 

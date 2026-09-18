@@ -124,11 +124,13 @@ export function CalendarView({ reminders, lists, owners = [], knownTags = [], on
       if (viewMode === 'year') {
         setViewMode('month');
       }
+    } else {
+      showToast?.('info', '该提醒没有截止日期');
     }
     setSearchOpen(false);
     setSearchQuery('');
     setEditReminder(r);
-  }, [viewMode]);
+  }, [viewMode, showToast]);
 
   const handleDoubleClickTimeline = useCallback((hour: number, minute: number, date: Date) => {
     openAddModal({ endDateTime: formatDateTimeLocal(date, hour, minute), isAllDay: false });

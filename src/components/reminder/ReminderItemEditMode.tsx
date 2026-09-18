@@ -242,8 +242,18 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   };
   const updateRecurrenceFreq = (value: string) => {
     setEditRecurrenceFreq(value);
+    if (!value) {
+      setEditRecurrenceEndDate('');
+      publishDraft({
+        recurrence_frequency: null,
+        recurrence_interval: null,
+        custom_recurrence_unit: null,
+        recurrence_end_date: null,
+      });
+      return;
+    }
     publishDraft({
-      recurrence_frequency: (value || null) as RecurrenceFrequency | null,
+      recurrence_frequency: value as RecurrenceFrequency,
       recurrence_interval: value === 'custom' ? editRecurrenceInterval : null,
       custom_recurrence_unit: value === 'custom' ? editCustomUnit : null,
     });

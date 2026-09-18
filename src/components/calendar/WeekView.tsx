@@ -153,6 +153,7 @@ export function WeekView({
     onRescheduleReminder?.(d.reminder.id, {
       end_date: toISODateStr(weekDates[d.col]),
       end_time: minuteOfDayToTimeString(d.minute),
+      is_all_day: false,
     });
   }, [weekDates, onReminderClick, onRescheduleReminder]);
 

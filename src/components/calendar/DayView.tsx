@@ -137,6 +137,7 @@ export function DayView({
     onRescheduleReminder?.(d.reminder.id, {
       end_date: toISODateStr(date),
       end_time: minuteOfDayToTimeString(d.minute),
+      is_all_day: false,
     });
   }, [date, onReminderClick, onRescheduleReminder]);
 
