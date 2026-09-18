@@ -49,6 +49,7 @@ export function App() {
   >(null);
   const [pendingDeleteReminderId, setPendingDeleteReminderId] = useState<string | null>(null);
   const [toastMessages, setToastMessages] = useState<ToastMessage[]>([]);
+  const [focusReminderId, setFocusReminderId] = useState<string | null>(null);
 
   const showToast = useCallback((type: ToastType, message: string) => {
     const id = crypto.randomUUID();
@@ -255,6 +256,39 @@ export function App() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+    void (async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        const fn = await listen<string>('open-reminder', (event) => {
+          if (cancelled) return;
+          const id = event.payload;
+          if (!id) return;
+          setCurrentView('reminder');
+          handleSearch('');
+          handleFilterChange('all');
+          setFocusReminderId(id);
+        });
+        if (cancelled) fn();
+        else unlisten = fn;
+      } catch {
+        /* Vite-only / 非 Tauri 环境 */
+      }
+    })();
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [handleFilterChange, handleSearch]);
+
+  useEffect(() => {
+    if (!focusReminderId) return;
+    const timer = window.setTimeout(() => setFocusReminderId(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [focusReminderId]);
+
   return (
     <div className="h-screen w-screen flex flex-col bg-apple-bg overflow-hidden relative">
       <AuroraBackground />
@@ -300,6 +334,7 @@ export function App() {
               onCopy={handleCopyReminder}
               onPaste={handlePasteReminder}
               canPaste={clipboard !== null}
+              focusReminderId={focusReminderId}
               subtaskHandlers={subtaskHandlers}
               showToast={showToast}
             />

@@ -40,6 +40,7 @@ interface ReminderPageProps {
   onCopy: (reminder: ReminderResponse) => void;
   onPaste: (listId: string | null) => void;
   canPaste: boolean;
+  focusReminderId?: string | null;
   subtaskHandlers: SubtaskHandlers;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
@@ -73,6 +74,7 @@ export function ReminderPage({
   onCopy,
   onPaste,
   canPaste,
+  focusReminderId,
   subtaskHandlers,
   showToast,
 }: ReminderPageProps) {
@@ -113,6 +115,7 @@ export function ReminderPage({
         onCopy={onCopy}
         onPaste={onPaste}
         canPaste={canPaste}
+        focusReminderId={focusReminderId}
         subtaskHandlers={subtaskHandlers}
         showToast={showToast}
       />

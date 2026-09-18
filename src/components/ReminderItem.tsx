@@ -1,4 +1,4 @@
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, useEffect, memo } from 'react';
 import type { ReminderResponse, ListResponse, OwnerResponse, Priority, SubtaskHandlers, TagResponse } from '@/types/api';
 import { ReminderDetailModal } from './ReminderDetailModal';
 import { ContextMenu } from './ContextMenu';
@@ -11,6 +11,7 @@ interface ReminderItemProps {
   owners: OwnerResponse[];
   knownTags: TagResponse[];
   isEditing: boolean;
+  highlighted?: boolean;
   onToggleCompleted: (id: string) => void;
   onDelete: (id: string) => void;
   onStartEditing: (id: string) => void;
@@ -32,7 +33,8 @@ export const ReminderItem = memo(function ReminderItem({
   lists, 
   owners,
   knownTags,
-  isEditing, 
+  isEditing,
+  highlighted = false,
   onToggleCompleted, 
   onDelete, 
   onStartEditing, 
@@ -74,34 +76,44 @@ export const ReminderItem = memo(function ReminderItem({
   };
 
   const handleSetDueDate = (date: string) => {
-    onUpdateReminder(reminder.id, { end_date: date });
+    onUpdateReminder(reminder.id, reminder.end_time
+      ? { end_date: date }
+      : { end_date: date, end_time: '', is_all_day: true });
   };
 
   const handleShowDetail = useCallback(() => setShowDetail(true), []);
 
+  useEffect(() => {
+    if (highlighted) setShowDetail(true);
+  }, [highlighted]);
+
   if (isEditing) {
     return (
-      <ReminderItemEditMode
-        reminder={reminder}
-        lists={lists}
-        owners={owners}
-        knownTags={knownTags}
-        onToggleCompleted={onToggleCompleted}
-        onSaveAndStopEditing={onSaveAndStopEditing}
-        onCancelEditing={onCancelEditing}
-        onChange={onChange}
-        onDelete={onDelete}
-        onUpdateReminder={onUpdateReminder}
-        onAddChildReminder={onAddChildReminder}
-        subtaskHandlers={subtaskHandlers}
-        showToast={showToast}
-      />
+      <div data-reminder-id={reminder.id}>
+        <ReminderItemEditMode
+          reminder={reminder}
+          lists={lists}
+          owners={owners}
+          knownTags={knownTags}
+          onToggleCompleted={onToggleCompleted}
+          onSaveAndStopEditing={onSaveAndStopEditing}
+          onCancelEditing={onCancelEditing}
+          onChange={onChange}
+          onAddChildReminder={onAddChildReminder}
+          subtaskHandlers={subtaskHandlers}
+          showToast={showToast}
+        />
+      </div>
     );
   }
 
   return (
     <>
-      <div onContextMenu={handleContextMenu}>
+      <div
+        data-reminder-id={reminder.id}
+        onContextMenu={handleContextMenu}
+        className={highlighted ? 'rounded-apple ring-2 ring-apple-blue/40' : undefined}
+      >
         <ReminderItemViewMode
           reminder={reminder}
           ownerName={owners.find(o => o.id === reminder.owner_id)?.name}

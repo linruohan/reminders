@@ -324,7 +324,17 @@ export function CalendarView({ reminders, lists, owners = [], knownTags = [], on
           />
         )}
         {viewMode === 'year' && (
-          <YearView year={year} reminders={calendarReminders} onMonthClick={(y, m) => { setCurrentDate(new Date(y, m, 1)); setViewMode('month'); }} />
+          <YearView
+            year={year}
+            reminders={calendarReminders}
+            onMonthClick={(y, m) => { setCurrentDate(new Date(y, m, 1)); setViewMode('month'); }}
+            onSelectDate={(d) => {
+              setSelectedDate(d);
+              setCurrentDate(d);
+              setViewMode('day');
+            }}
+            onDayDoubleClick={(d) => handleAllDayDoubleClick(d)}
+          />
         )}
       </div>
 

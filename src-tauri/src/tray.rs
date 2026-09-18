@@ -44,7 +44,7 @@ pub fn setup(app: &tauri::App) -> tauri::Result<()> {
     Ok(())
 }
 
-fn show_main(app: &AppHandle) {
+pub fn show_main(app: &AppHandle) {
     crate::app_log!(info, "show main window");
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();

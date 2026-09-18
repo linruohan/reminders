@@ -7,12 +7,13 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use chrono::{Duration as ChronoDuration, Local, Months, NaiveDateTime, TimeZone};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_notification::NotificationExt;
 
 use crate::database::connection::Database;
 use crate::models::reminder::Reminder;
 use crate::repository::reminder::ReminderRepository;
+use crate::tray;
 
 const POLL_SECS: u64 = 20;
 /// 通知窗口：到达触发时间后多久内仍可弹出（秒）
@@ -66,25 +67,59 @@ fn tick(
             if guard.contains_key(&key) {
                 continue;
             }
-            match app
-                .notification()
-                .builder()
-                .title(&title)
-                .body(&body)
-                .show()
-            {
-                Ok(()) => {
-                    crate::app_log!(info, "[notification] shown: {title} — {body}");
-                    guard.insert(key, Instant::now());
-                }
-                Err(e) => {
-                    crate::app_log!(error, "[notification] show failed: {e}");
-                }
-            }
+            guard.insert(key, Instant::now());
+            show_notification(app, reminder.id.to_string(), title, body);
         }
     }
 
     Ok(())
+}
+
+fn show_notification(app: &AppHandle, reminder_id: String, title: String, body: String) {
+    let app = app.clone();
+    let identifier = app.config().identifier.clone();
+    thread::spawn(move || {
+        let mut notification = notify_rust::Notification::new();
+        notification.summary(&title).body(&body);
+        #[cfg(windows)]
+        {
+            use std::path::MAIN_SEPARATOR as SEP;
+            if let Ok(exe) = std::env::current_exe() {
+                if let Some(dir) = exe.parent().map(|p| p.display().to_string()) {
+                    let debug = format!("{SEP}target{SEP}debug");
+                    let release = format!("{SEP}target{SEP}release");
+                    if !(dir.ends_with(&debug) || dir.ends_with(&release)) {
+                        notification.app_id(&identifier);
+                    }
+                }
+            }
+        }
+        match notification.show() {
+            Ok(handle) => {
+                crate::app_log!(info, "[notification] shown: {title} — {body}");
+                let _ = handle.wait_for_response(|response: &notify_rust::NotificationResponse| {
+                    match response {
+                        notify_rust::NotificationResponse::Default
+                        | notify_rust::NotificationResponse::Action(_) => {
+                            open_reminder(&app, &reminder_id);
+                        }
+                        _ => {}
+                    }
+                });
+            }
+            Err(e) => {
+                crate::app_log!(error, "[notification] show failed: {e}");
+            }
+        }
+    });
+}
+
+fn open_reminder(app: &AppHandle, reminder_id: &str) {
+    crate::app_log!(info, "[notification] clicked, open {reminder_id}");
+    tray::show_main(app);
+    if let Err(e) = app.emit("open-reminder", reminder_id) {
+        crate::app_log!(error, "[notification] emit open-reminder failed: {e}");
+    }
 }
 
 /// 按时间戳淘汰过期 key；超量时再丢掉最旧的一半余量

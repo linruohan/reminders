@@ -36,6 +36,7 @@ interface ReminderListProps {
   onCopy: (reminder: ReminderResponse) => void;
   onPaste: (listId: string | null) => void;
   canPaste: boolean;
+  focusReminderId?: string | null;
   subtaskHandlers: SubtaskHandlers;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
 }
@@ -67,6 +68,7 @@ export function ReminderList({
   onCopy,
   onPaste,
   canPaste,
+  focusReminderId = null,
   subtaskHandlers,
   showToast,
 }: ReminderListProps) {
@@ -366,6 +368,23 @@ export function ReminderList({
     return () => window.clearTimeout(timer);
   }, [editingId, containerRef]);
 
+  useEffect(() => {
+    if (!focusReminderId) return;
+    const idx = visibleReminders.findIndex(e => e.reminder.id === focusReminderId);
+    const container = containerRef.current;
+    if (!container) return;
+    if (idx >= 0 && shouldVirtualize) {
+      container.scrollTop = Math.max(0, idx * 72 - 80);
+    }
+    const timer = window.setTimeout(() => {
+      const el = container.querySelector(`[data-reminder-id="${CSS.escape(focusReminderId)}"]`);
+      if (el instanceof HTMLElement) {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [focusReminderId, visibleReminders, shouldVirtualize]);
+
   const renderReminderEntry = (entry: VisibleEntry, index: number, animate = true) => (
     <div
       key={entry.reminder.id}
@@ -381,6 +400,7 @@ export function ReminderList({
         owners={owners}
         knownTags={knownTags}
         isEditing={editingId === entry.reminder.id}
+        highlighted={focusReminderId === entry.reminder.id}
         onToggleCompleted={handleToggleCompleted}
         onDelete={onDeleteReminder}
         onStartEditing={handleStartEditing}

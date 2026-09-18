@@ -20,7 +20,6 @@ import {
   tagNamesToResponses,
   validateReminderFields,
 } from '@/utils/reminderForm';
-import { ReminderDetailModal } from '../ReminderDetailModal';
 import { recurrenceOptions, remindOptions, priorityOptions, encodeRemindValue } from './formOptions';
 import { ReminderDateDropdown } from './ReminderDateDropdown';
 import { ReminderTimeDropdown } from './ReminderTimeDropdown';
@@ -61,8 +60,6 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   onSaveAndStopEditing,
   onCancelEditing,
   onChange,
-  onDelete,
-  onUpdateReminder,
   onAddChildReminder,
   subtaskHandlers,
   showToast,
@@ -75,8 +72,6 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   onSaveAndStopEditing: (id: string, updates: Partial<ReminderResponse>) => void;
   onCancelEditing: () => void;
   onChange: (updates: Partial<ReminderResponse>) => void;
-  onDelete: (id: string) => void;
-  onUpdateReminder: (id: string, updates: Partial<ReminderResponse>) => void;
   onAddChildReminder?: (parent: ReminderResponse) => void;
   subtaskHandlers: SubtaskHandlers;
   showToast?: (type: 'success' | 'error' | 'info', message: string) => void;
@@ -108,7 +103,6 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
   const dropdownAnchorRef = useRef<DOMRect | null>(null);
   const dropdownElRef = useRef<HTMLDivElement | null>(null);
-  const [showDetail, setShowDetail] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const draftRef = useRef<Partial<ReminderResponse>>({});
   const onChangeRef = useRef(onChange);
@@ -419,18 +413,6 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
                   placeholder="URL"
                 />
               </div>
-
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowDetail(true);
-                }}
-                className="w-[24px] h-[24px] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-apple-blue text-white hover:bg-[#0066CC] transition-colors spring-transition shadow-[0_2px_8px_rgba(0,122,255,0.3)]"
-                aria-label="详情"
-              >
-                <span className="text-[12px] font-bold leading-none italic" style={{ fontFamily: 'Georgia, serif' }}>i</span>
-              </button>
             </div>
 
             <div className="border-t border-apple-divider mt-3 mb-3" />
@@ -546,21 +528,6 @@ export const ReminderItemEditMode = memo(function ReminderItemEditMode({
           </div>
         </div>
       </div>
-
-      {showDetail && (
-        <ReminderDetailModal
-          reminder={reminder}
-          lists={lists}
-          owners={owners}
-          isOpen={showDetail}
-          onClose={() => setShowDetail(false)}
-          onDelete={onDelete}
-          onToggleCompleted={onToggleCompleted}
-          onEdit={() => { setShowDetail(false); }}
-          onUpdateReminder={onUpdateReminder}
-          subtaskHandlers={subtaskHandlers}
-        />
-      )}
 
       {activeDropdown && dropdownPos && createPortal(
         <div
