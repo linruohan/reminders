@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex};
 
-use rusqlite::{params, Connection, OptionalExtension, Result, Row};
+use rusqlite::{Connection, OptionalExtension, Result, Row, params};
 use uuid::Uuid;
 
-use crate::models::owner::Owner;
 use super::lock_conn;
+use crate::models::owner::Owner;
 
 pub struct OwnerRepository {
     conn: Arc<Mutex<Connection>>,
@@ -69,7 +69,8 @@ impl OwnerRepository {
 
     fn row_to_owner(row: &Row) -> Result<Owner> {
         let id_str: String = row.get("id")?;
-        let id = Uuid::parse_str(&id_str).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
+        let id = Uuid::parse_str(&id_str)
+            .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
 
         Ok(Owner {
             id,

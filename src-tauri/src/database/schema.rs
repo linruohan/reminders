@@ -154,14 +154,8 @@ fn migrate_schema(conn: &Connection) -> Result<()> {
         "owner_id",
         "ALTER TABLE reminders ADD COLUMN owner_id TEXT REFERENCES owners(id) ON DELETE SET NULL",
     )?;
-    add_column(
-        "end_date",
-        "ALTER TABLE reminders ADD COLUMN end_date TEXT",
-    )?;
-    add_column(
-        "end_time",
-        "ALTER TABLE reminders ADD COLUMN end_time TEXT",
-    )?;
+    add_column("end_date", "ALTER TABLE reminders ADD COLUMN end_date TEXT")?;
+    add_column("end_time", "ALTER TABLE reminders ADD COLUMN end_time TEXT")?;
     add_column(
         "is_flagged",
         "ALTER TABLE reminders ADD COLUMN is_flagged INTEGER NOT NULL DEFAULT 0",
@@ -202,10 +196,16 @@ fn migrate_schema(conn: &Connection) -> Result<()> {
     // 语义变更：创建时自动记录，用户不再手动设置
     let cols = table_columns(conn, "reminders")?;
     if cols.iter().any(|c| c == "due_date") && !cols.iter().any(|c| c == "created_date") {
-        conn.execute("ALTER TABLE reminders RENAME COLUMN due_date TO created_date", [])?;
+        conn.execute(
+            "ALTER TABLE reminders RENAME COLUMN due_date TO created_date",
+            [],
+        )?;
     }
     if cols.iter().any(|c| c == "due_time") && !cols.iter().any(|c| c == "created_time") {
-        conn.execute("ALTER TABLE reminders RENAME COLUMN due_time TO created_time", [])?;
+        conn.execute(
+            "ALTER TABLE reminders RENAME COLUMN due_time TO created_time",
+            [],
+        )?;
     }
 
     // 一次性：将迁移前存于 created_* 的截止日期回填到 end_*
@@ -281,7 +281,9 @@ fn dedupe_owners_by_name(conn: &Connection) -> Result<()> {
          GROUP BY name HAVING COUNT(*) > 1",
     )?;
     let groups: Vec<(String, String)> = stmt
-        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
         .collect::<Result<Vec<_>>>()?;
     drop(stmt);
 

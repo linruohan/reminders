@@ -46,8 +46,14 @@ mod tests {
     fn daily_and_end() {
         let start = d(2026, 7, 23);
         let end = d(2026, 7, 24);
-        assert_eq!(next_due_date(start, "daily", Some(1), None, Some(end)), Some(end));
-        assert_eq!(next_due_date(start, "daily", Some(1), None, Some(start)), None);
+        assert_eq!(
+            next_due_date(start, "daily", Some(1), None, Some(end)),
+            Some(end)
+        );
+        assert_eq!(
+            next_due_date(start, "daily", Some(1), None, Some(start)),
+            None
+        );
     }
 
     #[test]
@@ -138,7 +144,10 @@ mod tests {
 
     #[test]
     fn unknown_frequency() {
-        assert_eq!(next_due_date(d(2026, 1, 1), "foo", Some(1), None, None), None);
+        assert_eq!(
+            next_due_date(d(2026, 1, 1), "foo", Some(1), None, None),
+            None
+        );
     }
 
     #[test]
@@ -149,9 +158,6 @@ mod tests {
             next_due_date(start, "weekly", Some(1), None, Some(end)),
             Some(end)
         );
-        assert_eq!(
-            next_due_date(end, "weekly", Some(1), None, Some(end)),
-            None
-        );
+        assert_eq!(next_due_date(end, "weekly", Some(1), None, Some(end)), None);
     }
 }

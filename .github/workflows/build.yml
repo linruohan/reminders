@@ -7,6 +7,9 @@ on:
       - develop
       - "release/**"
       - "beta/**"
+    tags:
+      - "v*"
+      - "beta-v*"
   pull_request:
     branches:
       - main
@@ -34,8 +37,6 @@ jobs:
     permissions:
       contents: write
     env:
-      BUILD_ENV: ${{ github.event.inputs.environment || contains(github.ref, 'release/') && 'production' || contains(github.ref, 'beta/') && 'beta' || github.ref == 'refs/heads/main' && 'production' || 'development' }}
-      APP_VERSION: ${{ github.event.inputs.version || '0.1.0' }}
       HAS_CERT: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
       HAS_SLACK: ${{ secrets.SLACK_WEBHOOK != '' }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -45,6 +46,50 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+
+      # 统一解析构建环境与版本号：
+      # - tag 推送：v* -> production, beta-v* -> beta，版本号从 tag 名剥离前缀得到
+      # - 分支推送：release/* -> production, beta/* -> beta, main -> production, 其余 -> development
+      # - workflow_dispatch：优先使用手动输入
+      - name: Resolve build environment & version
+        id: resolve
+        shell: pwsh
+        run: |
+          $ref = "${{ github.ref }}"
+          $refName = "${{ github.ref_name }}"
+          $inputEnv = "${{ github.event.inputs.environment }}"
+          $inputVersion = "${{ github.event.inputs.version }}"
+
+          $envType = "development"
+          if ($inputEnv) {
+            $envType = $inputEnv
+          } elseif ($ref -like "refs/tags/beta-v*") {
+            $envType = "beta"
+          } elseif ($ref -like "refs/tags/v*") {
+            $envType = "production"
+          } elseif ($ref -like "*release/*") {
+            $envType = "production"
+          } elseif ($ref -like "*beta/*") {
+            $envType = "beta"
+          } elseif ($ref -eq "refs/heads/main") {
+            $envType = "production"
+          }
+
+          $version = $inputVersion
+          if (-not $version) {
+            if ($ref -like "refs/tags/beta-v*") {
+              $version = $refName.Substring("beta-v".Length)
+            } elseif ($ref -like "refs/tags/v*") {
+              $version = $refName.Substring(1)
+            } else {
+              $version = "0.1.0"
+            }
+          }
+
+          Write-Host "BUILD_ENV=$envType"
+          Write-Host "APP_VERSION=$version"
+          "BUILD_ENV=$envType" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Setup Node.js
         uses: actions/setup-node@v5

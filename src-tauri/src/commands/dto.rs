@@ -68,7 +68,9 @@ impl From<Reminder> for ReminderResponse {
             recurrence_frequency: r.recurrence_frequency,
             recurrence_interval: r.recurrence_interval,
             custom_recurrence_unit: r.custom_recurrence_unit,
-            recurrence_end_date: r.recurrence_end_date.map(|d| d.format("%Y-%m-%d").to_string()),
+            recurrence_end_date: r
+                .recurrence_end_date
+                .map(|d| d.format("%Y-%m-%d").to_string()),
             remind_before_value: r.remind_before_value,
             remind_before_unit: r.remind_before_unit,
             tags: Vec::new(),

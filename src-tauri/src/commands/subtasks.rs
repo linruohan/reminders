@@ -1,4 +1,4 @@
-use tauri::{command, State};
+use tauri::{State, command};
 
 use crate::database::connection::Database;
 use crate::repository::subtask::SubtaskRepository;
@@ -45,11 +45,7 @@ pub fn update_subtask(
     let repo = SubtaskRepository::new(get_conn(&db));
     let id = parse_uuid(&request.id)?;
     let updated = repo
-        .update(
-            &id,
-            request.title.as_deref(),
-            request.is_completed,
-        )
+        .update(&id, request.title.as_deref(), request.is_completed)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Subtask not found".to_string())?;
     Ok(to_response(updated))

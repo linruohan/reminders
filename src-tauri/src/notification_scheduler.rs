@@ -50,11 +50,7 @@ pub fn start(app: AppHandle) {
     });
 }
 
-fn tick(
-    app: &AppHandle,
-    db: &Database,
-    notified: &Arc<Mutex<NotifiedMap>>,
-) -> Result<(), String> {
+fn tick(app: &AppHandle, db: &Database, notified: &Arc<Mutex<NotifiedMap>>) -> Result<(), String> {
     let repo = ReminderRepository::new(db.conn());
     let active = repo.get_active().map_err(|e| e.to_string())?;
     let now = Local::now();
@@ -192,9 +188,9 @@ fn due_notifications(
 fn due_datetime(reminder: &Reminder) -> Option<chrono::DateTime<Local>> {
     let date = reminder.end_date?;
     // 全天提醒：当天 09:00；有具体时间则用截止时间
-    let time = reminder.end_time.unwrap_or_else(|| {
-        chrono::NaiveTime::from_hms_opt(9, 0, 0).unwrap()
-    });
+    let time = reminder
+        .end_time
+        .unwrap_or_else(|| chrono::NaiveTime::from_hms_opt(9, 0, 0).unwrap());
     let naive = NaiveDateTime::new(date, time);
     Local.from_local_datetime(&naive).single()
 }
@@ -211,7 +207,9 @@ fn subtract_remind(
         "days" => due - ChronoDuration::days(v as i64),
         "weeks" => due - ChronoDuration::weeks(v as i64),
         "months" => due.checked_sub_months(Months::new(v)).unwrap_or(due),
-        "years" => due.checked_sub_months(Months::new(v.saturating_mul(12))).unwrap_or(due),
+        "years" => due
+            .checked_sub_months(Months::new(v.saturating_mul(12)))
+            .unwrap_or(due),
         _ => due,
     }
 }

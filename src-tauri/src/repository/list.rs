@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex};
 
-use rusqlite::{params, Connection, OptionalExtension, Result, Row};
+use rusqlite::{Connection, OptionalExtension, Result, Row, params};
 use uuid::Uuid;
 
-use crate::models::reminder::ReminderList;
 use super::lock_conn;
+use crate::models::reminder::ReminderList;
 
 pub struct ListRepository {
     conn: Arc<Mutex<Connection>>,
@@ -17,7 +17,8 @@ impl ListRepository {
 
     pub fn get_all(&self) -> Result<Vec<ReminderList>> {
         let conn = lock_conn(&self.conn)?;
-        let mut stmt = conn.prepare("SELECT id, name, color, icon FROM reminder_lists ORDER BY name")?;
+        let mut stmt =
+            conn.prepare("SELECT id, name, color, icon FROM reminder_lists ORDER BY name")?;
         let rows = stmt.query_map([], Self::row_to_list)?;
         rows.collect()
     }
@@ -48,14 +49,16 @@ impl ListRepository {
 
     pub fn get_by_id(&self, id: &Uuid) -> Result<Option<ReminderList>> {
         let conn = lock_conn(&self.conn)?;
-        let mut stmt = conn.prepare("SELECT id, name, color, icon FROM reminder_lists WHERE id = ?")?;
+        let mut stmt =
+            conn.prepare("SELECT id, name, color, icon FROM reminder_lists WHERE id = ?")?;
         stmt.query_row([id.to_string()], Self::row_to_list)
             .optional()
     }
 
     fn row_to_list(row: &Row) -> Result<ReminderList> {
         let id_str: String = row.get("id")?;
-        let id = Uuid::parse_str(&id_str).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
+        let id = Uuid::parse_str(&id_str)
+            .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
 
         Ok(ReminderList {
             id,

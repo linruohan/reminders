@@ -184,7 +184,9 @@ pub(crate) fn map_reminders_with_tags(
         "SELECT id, reminder_id, title, is_completed, sort_order FROM subtasks \
          WHERE reminder_id IN ({in_clause}) ORDER BY sort_order ASC, created_at ASC"
     );
-    let mut sub_stmt = conn_guard.prepare(&subtasks_sql).map_err(|e| e.to_string())?;
+    let mut sub_stmt = conn_guard
+        .prepare(&subtasks_sql)
+        .map_err(|e| e.to_string())?;
     let sub_rows = sub_stmt
         .query_map(rusqlite::params_from_iter(ids.iter()), map_subtask_row)
         .map_err(|e| e.to_string())?;

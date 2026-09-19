@@ -1,5 +1,5 @@
 use chrono::Local;
-use tauri::{command, State};
+use tauri::{State, command};
 
 use crate::database::connection::Database;
 use crate::models::reminder::{Priority, Reminder};

@@ -1,11 +1,11 @@
 use std::sync::{Arc, Mutex};
 
 use chrono::Local;
-use rusqlite::{params, Connection, Result};
+use rusqlite::{Connection, Result, params};
 use uuid::Uuid;
 
-use crate::models::subtask::Subtask;
 use super::lock_conn;
+use crate::models::subtask::Subtask;
 
 pub struct SubtaskRepository {
     conn: Arc<Mutex<Connection>>,
@@ -62,7 +62,9 @@ impl SubtaskRepository {
             None => return Ok(None),
         };
 
-        let new_title = title.map(|t| t.trim().to_string()).unwrap_or(existing.title);
+        let new_title = title
+            .map(|t| t.trim().to_string())
+            .unwrap_or(existing.title);
         let new_completed = is_completed.unwrap_or(existing.is_completed);
         let now = Local::now().to_rfc3339();
 

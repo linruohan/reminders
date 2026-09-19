@@ -1,4 +1,4 @@
-use tauri::{command, State};
+use tauri::{State, command};
 
 use crate::database::connection::Database;
 
@@ -59,10 +59,7 @@ pub fn rename_tag(
         return Err("标签不存在".to_string());
     }
 
-    Ok(TagResponse {
-        id,
-        name: new_name,
-    })
+    Ok(TagResponse { id, name: new_name })
 }
 
 #[command]

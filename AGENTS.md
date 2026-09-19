@@ -27,15 +27,18 @@ No test / lint / format scripts in package.json. TypeScript strict mode with `no
 ### GitHub Actions
 Automatic builds triggered on:
 - Push to `main`, `develop`, `release/**`, `beta/**`
+- Push tag matching `v*` (production) or `beta-v*` (beta)
 - Pull request to `main` or `develop`
 - Manual workflow dispatch
 
 ### Build Environments
-| Branch Pattern | Environment | Release Type |
-|---------------|-------------|--------------|
+| Trigger Pattern | Environment | Release Type |
+|-----------------|-------------|--------------|
 | `main` | production | Full release |
 | `release/**` | production | Full release |
+| tag `v*` | production | Full release (version from tag name) |
 | `beta/**` | beta | Pre-release |
+| tag `beta-v*` | beta | Pre-release (version from tag name) |
 | `develop` | development | Dev build |
 
 ### Optional GitHub Secrets

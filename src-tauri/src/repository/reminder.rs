@@ -1,11 +1,11 @@
 use std::sync::{Arc, Mutex};
 
 use chrono::{Local, NaiveDate, NaiveTime};
-use rusqlite::{params, Connection, OptionalExtension, Result, Row};
+use rusqlite::{Connection, OptionalExtension, Result, Row, params};
 use uuid::Uuid;
 
-use crate::models::reminder::{Priority, Reminder};
 use super::lock_conn;
+use crate::models::reminder::{Priority, Reminder};
 
 const REMINDER_FIELDS: &str = "id, title, description, created_date, created_time, end_date, end_time, is_all_day, is_completed, is_flagged, priority, list_id, created_at, updated_at, url, completion_date, recurrence_frequency, recurrence_interval, custom_recurrence_unit, recurrence_end_date, remind_before_value, remind_before_unit, owner_id, parent_id";
 
@@ -94,7 +94,8 @@ impl ReminderRepository {
 
     fn row_to_reminder(row: &Row) -> Result<Reminder> {
         let id_str: String = row.get("id")?;
-        let id = Uuid::parse_str(&id_str).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
+        let id = Uuid::parse_str(&id_str)
+            .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
 
         let created_date_str: Option<String> = row.get("created_date")?;
         let created_date = created_date_str
@@ -122,9 +123,13 @@ impl ReminderRepository {
         let list_id_str: Option<String> = row.get("list_id")?;
         let list_id = list_id_str.as_deref().and_then(|s| Uuid::parse_str(s).ok());
         let owner_id_str: Option<String> = row.get("owner_id").unwrap_or(None);
-        let owner_id = owner_id_str.as_deref().and_then(|s| Uuid::parse_str(s).ok());
+        let owner_id = owner_id_str
+            .as_deref()
+            .and_then(|s| Uuid::parse_str(s).ok());
         let parent_id_str: Option<String> = row.get("parent_id").unwrap_or(None);
-        let parent_id = parent_id_str.as_deref().and_then(|s| Uuid::parse_str(s).ok());
+        let parent_id = parent_id_str
+            .as_deref()
+            .and_then(|s| Uuid::parse_str(s).ok());
 
         let created_at_str: String = row.get("created_at")?;
         let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_str)
@@ -146,7 +151,8 @@ impl ReminderRepository {
             .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
             .map(|d| d.with_timezone(&Local));
 
-        let recurrence_end_date_str: Option<String> = row.get("recurrence_end_date").unwrap_or(None);
+        let recurrence_end_date_str: Option<String> =
+            row.get("recurrence_end_date").unwrap_or(None);
         let recurrence_end_date = recurrence_end_date_str
             .as_deref()
             .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok());
